@@ -21,8 +21,8 @@ async function bootstrap() {
   // Allow requests from Figma plugins (origin: null) and web origins
   app.enableCors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, Figma plugins, curl, Postman)
-      if (!origin) {
+      // Allow requests with no origin OR origin === 'null' string (Figma plugins)
+      if (!origin || origin === 'null') {
         return callback(null, true);
       }
       

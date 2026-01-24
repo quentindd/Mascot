@@ -1,0 +1,16 @@
+{
+  "name": "Mascot",
+  "id": "mascot",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "editorType": ["figma"],
+  "networkAccess": {
+    "allowedDomains": [
+      "https://arthralgic-gruffy-bettina.ngrok-free.dev"
+    ]
+  },
+  "permissions": [
+    "currentuser"
+  ]
+}

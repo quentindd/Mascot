@@ -1,0 +1,35 @@
+===========================================
+🎉 VOTRE API TOKEN MASCOT
+===========================================
+
+Token:
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InRlc3RAbWFzY290LmxvY2FsIiwic3ViIjoiZTBhNGYzNWYtOWY2ZC00YzA5LTgzNmQtYjE1NDljMmQ4YzM3IiwiaWF0IjoxNzY5MjU5NTA0LCJleHAiOjE3Njk4NjQzMDR9.0jIH1BgUar4J7Rw4lwvWwkUbSwIOPidLcsK1-0iOPPw
+
+Compte:
+- Email: test@mascot.local
+- Mot de passe: MascotTest123!
+- Plan: Free
+- Crédits: 1
+
+===========================================
+📋 UTILISATION DANS LE PLUGIN FIGMA
+===========================================
+
+1. Ouvrez Figma
+2. Allez dans : Plugins → Development → Mascot
+3. Si le plugin n'est pas chargé, uploadez manifest.json depuis :
+   /Users/quentin/Documents/Mascot/figma-plugin/manifest.json
+4. Cliquez sur "Sign In with API Token"
+5. Collez ce token :
+   eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InRlc3RAbWFzY290LmxvY2FsIiwic3ViIjoiZTBhNGYzNWYtOWY2ZC00YzA5LTgzNmQtYjE1NDljMmQ4YzM3IiwiaWF0IjoxNzY5MjU5NTA0LCJleHAiOjE3Njk4NjQzMDR9.0jIH1BgUar4J7Rw4lwvWwkUbSwIOPidLcsK1-0iOPPw
+
+===========================================
+⚠️  IMPORTANT
+===========================================
+
+- Le token expire dans 7 jours
+- Gardez le terminal ngrok ouvert
+- Gardez le terminal backend ouvert
+- Ne partagez pas ce token
+
+===========================================

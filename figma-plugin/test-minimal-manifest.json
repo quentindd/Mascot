@@ -1,0 +1,8 @@
+{
+  "name": "MascotForge Test",
+  "id": "mascotforge-test",
+  "api": "1.0.0",
+  "main": "test-minimal-code.js",
+  "ui": "test-minimal.html",
+  "editorType": ["figma"]
+}

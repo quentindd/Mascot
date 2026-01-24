@@ -32,7 +32,7 @@ export class DatabaseConfig implements TypeOrmOptionsFactory {
         LogoPack,
         GenerationJob,
       ],
-      synchronize: this.configService.get('NODE_ENV') === 'development',
+      synchronize: true, // Force table creation in production (temporary)
       logging: this.configService.get('NODE_ENV') === 'development',
       migrations: ['dist/migrations/*.js'],
       migrationsRun: false,

@@ -18,12 +18,41 @@ async function bootstrap() {
   );
 
   // CORS configuration
+  // Allow requests from Figma plugins (origin: null) and web origins
   app.enableCors({
-    origin: [
-      configService.get('FRONTEND_URL'),
-      'https://www.figma.com',
-      'https://figma.com',
-    ],
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, Figma plugins, curl, Postman)
+      if (!origin) {
+        return callback(null, true);
+      }
+      
+      // Allow specific origins
+      const allowedOrigins = [
+        configService.get('FRONTEND_URL'),
+        'https://www.figma.com',
+        'https://figma.com',
+        /\.figma\.com$/, // All Figma subdomains
+      ];
+      
+      const isAllowed = allowedOrigins.some(allowed => {
+        if (allowed instanceof RegExp) {
+          return allowed.test(origin);
+        }
+        return allowed === origin;
+      });
+      
+      if (isAllowed) {
+        callback(null, true);
+      } else {
+        // For development, allow all origins
+        // In production, you should restrict this
+        if (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
+        }
+      }
+    },
     credentials: true,
   });
 

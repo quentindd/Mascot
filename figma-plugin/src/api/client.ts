@@ -103,6 +103,7 @@ export class MascotAPI {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${this.token}`,
+      'ngrok-skip-browser-warning': 'true', // Bypass ngrok warning page
     };
     
     // Merge custom headers if provided
@@ -145,13 +146,21 @@ export class MascotAPI {
     limit?: number;
     figmaFileId?: string;
   }): Promise<PaginatedResponse<MascotResponse>> {
-    const query = new URLSearchParams();
-    if (params && params.page) query.set('page', params.page.toString());
-    if (params && params.limit) query.set('limit', params.limit.toString());
-    if (params && params.figmaFileId) query.set('figmaFileId', params.figmaFileId);
-
+    // Build query string manually (URLSearchParams not available in Figma)
+    const queryParts: string[] = [];
+    if (params && params.page) {
+      queryParts.push('page=' + params.page.toString());
+    }
+    if (params && params.limit) {
+      queryParts.push('limit=' + params.limit.toString());
+    }
+    if (params && params.figmaFileId) {
+      queryParts.push('figmaFileId=' + encodeURIComponent(params.figmaFileId));
+    }
+    
+    const queryString = queryParts.length > 0 ? '?' + queryParts.join('&') : '';
     return this.request<PaginatedResponse<MascotResponse>>(
-      `/mascots?${query.toString()}`
+      '/mascots' + queryString
     );
   }
 

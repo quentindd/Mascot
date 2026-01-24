@@ -39,15 +39,33 @@ figma.ui.onmessage = async (msg) => {
     switch (msg.type) {
       case 'init':
         // Initialize with auth token
-        if (msg.token && msg.token.trim()) {
-          apiClient = new MascotAPI(msg.token.trim());
+        console.log('[Mascot Code] Received init message');
+        console.log('[Mascot Code] msg.type:', msg.type);
+        console.log('[Mascot Code] msg.data:', msg.data);
+        console.log('[Mascot Code] msg.token:', msg.token);
+        
+        // Try to get token from different possible locations
+        let authToken = null;
+        if (msg.data && msg.data.token) {
+          authToken = msg.data.token;
+        } else if (msg.token) {
+          authToken = msg.token;
+        }
+        
+        console.log('[Mascot Code] Token received:', authToken ? `${authToken.substring(0, 20)}...` : 'null');
+        if (authToken && authToken.trim()) {
+          const trimmedToken = authToken.trim();
+          apiClient = new MascotAPI(trimmedToken);
           // Store token in clientStorage
-          await figma.clientStorage.setAsync('mascot_token', msg.token.trim());
-          console.log('[Mascot] Authenticated with API token');
+          await figma.clientStorage.setAsync('mascot_token', trimmedToken);
+          console.log('[Mascot Code] Authenticated with API token, apiClient created');
+          console.log('[Mascot Code] apiClient is now:', apiClient ? 'INITIALIZED' : 'NULL');
         } else {
+          console.error('[Mascot Code] Invalid token received');
           rpc.send('error', { message: 'Invalid token. Please provide a valid API token.' });
           return;
         }
+        console.log('[Mascot Code] Sending init-complete');
         rpc.send('init-complete', { success: true });
         break;
 
@@ -100,13 +118,17 @@ async function handleGenerateMascot(data: {
   referenceImageUrl?: string;
 }) {
   // Require authentication
+  console.log('[Mascot Code] handleGenerateMascot called');
+  console.log('[Mascot Code] apiClient status:', apiClient ? 'INITIALIZED' : 'NULL');
   if (!apiClient) {
+    console.error('[Mascot Code] No apiClient, user not authenticated');
     rpc.send('error', { 
       message: 'Please sign in to generate mascots. Click "Sign In with API Token" to authenticate.' 
     });
     figma.notify('Please sign in to generate mascots');
     return;
   }
+  console.log('[Mascot Code] apiClient OK, proceeding with generation');
 
   const figmaFileId = figma.fileKey || 'local';
   rpc.send('mascot-generation-started', { name: data.name });
@@ -398,8 +420,8 @@ async function handleGetMascots() {
   }
 
   try {
-    const figmaFileId = figma.fileKey || 'local';
-    const mascots = await apiClient.getMascots({ figmaFileId });
+    // Don't filter by figmaFileId - get all mascots for this user
+    const mascots = await apiClient.getMascots();
     rpc.send('mascots-loaded', { mascots: mascots.data });
   } catch (error) {
     handleError(error, 'get-mascots');

@@ -15,6 +15,8 @@ export const App: React.FC = () => {
   const [credits, setCredits] = useState<number | null>(null);
   const [selectedMascot, setSelectedMascot] = useState<any>(null);
   const [mascots, setMascots] = useState<any[]>([]);
+  const [tokenInput, setTokenInput] = useState<string>('');
+  const [showTokenInput, setShowTokenInput] = useState(false);
 
   const rpc = new RPCClient();
 
@@ -79,16 +81,29 @@ export const App: React.FC = () => {
   };
 
   const handleLogin = async () => {
-    // In production, this would open a web auth flow
-    // For now, prompt for token
-    const token = prompt('Enter your API token:\n\nYou can get your API token from:\nhttps://mascot.com/dashboard/api-keys');
-    if (token && token.trim()) {
+    console.log('[Mascot] Sign In button clicked, showing token input');
+    setShowTokenInput(true);
+  };
+
+  const handleTokenSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log('[Mascot] Token submitted');
+    if (tokenInput && tokenInput.trim()) {
+      console.log('[Mascot] Valid token, authenticating...');
+      console.log('[Mascot] Token length:', tokenInput.trim().length);
       // Token will be stored in figma.clientStorage by the plugin code
-      setToken(token.trim());
-      setIsAuthenticated(true);
-      rpc.send('init', { token: token.trim() });
-    } else if (token !== null) {
-      // User cancelled or entered empty token
+      const trimmedToken = tokenInput.trim();
+      setToken(trimmedToken);
+      console.log('[Mascot] Sending init message with token');
+      rpc.send('init', { token: trimmedToken });
+      console.log('[Mascot] Init message sent, waiting for response...');
+      // Wait for init-complete before showing authenticated state
+      setTimeout(() => {
+        console.log('[Mascot] Setting authenticated to true');
+        setIsAuthenticated(true);
+      }, 100);
+    } else {
+      console.log('[Mascot] Empty token');
       alert('Please enter a valid API token to generate real mascots.');
     }
   };
@@ -99,28 +114,62 @@ export const App: React.FC = () => {
         <div className="auth-screen">
           <h2>Mascot</h2>
           <p>AI mascot generation for Figma</p>
-          <button onClick={handleLogin} className="btn-primary" style={{ width: '100%' }}>
-            Sign In with API Token
-          </button>
-          <div className="auth-hint" style={{ marginTop: '16px', fontSize: '11px', color: '#666', lineHeight: '1.5' }}>
-            <div style={{ marginBottom: '12px' }}>
-              <strong>🔐 Authentication Required</strong>
-              <br />
-              You need an API token to generate mascots, animations, and logos.
-            </div>
-            <div style={{ marginBottom: '12px', padding: '12px', background: '#f8f8f8', borderRadius: '6px', border: '1px solid #e5e5e5' }}>
-              <strong>Get your API token:</strong>
-              <br />
-              <a href="https://mascot.com/dashboard/api-keys" target="_blank" style={{ color: '#18a0fb', textDecoration: 'none' }}>
-                → mascot.com/dashboard/api-keys
-              </a>
-            </div>
-            <div style={{ textAlign: 'center', marginTop: '16px' }}>
-              <a href="https://mascot.com/signup" target="_blank" style={{ color: '#18a0fb', fontSize: '11px' }}>
-                Don't have an account? Sign up →
-              </a>
-            </div>
-          </div>
+          
+          {!showTokenInput ? (
+            <>
+              <button onClick={handleLogin} className="btn-primary" style={{ width: '100%' }}>
+                Sign In with API Token
+              </button>
+              <div className="auth-hint" style={{ marginTop: '16px', fontSize: '11px', color: '#666', lineHeight: '1.5' }}>
+                <div style={{ marginBottom: '12px' }}>
+                  <strong>🔐 Authentication Required</strong>
+                  <br />
+                  You need an API token to generate mascots, animations, and logos.
+                </div>
+                <div style={{ marginBottom: '12px', padding: '12px', background: '#f8f8f8', borderRadius: '6px', border: '1px solid #e5e5e5' }}>
+                  <strong>Get your API token:</strong>
+                  <br />
+                  <a href="https://arthralgic-gruffy-bettina.ngrok-free.dev" target="_blank" style={{ color: '#18a0fb', textDecoration: 'none' }}>
+                    → Open backend API
+                  </a>
+                </div>
+              </div>
+            </>
+          ) : (
+            <form onSubmit={handleTokenSubmit} style={{ width: '100%' }}>
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: 500 }}>
+                  API Token:
+                </label>
+                <textarea
+                  value={tokenInput}
+                  onChange={(e) => setTokenInput(e.target.value)}
+                  placeholder="Paste your API token here..."
+                  style={{
+                    width: '100%',
+                    minHeight: '80px',
+                    padding: '8px',
+                    fontSize: '11px',
+                    fontFamily: 'monospace',
+                    border: '1px solid #ccc',
+                    borderRadius: '4px',
+                    resize: 'vertical',
+                  }}
+                  autoFocus
+                />
+              </div>
+              <button type="submit" className="btn-primary" style={{ width: '100%', marginBottom: '8px' }}>
+                Continue
+              </button>
+              <button 
+                type="button" 
+                onClick={() => setShowTokenInput(false)} 
+                style={{ width: '100%', padding: '8px', background: '#fff', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer' }}
+              >
+                Back
+              </button>
+            </form>
+          )}
         </div>
       </div>
     );

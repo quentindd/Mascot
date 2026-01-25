@@ -32,6 +32,10 @@ async function bootstrap() {
         'https://www.figma.com',
         'https://figma.com',
         /\.figma\.com$/, // All Figma subdomains
+        'https://railway.app',
+        'https://railway.com',
+        /\.railway\.app$/, // All Railway subdomains
+        /\.railway\.com$/, // All Railway.com subdomains
       ];
       
       const isAllowed = allowedOrigins.some(allowed => {
@@ -44,9 +48,13 @@ async function bootstrap() {
       if (isAllowed) {
         callback(null, true);
       } else {
-        // For development, allow all origins
+        // For development or if ALLOW_ALL_ORIGINS is set, allow all origins
         // In production, you should restrict this
-        if (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) {
+        const allowAllOrigins = process.env.ALLOW_ALL_ORIGINS === 'true' || 
+                                process.env.NODE_ENV === 'development' || 
+                                !process.env.NODE_ENV;
+        
+        if (allowAllOrigins) {
           callback(null, true);
         } else {
           callback(new Error('Not allowed by CORS'));

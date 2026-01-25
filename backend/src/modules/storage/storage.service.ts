@@ -9,11 +9,19 @@ export class StorageService {
   private cdnBaseUrl: string;
 
   constructor(private configService: ConfigService) {
+    const region = this.configService.get('AWS_REGION') || 'us-east-1';
+    const accessKeyId = this.configService.get('AWS_ACCESS_KEY_ID');
+    const secretAccessKey = this.configService.get('AWS_SECRET_ACCESS_KEY');
+    
+    if (!accessKeyId || !secretAccessKey) {
+      console.warn('[StorageService] AWS credentials not configured. Image uploads will fail.');
+    }
+    
     this.s3Client = new S3Client({
-      region: this.configService.get('AWS_REGION'),
+      region: region,
       credentials: {
-        accessKeyId: this.configService.get('AWS_ACCESS_KEY_ID'),
-        secretAccessKey: this.configService.get('AWS_SECRET_ACCESS_KEY'),
+        accessKeyId: accessKeyId,
+        secretAccessKey: secretAccessKey,
       },
     });
     this.bucket = this.configService.get('AWS_S3_BUCKET');

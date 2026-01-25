@@ -226,22 +226,43 @@ export class GeminiFlashService implements OnModuleInit {
       }
       
       // Try different paths for image data
+      // Gemini Flash can return text + image, so we need to search through all parts
       let imageData: string | null = null;
       
-      // Path 1: candidate.content.parts[0].inlineData.data
-      if (candidate.content?.parts?.[0]?.inlineData?.data) {
-        imageData = candidate.content.parts[0].inlineData.data;
-        this.logger.log('Found image data in candidate.content.parts[0].inlineData.data');
+      // Search in candidate.content.parts (most common)
+      if (candidate.content?.parts) {
+        for (let i = 0; i < candidate.content.parts.length; i++) {
+          const part = candidate.content.parts[i];
+          if (part.inlineData?.data && part.inlineData.mimeType?.startsWith('image/')) {
+            imageData = part.inlineData.data;
+            this.logger.log(`Found image data in candidate.content.parts[${i}].inlineData.data`);
+            break;
+          }
+        }
       }
-      // Path 2: candidate.parts[0].inlineData.data
-      else if (candidate.parts?.[0]?.inlineData?.data) {
-        imageData = candidate.parts[0].inlineData.data;
-        this.logger.log('Found image data in candidate.parts[0].inlineData.data');
+      
+      // If not found, try candidate.parts
+      if (!imageData && candidate.parts) {
+        for (let i = 0; i < candidate.parts.length; i++) {
+          const part = candidate.parts[i];
+          if (part.inlineData?.data && part.inlineData.mimeType?.startsWith('image/')) {
+            imageData = part.inlineData.data;
+            this.logger.log(`Found image data in candidate.parts[${i}].inlineData.data`);
+            break;
+          }
+        }
       }
-      // Path 3: response.response.parts[0].inlineData.data
-      else if (response.response?.parts?.[0]?.inlineData?.data) {
-        imageData = response.response.parts[0].inlineData.data;
-        this.logger.log('Found image data in response.response.parts[0].inlineData.data');
+      
+      // If still not found, try response.response.parts
+      if (!imageData && response.response?.parts) {
+        for (let i = 0; i < response.response.parts.length; i++) {
+          const part = response.response.parts[i];
+          if (part.inlineData?.data && part.inlineData.mimeType?.startsWith('image/')) {
+            imageData = part.inlineData.data;
+            this.logger.log(`Found image data in response.response.parts[${i}].inlineData.data`);
+            break;
+          }
+        }
       }
       
       if (!imageData) {
@@ -251,7 +272,9 @@ export class GeminiFlashService implements OnModuleInit {
       }
 
       this.logger.log(`Image data received, size: ${imageData.length} characters (base64)`);
-      return Buffer.from(imageData, 'base64');
+      const imageBuffer = Buffer.from(imageData, 'base64');
+      this.logger.log(`Image buffer created, size: ${imageBuffer.length} bytes`);
+      return imageBuffer;
     } catch (error) {
       this.logger.error('Gemini Flash generation failed:', error);
       this.logger.error('Error type:', error?.constructor?.name || 'Unknown');

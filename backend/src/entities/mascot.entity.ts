@@ -113,7 +113,7 @@ export class Mascot {
   @Column({ type: 'int', default: 1 })
   variationIndex: number; // Which variation (1-4) this is
 
-  @Column({ type: 'uuid', nullable: true })
+  @Column({ type: 'text', nullable: true })
   batchId: string; // Groups 4 variations together
 
   @Column({ nullable: true })

@@ -22,9 +22,14 @@ export class GeminiFlashService implements OnModuleInit {
 
   async onModuleInit() {
     this.logger.log('GeminiFlashService module initializing...');
-    this.initializationPromise = this.initialize();
-    await this.initializationPromise;
-    this.logger.log('GeminiFlashService module initialization complete');
+    try {
+      this.initializationPromise = this.initialize();
+      await this.initializationPromise;
+      this.logger.log(`GeminiFlashService module initialization complete. Initialized: ${this.initialized}`);
+    } catch (error) {
+      this.logger.error('Error in onModuleInit:', error);
+      this.logger.error('Error stack:', error instanceof Error ? error.stack : String(error));
+    }
   }
 
   private async initialize() {
@@ -80,10 +85,15 @@ export class GeminiFlashService implements OnModuleInit {
       this.vertexAI = new VertexAI(config);
       this.initialized = true;
       this.logger.log('Gemini 2.5 Flash Image service initialized successfully');
+      this.logger.log(`Service is now available: ${this.isAvailable()}`);
     } catch (error) {
       this.logger.error('Failed to initialize Gemini Flash service:', error);
-      this.logger.error('Error details:', error instanceof Error ? error.stack : String(error));
+      this.logger.error('Error type:', error?.constructor?.name || 'Unknown');
+      this.logger.error('Error message:', error instanceof Error ? error.message : String(error));
+      this.logger.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
       this.initialized = false;
+      // Re-throw to be caught by onModuleInit
+      throw error;
     }
   }
 

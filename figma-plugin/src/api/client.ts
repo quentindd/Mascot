@@ -1,15 +1,27 @@
 // API client for backend communication
 
-// For local development, change this to 'http://localhost:3000/api/v1'
-// Note: Plugins run in browser context, so we can't use process.env
-const API_BASE_URL = 'https://arthralgic-gruffy-bettina.ngrok-free.dev/api/v1';
+// Production URL (Railway deployment)
+const API_BASE_URL = 'https://mascot-production.up.railway.app/api/v1';
+
+// For local development, change to: 'http://localhost:3000/api/v1'
 
 export interface CreateMascotRequest {
   name: string;
   prompt: string;
   style: string;
+  type?: string;
+  personality?: string;
+  negativePrompt?: string;
+  accessories?: string[];
+  brandColors?: {
+    primary?: string;
+    secondary?: string;
+    tertiary?: string;
+  };
+  autoFillUrl?: string;
   referenceImageUrl?: string;
   figmaFileId?: string;
+  numVariations?: number;
 }
 
 export interface MascotResponse {
@@ -17,6 +29,20 @@ export interface MascotResponse {
   name: string;
   prompt: string;
   style: string;
+  type: string;
+  personality: string;
+  negativePrompt: string | null;
+  accessories: string[] | null;
+  brandColors: {
+    primary?: string;
+    secondary?: string;
+    tertiary?: string;
+  } | null;
+  autoFillUrl: string | null;
+  lifeStage: string | null;
+  parentMascotId: string | null;
+  variationIndex: number;
+  batchId: string | null;
   characterId: string | null;
   status: string;
   fullBodyImageUrl: string | null;
@@ -27,8 +53,25 @@ export interface MascotResponse {
   updatedAt: string;
 }
 
+export interface AutoFillRequest {
+  url: string;
+}
+
+export interface AutoFillResponse {
+  name: string;
+  description: string;
+  suggestedPrompt: string;
+  suggestedType: string;
+  brandColors?: {
+    primary?: string;
+    secondary?: string;
+    tertiary?: string;
+  };
+}
+
 export interface CreateAnimationRequest {
   action: string;
+  customAction?: string;
   resolution?: number;
   figmaFileId?: string;
 }
@@ -103,7 +146,6 @@ export class MascotAPI {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${this.token}`,
-      'ngrok-skip-browser-warning': 'true', // Bypass ngrok warning page
     };
     
     // Merge custom headers if provided
@@ -134,11 +176,37 @@ export class MascotAPI {
     return response.json();
   }
 
-  async createMascot(data: CreateMascotRequest): Promise<MascotResponse> {
-    return this.request<MascotResponse>('/mascots', {
+  async createMascot(data: CreateMascotRequest): Promise<MascotResponse[]> {
+    return this.request<MascotResponse[]>('/mascots', {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  }
+
+  async autoFill(data: AutoFillRequest): Promise<AutoFillResponse> {
+    return this.request<AutoFillResponse>('/mascots/auto-fill', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getBatchVariations(batchId: string): Promise<MascotResponse[]> {
+    return this.request<MascotResponse[]>(`/mascots/batch/${batchId}`);
+  }
+
+  async evolveMascot(mascotId: string, targetStage: string): Promise<MascotResponse> {
+    return this.request<MascotResponse>(`/mascots/${mascotId}/evolve`, {
+      method: 'POST',
+      body: JSON.stringify({ targetStage }),
+    });
+  }
+
+  async getEvolutionChain(mascotId: string): Promise<any> {
+    return this.request<any>(`/mascots/${mascotId}/evolution-chain`);
+  }
+
+  async getExportFormats(mascotId: string): Promise<any> {
+    return this.request<any>(`/mascots/${mascotId}/export-formats`);
   }
 
   async getMascots(params?: {

@@ -1,0 +1,65 @@
+═══════════════════════════════════════════════════════
+VARIABLES POUR RAILWAY - PRÊTES À COPIER
+═══════════════════════════════════════════════════════
+
+Copiez ces 3 variables dans Railway → Variables
+
+───────────────────────────────────────────────────────
+VARIABLE 1
+───────────────────────────────────────────────────────
+Nom: GOOGLE_CLOUD_PROJECT_ID
+Valeur: mascot-485416
+
+───────────────────────────────────────────────────────
+VARIABLE 2
+───────────────────────────────────────────────────────
+Nom: GOOGLE_CLOUD_CREDENTIALS
+Valeur: (copiez TOUTE la chaîne ci-dessous, sans espaces)
+
+ewogICJ0eXBlIjogInNlcnZpY2VfYWNjb3VudCIsCiAgInByb2plY3RfaWQiOiAibWFzY290LTQ4NTQxNiIsCiAgInByaXZhdGVfa2V5X2lkIjogIjJlYzBiZGQ3MmNkZThkZDY1YjE2ZmIyMDBkYjgwNTU2MWJhODI4OGQiLAogICJwcml2YXRlX2tleSI6ICItLS0tLUJFR0lOIFBSSVZBVEUgS0VZLS0tLS1cbk1JSUV2UUlCQURBTkJna3Foa2lHOXcwQkFRRUZBQVNDQktjd2dnU2pBZ0VBQW9JQkFRQ3BtZlhpcnVPRC93WXFcbm5XbWJtNlZOa3o1Z3J0NmJOOW9DNDdGaUxlM0NZcHVqcEtrVUtpcndnMXNXK1ZKb2ZYTVpGRUl2dmFWN1U3K21cbnE4cG1pYlljald3SVU5a0lUV3Joek81ejFab3VKam1MRlR2d1pTV3d2M2ZXeUNWbjd4WmxxZUJVWUhNWGlkbkVcbllBQVEvLzJjMHAyYUpKMlhMTEJrTDUxa3hoSUFEbGJSVzdQRkx1NlN2b2cvZ2QrRUJzOWloR0dnWDl1WnQveWNcbnVyOU9RWWU2aGlYaVQxQW5reXRwZmM2TDkyQURabmE3S2N3OU1qTi9UUlhnSElkUmN4M0x5UC85UDdXWTBLSzFcbnFPYmlPelNHaXVhZU4ybzhvYzdPbUltMkhTNjZESGlMbE9QZlJ3dUlmSEVIRE1RRDNseFhaUHQ3WjJJUUVwcTNcbnNsMjlrY0p6QWdNQkFBRUNnZ0VBT3lCZEMrOTdpdGRjRDN3OFJvN3ZCSW5xSzZ1YkdKTFNrc0pOWTFSdXVKOUdcbjhqaGo1NDlCMUFKL1BaV2k2S0dmZ0NWRFk4QmlVZ25pM1JpejRhWnQwaXR0ZDhPL2ZIajg0NFpkdFExSkNJQ3pcbisreGxyb3VjcGE5Q2VLTGpBNFpqRVFNMW5VVFlxdUtZaERFUnBOdVJ6MXZQck43Si85dUpEUXhhZXpqZ0twdERcbkdQL3J0WElpMXJBL25KZXB1dXhnYTdKMm9tVVRTOFJnYmZZMjNJSzRCeHVISzBoQy9FV3B1LzdrbS9UaHRwZnhcbmpJMVU0cTcxWDFsOW5DdHpVdEo2WDNjZXF3YjR5SlB4SkNIVzNDREhBUG1oZWs2Q1JXWFNIU3pxTjNwRzhlSmxcbmwzSEdQWVFoNEIyc0VhV2lyU3VZUmQxUkkvVGVCb3FYV1dmWUxHS3RaUUtCZ1FEbW94TXROV0dwL2E3L1RZSkdcblJTNE1TcVNWVDVwS01jNFg5V2pkbkxPdEFabnBsa0wveFdqQTlRVGhhQm54bkJlQ1N5anRaV0dUVy9nSXIwSmpcbm5nOU1vMzQvOEg2T0pHb3NDTWJLeWE2MEVib1dMemRBam1RSEZZWEVYd01IVEYyM0JLQVdqcXdsM09TRmVEV2JcbnlpR3ptMGhDVjhLdkJNbThSckVjMksvakJ3S0JnUUM4UUpwU3lySVRrYlF5UFVOYkI4QjdzaWRFOCtwenFpdTlcbnZGeFgzSmlmSjRTM3NtU1NGUDNRdXQxWTl3SEhDZkFMS1NiU1U4SDkxWWMwVDNJbzM5QXl1cEhkZDFmd01VSk5cbnNBYkJRUUh2NG00VmtyUmoxWTdFanNJakl0OFQ5VnRhbGVURzlXSWFBcWpEcnJBR3owTFFYenJIb3BUbE0vd0lcbm9nTWZzUit1TlFLQmdRQ0ZETWh3U1I1SlFaYWxvMkluQlp1MTdZMmFzU3hSNXY5OHBNOVZJU1FxQndWeVVvUGVcbkoxVHlFNmM0SGFUeDA5bGdDZG5YY2FmanFhZWg0dkVLcE5Fd3BoU2I4REloNy9IcjZ6ZzdIalFSbnpSWnZlMUNcbjZhSGMwRmExM1JYVExRUFhJK3p5ZG1YckJjNHpEUkRvQ2FoOWczUWhDWjIrOTZVbFh5YW5mSDJqR3dLQmdCeUlcbk9odWtSeHM2TVRLUUlINVNqWFR5Q291ajRId0paYm5MSzcvUldueDgwOXUzdVJCL0IvMHo1VXFQbllCYVhEeUVcbnp6Si9xVjVjbDdKdy9COS8xS0ZycjZIK2JhQ2xCcVNac2x4bUN2SWR3b3VZZ2FqRC9IQ0VKcDZHc1lMbjVDRzFcbnFFZ1RkdnYwUFRuelp4Q1JKMUpIckxRSFMwUDEvaFFjNGhaU2xUZWxBb0dBTFhwS2dHVVBlNGRhNlZkRnVsVkVcbkhDOGJRZDRkZzRJQ0hvU1M5aHljZTAzMCtVTUpqZkFDMFdIWFlBSXo2UnQwUVNDRERuaHJTcWI1eGo3TnhrRjVcblI1RVIzT3Iyc2h4NWxGb2RyUWIwdDVzNnZJRUxlbk1NV3V6eG9Sb25TelgySnJXMnFSL01yVktKYksrM1ZZN0JcblpkNVR4S1lQUXBKcm0zTHdqUVRCNDFzPVxuLS0tLS1FTkQgUFJJVkFURSBLRVktLS0tLVxuIiwKICAiY2xpZW50X2VtYWlsIjogIm1hc2NvdC1haS1nZW5lcmF0b3JAbWFzY290LTQ4NTQxNi5pYW0uZ3NlcnZpY2VhY2NvdW50LmNvbSIsCiAgImNsaWVudF9pZCI6ICIxMDM0NTMxMzY2MDU1NDE3NzIzMTIiLAogICJhdXRoX3VyaSI6ICJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20vby9vYXV0aDIvYXV0aCIsCiAgInRva2VuX3VyaSI6ICJodHRwczovL29hdXRoMi5nb29nbGVhcGlzLmNvbS90b2tlbiIsCiAgImF1dGhfcHJvdmlkZXJfeDUwOV9jZXJ0X3VybCI6ICJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9vYXV0aDIvdjEvY2VydHMiLAogICJjbGllbnRfeDUwOV9jZXJ0X3VybCI6ICJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9yb2JvdC92MS9tZXRhZGF0YS94NTA5L21hc2NvdC1haS1nZW5lcmF0b3IlNDBtYXNjb3QtNDg1NDE2LmlhbS5nc2VydmljZWFjY291bnQuY29tIiwKICAidW5pdmVyc2VfZG9tYWluIjogImdvb2dsZWFwaXMuY29tIgp9Cg==
+
+───────────────────────────────────────────────────────
+VARIABLE 3
+───────────────────────────────────────────────────────
+Nom: GOOGLE_CLOUD_LOCATION
+Valeur: us-central1
+
+═══════════════════════════════════════════════════════
+INSTRUCTIONS POUR RAILWAY
+═══════════════════════════════════════════════════════
+
+1. Allez sur https://railway.app
+2. Sélectionnez votre projet "Mascot"
+3. Cliquez sur l'onglet "Variables" (en haut)
+4. Cliquez sur "New Variable" (ou le bouton "+")
+5. Ajoutez les 3 variables une par une :
+
+   Variable 1:
+   - Nom: GOOGLE_CLOUD_PROJECT_ID
+   - Valeur: mascot-485416
+   - Cliquez sur "Add"
+
+   Variable 2:
+   - Nom: GOOGLE_CLOUD_CREDENTIALS
+   - Valeur: (collez TOUTE la chaîne Base64 ci-dessus)
+   - Cliquez sur "Add"
+
+   Variable 3:
+   - Nom: GOOGLE_CLOUD_LOCATION
+   - Valeur: us-central1
+   - Cliquez sur "Add"
+
+6. Une fois les 3 variables ajoutées, Railway redéploiera automatiquement
+
+═══════════════════════════════════════════════════════
+⚠️ IMPORTANT
+═══════════════════════════════════════════════════════
+
+- Pour GOOGLE_CLOUD_CREDENTIALS, copiez TOUTE la chaîne Base64
+  (c'est une très longue chaîne, sans espaces ni retours à la ligne)
+  
+- Assurez-vous qu'il n'y a pas d'espaces avant/après les valeurs
+
+- Après avoir ajouté les variables, vérifiez que Railway redéploie
+
+═══════════════════════════════════════════════════════

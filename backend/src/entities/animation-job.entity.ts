@@ -11,16 +11,19 @@ import { Mascot } from './mascot.entity';
 import { User } from './user.entity';
 
 export enum AnimationAction {
+  WALK = 'walk',
   WAVE = 'wave',
+  JUMP = 'jump',
+  DANCE = 'dance',
+  IDLE = 'idle',
+  RUN = 'run',
   CELEBRATE = 'celebrate',
   THINK = 'think',
   SLEEP = 'sleep',
   SAD = 'sad',
   EXERCISE = 'exercise',
   BACKFLIP = 'backflip',
-  DANCE = 'dance',
-  JUMP = 'jump',
-  IDLE = 'idle',
+  CUSTOM = 'custom', // For custom actions
 }
 
 export enum AnimationStatus {
@@ -51,6 +54,9 @@ export class AnimationJob {
 
   @Column({ type: 'enum', enum: AnimationAction })
   action: AnimationAction;
+
+  @Column({ type: 'text', nullable: true })
+  customAction: string; // Free-form custom action when action = CUSTOM (e.g., "playing guitar", "doing a backflip")
 
   @Column({ type: 'enum', enum: AnimationStatus, default: AnimationStatus.PENDING })
   status: AnimationStatus;

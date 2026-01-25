@@ -83,6 +83,10 @@ figma.ui.onmessage = async (msg) => {
         await handleGenerateMascot(msg.data);
         break;
 
+      case 'auto-fill':
+        await handleAutoFill(msg.data);
+        break;
+
       case 'generate-animation':
         await handleGenerateAnimation(msg.data);
         break;
@@ -111,12 +115,7 @@ figma.ui.onmessage = async (msg) => {
   }
 };
 
-async function handleGenerateMascot(data: {
-  name: string;
-  prompt: string;
-  style: string;
-  referenceImageUrl?: string;
-}) {
+async function handleGenerateMascot(data: any) {
   // Require authentication
   console.log('[Mascot Code] handleGenerateMascot called');
   console.log('[Mascot Code] apiClient status:', apiClient ? 'INITIALIZED' : 'NULL');
@@ -134,34 +133,54 @@ async function handleGenerateMascot(data: {
   rpc.send('mascot-generation-started', { name: data.name });
 
   try {
-    const mascot = await apiClient.createMascot({
+    const variations = await apiClient.createMascot({
       name: data.name,
       prompt: data.prompt,
       style: data.style,
+      type: data.type,
+      personality: data.personality,
+      negativePrompt: data.negativePrompt,
+      accessories: data.accessories,
+      brandColors: data.brandColors,
+      autoFillUrl: data.autoFillUrl,
       referenceImageUrl: data.referenceImageUrl,
+      numVariations: data.numVariations || 3,
       figmaFileId,
     });
 
-    rpc.send('mascot-generated', { mascot });
+    console.log('[Mascot] Generated variations:', variations);
 
-    // Auto-insert the full body image if available
-    if (mascot.fullBodyImageUrl) {
-      try {
-        console.log('[Mascot] Auto-inserting mascot image:', mascot.fullBodyImageUrl);
-        await insertImageFromUrl(mascot.fullBodyImageUrl, mascot.name);
-        figma.notify(`✅ Mascot "${mascot.name}" inserted in Figma!`);
-      } catch (error) {
-        console.error('[Mascot] Failed to auto-insert image:', error);
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        figma.notify(`⚠️ Mascot created but image insertion failed: ${errorMsg}`);
-      }
-    } else {
-      console.warn('[Mascot] No fullBodyImageUrl in mascot response:', mascot);
-      figma.notify(`⚠️ Mascot "${mascot.name}" created but no image URL available`);
-    }
+    // Send all variations to UI
+    rpc.send('mascot-generated', { 
+      mascot: variations[0],
+      variations: variations 
+    });
+
+    figma.notify(`✅ Generated ${variations.length} variation(s)! Select one in the plugin.`);
   } catch (error) {
     handleError(error, 'generate-mascot');
     rpc.send('mascot-generation-failed', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+}
+
+async function handleAutoFill(data: { url: string }) {
+  if (!apiClient) {
+    rpc.send('auto-fill-failed', { 
+      error: 'Please sign in to use auto-fill.' 
+    });
+    figma.notify('Please sign in to use auto-fill');
+    return;
+  }
+
+  try {
+    const result = await apiClient.autoFill({ url: data.url });
+    rpc.send('auto-fill-complete', result);
+    figma.notify('✅ Auto-filled from URL!');
+  } catch (error) {
+    handleError(error, 'auto-fill');
+    rpc.send('auto-fill-failed', {
       error: error instanceof Error ? error.message : 'Unknown error',
     });
   }

@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MascotsController } from './mascots.controller';
 import { MascotsService } from './mascots.service';
+import { AutoFillService } from './auto-fill.service';
+import { CodeSnippetService } from './code-snippet.service';
 import { Mascot } from '../../entities/mascot.entity';
 import { GenerationJob } from '../../entities/generation-job.entity';
 import { CreditsModule } from '../credits/credits.module';
@@ -16,7 +18,7 @@ import { JobsModule } from '../jobs/jobs.module';
     JobsModule,
   ],
   controllers: [MascotsController],
-  providers: [MascotsService],
+  providers: [MascotsService, AutoFillService, CodeSnippetService],
   exports: [MascotsService],
 })
 export class MascotsModule {}

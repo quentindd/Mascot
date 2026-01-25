@@ -23,13 +23,39 @@
     <script>
       console.log('[Mascot] ui.html loaded, DOM ready');
       console.log('[Mascot] About to load ui.js...');
+      
+      // Ignore Figma's internal errors that might block our script
       window.addEventListener('error', function(e) {
+        if (e.filename && e.filename.includes('data:text/html')) {
+          console.log('[Mascot] Ignoring Figma internal error');
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }
         console.error('[Mascot] Script error:', e.message, e.filename, e.lineno);
+      }, true); // Use capture phase to catch errors early
+      
+      window.addEventListener('unhandledrejection', function(e) {
+        console.error('[Mascot] Unhandled promise rejection:', e.reason);
       });
+      
+      // Force script execution after a small delay to ensure DOM is ready
+      setTimeout(function() {
+        console.log('[Mascot] DOM ready, scripts should execute now');
+      }, 10);
     </script>
     <!-- ui.js will be inlined here during build -->
     <script>
-      console.log('[Mascot] ui.js script tag executed (file may or may not have loaded)');
+      console.log('[Mascot] Waiting for ui.js to execute...');
+      
+      // Check if script loaded after a delay
+      setTimeout(function() {
+        var root = document.getElementById('root');
+        if (root && !root.hasChildNodes()) {
+          console.warn('[Mascot] Root element exists but React app not mounted!');
+          console.warn('[Mascot] ui.js may not have executed');
+        }
+      }, 3000);
     </script>
   </body>
 </html>

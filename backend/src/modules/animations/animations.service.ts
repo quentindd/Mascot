@@ -25,6 +25,7 @@ export class AnimationsService {
       mascotId,
       createdById: userId,
       action: dto.action,
+      customAction: dto.customAction,
       resolution: dto.resolution || 360,
       status: AnimationStatus.PENDING,
     });

@@ -1,0 +1,47 @@
+# 🎉 BACKEND PRODUCTION - MASCOT
+
+URL de production : https://mascot-production.up.railway.app
+
+## 📝 Compte de production créé avec succès !
+
+**Email** : prod@mascot.app
+**Mot de passe** : MascotProd2026!
+**Plan** : Free (1 crédit)
+
+## 🔑 API Token (à utiliser dans le plugin Figma)
+
+**Compte 1 : prod@mascot.app** (épuisé - 0 crédit)
+```
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InByb2RAbWFzY290LmFwcCIsInN1YiI6IjdlNjgzMjMyLTljOTktNGRhMS1hYWI0LTcyMGY1YWQyZWM0ZiIsImlhdCI6MTc2OTI3MTQwMSwiZXhwIjoxNzY5ODc2MjAxfQ.YiXaGB_H3xv-5IqF29DpODDWI-e-_dM0aX5gbUlZgl8
+```
+
+**Compte 2 : test@mascot.app** (ACTIF - 1 crédit)
+```
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InRlc3RAbWFzY290LmFwcCIsInN1YiI6IjMzZWJmMzk1LWNlMGEtNDNlNi05ZjZkLTE5ZWM3MDFkNDllZSIsImlhdCI6MTc2OTI3MjYxNiwiZXhwIjoxNzY5ODc3NDE2fQ.yIc5-mZNVgI6SvQIO_lbCuj4SOFm8_rAUad9v6vbYEE
+```
+
+## 🚀 Comment tester dans Figma
+
+1. Ouvrez Figma
+2. Lancez le plugin "Mascot"
+3. Cliquez sur "Sign In"
+4. Collez le token ci-dessus
+5. Générez votre premier mascot !
+
+## ⚠️ Note importante
+
+Le compte a **1 crédit** (plan Free), donc vous pouvez générer **1 mascot**.
+Pour plus de crédits, il faudra implémenter le système de paiement Stripe ou manuellement ajouter des crédits dans la base de données.
+
+---
+
+## ✅ Déploiement terminé !
+
+- ✅ Backend déployé sur Railway
+- ✅ PostgreSQL connecté
+- ✅ Redis connecté  
+- ✅ Tables créées automatiquement
+- ✅ Compte de production créé
+- ✅ Token API généré
+
+Vous pouvez maintenant tester le plugin dans des conditions réelles !

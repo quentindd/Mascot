@@ -6,16 +6,99 @@ This document outlines recommended AI models and providers for achieving Masko-l
 
 ## 1. Image Generation (Mascots)
 
-### Primary Recommendation: Stable Diffusion XL (SDXL) + LoRA
+### 🏆 Primary Recommendation: Google Imagen 4 (via Vertex AI)
 
-**Why SDXL:**
+**Why Imagen 4:**
+- **Superior quality**: Best-in-class prompt understanding and image coherence
+- **Native character consistency**: Built-in support for maintaining character identity across generations
+- **Excellent style handling**: Handles kawaii, cartoon, 3D, flat, pixel art styles naturally
+- **Fast generation**: Optimized inference pipeline
+- **Enterprise-grade**: Google Cloud infrastructure, reliable and scalable
+- **Perfect for mascots**: Designed for character generation use cases
+
+**Provider: Google Cloud Vertex AI**
+- API: `https://cloud.google.com/vertex-ai`
+- Model: `imagegeneration@006` (Imagen 4)
+- Pros: 
+  - Highest quality output
+  - Native character consistency features
+  - Excellent prompt following
+  - Reliable Google Cloud infrastructure
+  - Built-in safety filters
+- Cons: 
+  - Requires Google Cloud account setup
+  - Slightly higher cost than SDXL
+  - Less fine-tuning control than open-source models
+- Cost: ~$0.01-0.02 per image (1024×1024)
+- Setup: Requires Google Cloud project + Vertex AI API enabled
+
+**Implementation:**
+```typescript
+import { VertexAI } from '@google-cloud/vertexai';
+
+const vertexAI = new VertexAI({
+  project: process.env.GOOGLE_CLOUD_PROJECT_ID,
+  location: 'us-central1',
+});
+
+const model = 'imagegeneration@006';
+
+async function generateMascotWithImagen4(
+  prompt: string,
+  style: string,
+  brandColors?: { primary?: string; secondary?: string },
+  negativePrompt?: string
+) {
+  const fullPrompt = buildPrompt(prompt, style, brandColors, negativePrompt);
+  
+  const response = await vertexAI.preview.getGenerativeModel({ model }).generateContent({
+    contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
+    generationConfig: {
+      temperature: 0.4,
+      topK: 32,
+      topP: 1,
+      maxOutputTokens: 1024,
+    },
+  });
+
+  const imageData = response.response.candidates[0].content.parts[0].inlineData.data;
+  return Buffer.from(imageData, 'base64');
+}
+
+function buildPrompt(
+  prompt: string,
+  style: string,
+  brandColors?: { primary?: string; secondary?: string },
+  negativePrompt?: string
+): string {
+  let fullPrompt = `${prompt}, ${style} style, mascot character, transparent background, high quality, professional`;
+  
+  if (brandColors?.primary) {
+    fullPrompt += `, primary color: ${brandColors.primary}`;
+  }
+  if (brandColors?.secondary) {
+    fullPrompt += `, secondary color: ${brandColors.secondary}`;
+  }
+  
+  if (negativePrompt) {
+    fullPrompt += `, avoid: ${negativePrompt}`;
+  }
+  
+  return fullPrompt;
+}
+```
+
+### Alternative: Stable Diffusion XL (SDXL) + LoRA
+
+**Why SDXL (Budget Option):**
 - High-quality 1024×1024+ output resolution
 - Excellent prompt understanding
 - Strong community support and fine-tuning resources
-- Cost-effective compared to DALL-E 3 or Midjourney API
+- **Cost-effective**: ~5-10x cheaper than Imagen 4
+- Full control with LoRA fine-tuning
 
 **Providers:**
-1. **Replicate** (Recommended)
+1. **Replicate** (Recommended for SDXL)
    - API: `https://replicate.com`
    - Models: `stability-ai/sdxl`, `stability-ai/sdxl-base`
    - Pros: Simple API, pay-per-use, no infrastructure management
@@ -275,10 +358,15 @@ async function generateLogoPack(
 
 ### Per-User Monthly Costs (at scale, 1000 users)
 
-**Image Generation:**
-- Average: 10 mascots/user/month
-- Cost: 10 × $0.003 = $0.03/user/month
-- Total: $30/month
+**Image Generation (Imagen 4):**
+- Average: 10 mascots/user/month (4 variations each = 40 images)
+- Cost: 40 × $0.015 = $0.60/user/month
+- Total: $600/month
+
+**Image Generation (SDXL - Budget Option):**
+- Average: 10 mascots/user/month (4 variations each = 40 images)
+- Cost: 40 × $0.003 = $0.12/user/month
+- Total: $120/month
 
 **Animation Generation:**
 - Average: 2 animations/user/month

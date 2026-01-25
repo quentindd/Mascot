@@ -1,0 +1,37 @@
+═══════════════════════════════════════════════════════
+🔑 TOKEN API POUR LE PLUGIN FIGMA
+═══════════════════════════════════════════════════════
+
+TOKEN ACTUEL (à copier-coller dans le plugin) :
+
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InRlc3RAbWFzY290LmxvY2FsIiwic3ViIjoiZTBhNGYzNWYtOWY2ZC00YzA5LTgzNmQtYjE1NDljMmQ4YzM3IiwiaWF0IjoxNzY5MjU5NTA0LCJleHAiOjE3Njk4NjQzMDR9.0jIH1BgUar4J7Rw4lwvWwkUbSwIOPidLcsK1-0iOPPw
+
+═══════════════════════════════════════════════════════
+📋 COMMENT L'UTILISER
+═══════════════════════════════════════════════════════
+
+1. Ouvrez Figma
+2. Chargez le plugin Mascot
+3. Cliquez sur "Sign In with API Token"
+4. Collez le token ci-dessus
+5. Cliquez sur OK
+
+═══════════════════════════════════════════════════════
+⚠️  SI LE TOKEN EST EXPIRÉ
+═══════════════════════════════════════════════════════
+
+Si le plugin dit "Token invalide" ou "Expired", créez un nouveau compte :
+
+Dans le Terminal, exécutez :
+
+curl -X POST https://mascot-production.up.railway.app/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "nouveau@mascot.app",
+    "password": "MotDePasse123!",
+    "name": "Nouveau User"
+  }'
+
+Copiez le "accessToken" de la réponse et utilisez-le dans le plugin.
+
+═══════════════════════════════════════════════════════

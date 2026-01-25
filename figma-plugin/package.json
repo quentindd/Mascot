@@ -6,7 +6,7 @@
     "build": "npm run build:code && npm run build:ui && npm run copy:html",
     "build:code": "esbuild src/code.ts --bundle --format=iife --outfile=code.js --target=es2020 --external:figma",
     "build:ui": "vite build",
-    "copy:html": "cp src/ui/index.html ui.html && node -e \"const fs=require('fs');const html=fs.readFileSync('ui.html','utf-8');const js=fs.readFileSync('ui.js','utf-8');const newHtml=html.replace(/<!-- ui.js will be inlined here during build -->/g, '<script>'+js+'</script>');fs.writeFileSync('ui.html',newHtml,'utf-8');console.log('✓ Inlined ui.js into ui.html');\"",
+    "copy:html": "cp src/ui/index.html ui.html && node scripts/inline-ui.js",
     "watch": "tsc --watch",
     "watch:ui": "vite build --watch",
     "dev": "concurrently \"npm run watch\" \"npm run watch:ui\"",

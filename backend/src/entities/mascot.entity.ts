@@ -19,7 +19,29 @@ export enum MascotStyle {
   FLAT = 'flat',
   PIXEL = 'pixel',
   THREE_D = '3d',
+  MINIMAL = 'minimal',
+  THREE_D_PIXAR = '3d_pixar',
+  HAND_DRAWN = 'hand_drawn',
   MATCH_BRAND = 'match_brand',
+}
+
+export enum MascotType {
+  AUTO = 'auto',
+  ANIMAL = 'animal',
+  CREATURE = 'creature',
+  ROBOT = 'robot',
+  FOOD = 'food',
+  OBJECT = 'object',
+  ABSTRACT = 'abstract',
+}
+
+export enum MascotPersonality {
+  FRIENDLY = 'friendly',
+  PROFESSIONAL = 'professional',
+  PLAYFUL = 'playful',
+  COOL = 'cool',
+  ENERGETIC = 'energetic',
+  CALM = 'calm',
 }
 
 export enum MascotStatus {
@@ -27,6 +49,14 @@ export enum MascotStatus {
   GENERATING = 'generating',
   COMPLETED = 'completed',
   FAILED = 'failed',
+}
+
+export enum LifeStage {
+  BABY = 'baby',
+  CHILD = 'child',
+  TEEN = 'teen',
+  ADULT = 'adult',
+  ELDER = 'elder',
 }
 
 @Entity('mascots')
@@ -48,6 +78,43 @@ export class Mascot {
 
   @Column({ type: 'enum', enum: MascotStyle })
   style: MascotStyle;
+
+  @Column({ type: 'enum', enum: MascotType, default: MascotType.AUTO })
+  type: MascotType;
+
+  @Column({ type: 'enum', enum: MascotPersonality, default: MascotPersonality.FRIENDLY })
+  personality: MascotPersonality;
+
+  @Column({ type: 'text', nullable: true })
+  negativePrompt: string; // Elements to exclude
+
+  @Column({ type: 'jsonb', nullable: true })
+  accessories: string[]; // Array of accessory names (wings, cape, glasses, etc.)
+
+  @Column({ type: 'jsonb', nullable: true })
+  brandColors: {
+    primary?: string;
+    secondary?: string;
+    tertiary?: string;
+  };
+
+  @Column({ type: 'boolean', default: false })
+  advancedMode: boolean; // If true, use raw custom prompt
+
+  @Column({ type: 'text', nullable: true })
+  autoFillUrl: string; // Original URL used for auto-fill
+
+  @Column({ type: 'enum', enum: LifeStage, nullable: true })
+  lifeStage: LifeStage;
+
+  @Column({ type: 'uuid', nullable: true })
+  parentMascotId: string; // For evolution chains
+
+  @Column({ type: 'int', default: 1 })
+  variationIndex: number; // Which variation (1-4) this is
+
+  @Column({ type: 'uuid', nullable: true })
+  batchId: string; // Groups 4 variations together
 
   @Column({ nullable: true })
   characterId: string; // Stable character ID for consistency
@@ -95,6 +162,13 @@ export class Mascot {
   @ManyToOne(() => Workspace, (workspace) => workspace.mascots, { nullable: true })
   @JoinColumn({ name: 'workspaceId' })
   workspace: Workspace;
+
+  @ManyToOne(() => Mascot, (mascot) => mascot.childMascots, { nullable: true })
+  @JoinColumn({ name: 'parentMascotId' })
+  parentMascot: Mascot;
+
+  @OneToMany(() => Mascot, (mascot) => mascot.parentMascot)
+  childMascots: Mascot[];
 
   @OneToMany(() => AnimationJob, (job) => job.mascot)
   animations: AnimationJob[];

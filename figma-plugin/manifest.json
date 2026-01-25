@@ -4,10 +4,12 @@
   "api": "1.0.0",
   "main": "code.js",
   "ui": "ui.html",
-  "editorType": ["figma"],
+  "editorType": [
+    "figma"
+  ],
   "networkAccess": {
     "allowedDomains": [
-      "https://arthralgic-gruffy-bettina.ngrok-free.dev"
+      "https://mascot-production.up.railway.app"
     ]
   },
   "permissions": [

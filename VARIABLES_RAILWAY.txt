@@ -1,0 +1,34 @@
+═══════════════════════════════════════════════════════
+VARIABLES À AJOUTER DANS RAILWAY
+═══════════════════════════════════════════════════════
+
+1. GOOGLE_CLOUD_PROJECT_ID
+   Valeur: [À remplir avec votre Project ID]
+   
+   Pour le trouver:
+   - Ouvrez votre fichier JSON
+   - Cherchez: "project_id": "mascot-485416"
+   - Le Project ID est la valeur entre guillemets
+
+2. GOOGLE_CLOUD_CREDENTIALS
+   Valeur: [À remplir avec la valeur Base64]
+   
+   Pour l'obtenir:
+   - Dans le Terminal, exécutez:
+     cat /chemin/vers/votre-fichier.json | base64
+   - Copiez TOUTE la sortie (très longue chaîne)
+
+3. GOOGLE_CLOUD_LOCATION
+   Valeur: us-central1
+
+═══════════════════════════════════════════════════════
+INSTRUCTIONS RAILWAY
+═══════════════════════════════════════════════════════
+
+1. Allez sur https://railway.app
+2. Sélectionnez votre projet "Mascot"
+3. Onglet "Variables"
+4. Cliquez sur "New Variable" pour chaque variable
+5. Collez les valeurs ci-dessus
+
+═══════════════════════════════════════════════════════

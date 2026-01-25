@@ -57,4 +57,30 @@ export class CreditsService {
     };
     return allowances[plan] || 0;
   }
+
+  /**
+   * Add credits to a user (admin function)
+   */
+  async addCredits(userId: string, amount: number, description?: string): Promise<void> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // Create ledger entry
+    const ledger = this.ledgerRepository.create({
+      userId,
+      type: CreditTransactionType.PURCHASE, // or MANUAL
+      amount: amount,
+      balanceAfter: user.creditBalance + amount,
+      status: CreditTransactionStatus.COMPLETED,
+      description: description || `Added ${amount} credits manually`,
+    });
+
+    await this.ledgerRepository.save(ledger);
+
+    // Update user balance
+    user.creditBalance += amount;
+    await this.userRepository.save(user);
+  }
 }

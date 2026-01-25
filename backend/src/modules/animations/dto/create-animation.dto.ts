@@ -11,6 +11,13 @@ export class CreateAnimationDto {
   action: AnimationAction;
 
   @ApiPropertyOptional({
+    description: 'Custom action description (required when action=CUSTOM). E.g., "playing guitar", "doing a backflip"',
+  })
+  @IsOptional()
+  @IsString()
+  customAction?: string;
+
+  @ApiPropertyOptional({
     description: 'Resolution in pixels',
     enum: [128, 240, 360, 480, 720],
     default: 360,
@@ -49,6 +56,7 @@ export class AnimationJobResponseDto {
   id: string;
   mascotId: string;
   action: AnimationAction;
+  customAction: string | null;
   status: string;
   resolution: number;
   spriteSheetUrl: string | null;

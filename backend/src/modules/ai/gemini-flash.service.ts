@@ -209,14 +209,47 @@ export class GeminiFlashService implements OnModuleInit {
       const response = await model.generateContent(request);
       this.logger.log('Received response from Gemini Flash');
       
-      // Extract image data
-      const candidate = response.response.candidates?.[0];
-      if (!candidate || !candidate.content?.parts?.[0]?.inlineData) {
-        this.logger.error('No image data in response. Response structure:', JSON.stringify(response.response, null, 2));
+      // Log full response structure for debugging
+      this.logger.log('Response structure:', JSON.stringify({
+        hasResponse: !!response.response,
+        hasCandidates: !!response.response?.candidates,
+        candidatesCount: response.response?.candidates?.length || 0,
+        firstCandidateKeys: response.response?.candidates?.[0] ? Object.keys(response.response.candidates[0]) : [],
+      }, null, 2));
+      
+      // Extract image data - try different possible structures
+      const candidate = response.response?.candidates?.[0];
+      
+      if (!candidate) {
+        this.logger.error('No candidate in response. Full response:', JSON.stringify(response, null, 2));
+        throw new Error('No candidate in Gemini Flash response');
+      }
+      
+      // Try different paths for image data
+      let imageData: string | null = null;
+      
+      // Path 1: candidate.content.parts[0].inlineData.data
+      if (candidate.content?.parts?.[0]?.inlineData?.data) {
+        imageData = candidate.content.parts[0].inlineData.data;
+        this.logger.log('Found image data in candidate.content.parts[0].inlineData.data');
+      }
+      // Path 2: candidate.parts[0].inlineData.data
+      else if (candidate.parts?.[0]?.inlineData?.data) {
+        imageData = candidate.parts[0].inlineData.data;
+        this.logger.log('Found image data in candidate.parts[0].inlineData.data');
+      }
+      // Path 3: response.response.parts[0].inlineData.data
+      else if (response.response?.parts?.[0]?.inlineData?.data) {
+        imageData = response.response.parts[0].inlineData.data;
+        this.logger.log('Found image data in response.response.parts[0].inlineData.data');
+      }
+      
+      if (!imageData) {
+        this.logger.error('No image data found in any expected location. Full response:', JSON.stringify(response, null, 2));
+        this.logger.error('Candidate structure:', JSON.stringify(candidate, null, 2));
         throw new Error('No image data in Gemini Flash response');
       }
 
-      const imageData = candidate.content.parts[0].inlineData.data;
       this.logger.log(`Image data received, size: ${imageData.length} characters (base64)`);
       return Buffer.from(imageData, 'base64');
     } catch (error) {

@@ -4,10 +4,35 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
+import { getConnection } from 'typeorm';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
+
+  // Fix batchId column type on startup (one-time migration)
+  try {
+    const connection = getConnection();
+    const result = await connection.query(`
+      SELECT data_type 
+      FROM information_schema.columns 
+      WHERE table_name = 'mascots' 
+        AND column_name = 'batchId'
+    `);
+    
+    if (result.length > 0 && result[0].data_type === 'uuid') {
+      console.log('[Startup] Fixing batchId column type from uuid to text...');
+      await connection.query(`
+        ALTER TABLE mascots 
+        ALTER COLUMN "batchId" TYPE text USING "batchId"::text
+      `);
+      console.log('[Startup] ✅ batchId column fixed successfully');
+    } else if (result.length > 0) {
+      console.log(`[Startup] batchId column type is already: ${result[0].data_type}`);
+    }
+  } catch (error) {
+    console.warn('[Startup] Could not fix batchId column (may already be fixed):', error.message);
+  }
 
   // Global exception filter for better error logging
   app.useGlobalFilters(new AllExceptionsFilter());

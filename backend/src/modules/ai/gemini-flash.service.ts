@@ -71,21 +71,35 @@ export class GeminiFlashService implements OnModuleInit {
           this.logger.log(`Decoded credentials successfully. Client email: ${credentialsJson.client_email || 'N/A'}`);
           this.logger.log(`Project ID in credentials: ${credentialsJson.project_id || 'N/A'}`);
           
-          // Use GoogleAuth to create credentials properly
-          // Add required scopes for Vertex AI
+          // Create a temporary file with credentials for ADC (Application Default Credentials)
+          // This is the most reliable way to ensure VertexAI uses the credentials correctly
+          const fs = await import('fs');
+          const path = await import('path');
+          const os = await import('os');
+          
+          const tempDir = os.tmpdir();
+          const tempCredsPath = path.join(tempDir, `google-creds-${Date.now()}.json`);
+          
+          fs.writeFileSync(tempCredsPath, JSON.stringify(credentialsJson), { mode: 0o600 });
+          this.logger.log(`Created temporary credentials file: ${tempCredsPath}`);
+          
+          // Set environment variable for ADC
+          process.env.GOOGLE_APPLICATION_CREDENTIALS = tempCredsPath;
+          
+          // Also create GoogleAuth with scopes for direct use if needed
+          const requiredScopes = [
+            'https://www.googleapis.com/auth/cloud-platform',
+          ];
+          
           const auth = new GoogleAuth({
-            credentials: credentialsJson,
+            keyFilename: tempCredsPath,
             projectId: projectId,
-            scopes: [
-              'https://www.googleapis.com/auth/cloud-platform',
-              'https://www.googleapis.com/auth/aiplatform',
-            ],
+            scopes: requiredScopes,
           });
           
-          // Get the auth client (required for VertexAI)
           const authClient = await auth.getClient();
           config.googleAuth = authClient;
-          this.logger.log('Created GoogleAuth client with credentials and Vertex AI scopes');
+          this.logger.log('Created GoogleAuth client with temporary credentials file and Vertex AI scopes');
         } catch (decodeError) {
           this.logger.error('Failed to decode/parse credentials:', decodeError);
           throw new Error(`Invalid credentials format: ${decodeError instanceof Error ? decodeError.message : String(decodeError)}`);

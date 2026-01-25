@@ -206,8 +206,36 @@ export class GeminiFlashService implements OnModuleInit {
       };
 
       this.logger.log('Sending generateContent request...');
-      const response = await model.generateContent(request);
-      this.logger.log('Received response from Gemini Flash');
+      
+      // Retry logic for rate limiting (429 errors)
+      let response;
+      let retries = 0;
+      const maxRetries = 3;
+      const baseDelay = 2000; // 2 seconds
+      
+      while (retries <= maxRetries) {
+        try {
+          response = await model.generateContent(request);
+          this.logger.log('Received response from Gemini Flash');
+          break;
+        } catch (error: any) {
+          // Check if it's a 429 rate limit error
+          if (error?.message?.includes('429') || error?.message?.includes('RESOURCE_EXHAUSTED') || error?.message?.includes('Too Many Requests')) {
+            if (retries < maxRetries) {
+              const delay = baseDelay * Math.pow(2, retries); // Exponential backoff
+              this.logger.warn(`Rate limit hit (429). Retrying in ${delay}ms... (attempt ${retries + 1}/${maxRetries + 1})`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+              retries++;
+              continue;
+            } else {
+              this.logger.error('Rate limit exceeded after all retries. Please wait before trying again.');
+              throw error;
+            }
+          }
+          // If it's not a 429 error, throw immediately
+          throw error;
+        }
+      }
       
       // Log full response structure for debugging
       this.logger.log('Response structure:', JSON.stringify({

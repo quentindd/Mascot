@@ -64,7 +64,9 @@ export class MascotsService {
       const savedMascots = await this.mascotRepository.save(mascots);
 
       // Enqueue generation jobs for all variations
-      // Note: If Redis is not available, jobs will fail but mascots are still created
+      // Note: If Redis is not available, we log the error but don't fail the request
+      // The mascots are created and will remain in PENDING status until Redis is configured
+      let enqueueErrors = 0;
       for (const mascot of savedMascots) {
         try {
           await this.jobsService.enqueueMascotGeneration(mascot.id, {
@@ -80,11 +82,16 @@ export class MascotsService {
             batchId: mascot.batchId,
           });
         } catch (queueError) {
+          enqueueErrors++;
           console.error(`[MascotsService] Failed to enqueue job for mascot ${mascot.id}:`, queueError);
           console.error(`[MascotsService] Queue error details:`, queueError instanceof Error ? queueError.message : String(queueError));
-          // Log but don't fail the request - mascots are created, they just won't be processed
-          // In production, you might want to set status to FAILED or handle this differently
+          // Don't fail the request - mascots are created, they just won't be processed until Redis is configured
+          // The user has already been charged credits, so we return success
         }
+      }
+
+      if (enqueueErrors > 0) {
+        console.warn(`[MascotsService] ${enqueueErrors} job(s) failed to enqueue. Redis may not be configured. Mascots created but won't be processed.`);
       }
 
       return savedMascots.map((m) => this.toResponseDto(m));

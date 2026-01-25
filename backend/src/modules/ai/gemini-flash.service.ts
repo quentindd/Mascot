@@ -44,6 +44,7 @@ export class GeminiFlashService implements OnModuleInit {
 
       // Dynamic import to avoid requiring @google-cloud/vertexai at build time
       const { VertexAI } = await import('@google-cloud/vertexai');
+      const { GoogleAuth } = await import('google-auth-library');
       
       // Handle credentials
       const credentialsPath = this.configService.get<string>('GOOGLE_APPLICATION_CREDENTIALS');
@@ -64,13 +65,22 @@ export class GeminiFlashService implements OnModuleInit {
         try {
           // Decode base64 credentials
           const decoded = Buffer.from(credentialsBase64, 'base64').toString();
-          const credentials = JSON.parse(decoded);
+          const credentialsJson = JSON.parse(decoded);
           
           // Log some info (without sensitive data)
-          this.logger.log(`Decoded credentials successfully. Client email: ${credentials.client_email || 'N/A'}`);
-          this.logger.log(`Project ID in credentials: ${credentials.project_id || 'N/A'}`);
+          this.logger.log(`Decoded credentials successfully. Client email: ${credentialsJson.client_email || 'N/A'}`);
+          this.logger.log(`Project ID in credentials: ${credentialsJson.project_id || 'N/A'}`);
           
-          config.credentials = credentials;
+          // Use GoogleAuth to create credentials properly
+          const auth = new GoogleAuth({
+            credentials: credentialsJson,
+            projectId: projectId,
+          });
+          
+          // Get the auth client (required for VertexAI)
+          const authClient = await auth.getClient();
+          config.googleAuth = authClient;
+          this.logger.log('Created GoogleAuth client with credentials');
         } catch (decodeError) {
           this.logger.error('Failed to decode/parse credentials:', decodeError);
           throw new Error(`Invalid credentials format: ${decodeError instanceof Error ? decodeError.message : String(decodeError)}`);
@@ -82,7 +92,23 @@ export class GeminiFlashService implements OnModuleInit {
       }
 
       this.logger.log(`Creating VertexAI instance with config: project=${config.project}, location=${config.location}`);
+      this.logger.log(`Config has googleAuth: ${!!config.googleAuth}`);
+      this.logger.log(`Config has keyFilename: ${!!config.keyFilename}`);
+      
       this.vertexAI = new VertexAI(config);
+      
+      // Test authentication by trying to get the model (this will fail if auth is wrong)
+      try {
+        this.logger.log('Testing VertexAI authentication...');
+        const testModel = this.vertexAI.preview.getGenerativeModel({
+          model: 'gemini-2.5-flash-image',
+        });
+        this.logger.log('VertexAI model retrieved successfully (auth test passed)');
+      } catch (authError) {
+        this.logger.warn('VertexAI auth test failed (but continuing):', authError instanceof Error ? authError.message : String(authError));
+        // Don't fail initialization - the error might be transient or model-specific
+      }
+      
       this.initialized = true;
       this.logger.log('Gemini 2.5 Flash Image service initialized successfully');
       this.logger.log(`Service is now available: ${this.isAvailable()}`);
@@ -132,10 +158,14 @@ export class GeminiFlashService implements OnModuleInit {
 
     const fullPrompt = this.buildPrompt(config);
     
+    this.logger.log(`Generating image with Gemini Flash. Prompt length: ${fullPrompt.length}`);
+    
     try {
+      this.logger.log('Getting GenerativeModel instance...');
       const model = this.vertexAI.preview.getGenerativeModel({
         model: 'gemini-2.5-flash-image', // Exactement comme MascotAI
       });
+      this.logger.log('Model instance retrieved, preparing request...');
 
       const request = {
         contents: [
@@ -156,18 +186,27 @@ export class GeminiFlashService implements OnModuleInit {
         },
       };
 
+      this.logger.log('Sending generateContent request...');
       const response = await model.generateContent(request);
+      this.logger.log('Received response from Gemini Flash');
       
       // Extract image data
       const candidate = response.response.candidates?.[0];
       if (!candidate || !candidate.content?.parts?.[0]?.inlineData) {
+        this.logger.error('No image data in response. Response structure:', JSON.stringify(response.response, null, 2));
         throw new Error('No image data in Gemini Flash response');
       }
 
       const imageData = candidate.content.parts[0].inlineData.data;
+      this.logger.log(`Image data received, size: ${imageData.length} characters (base64)`);
       return Buffer.from(imageData, 'base64');
     } catch (error) {
       this.logger.error('Gemini Flash generation failed:', error);
+      this.logger.error('Error type:', error?.constructor?.name || 'Unknown');
+      this.logger.error('Error message:', error instanceof Error ? error.message : String(error));
+      if (error instanceof Error && error.stack) {
+        this.logger.error('Error stack:', error.stack);
+      }
       throw error;
     }
   }

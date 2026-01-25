@@ -33,7 +33,8 @@ export class RedisConfig implements SharedBullConfigurationFactory {
           console.log(`[RedisConfig] Retrying connection (attempt ${times}), delay: ${delay}ms`);
           return delay;
         },
-        maxRetriesPerRequest: 3,
+        // BullMQ requires maxRetriesPerRequest to be null
+        maxRetriesPerRequest: null,
       },
     };
   }

@@ -72,15 +72,20 @@ export class GeminiFlashService implements OnModuleInit {
           this.logger.log(`Project ID in credentials: ${credentialsJson.project_id || 'N/A'}`);
           
           // Use GoogleAuth to create credentials properly
+          // Add required scopes for Vertex AI
           const auth = new GoogleAuth({
             credentials: credentialsJson,
             projectId: projectId,
+            scopes: [
+              'https://www.googleapis.com/auth/cloud-platform',
+              'https://www.googleapis.com/auth/aiplatform',
+            ],
           });
           
           // Get the auth client (required for VertexAI)
           const authClient = await auth.getClient();
           config.googleAuth = authClient;
-          this.logger.log('Created GoogleAuth client with credentials');
+          this.logger.log('Created GoogleAuth client with credentials and Vertex AI scopes');
         } catch (decodeError) {
           this.logger.error('Failed to decode/parse credentials:', decodeError);
           throw new Error(`Invalid credentials format: ${decodeError instanceof Error ? decodeError.message : String(decodeError)}`);

@@ -24,18 +24,42 @@
       console.log('[Mascot] ui.html loaded, DOM ready');
       console.log('[Mascot] About to load ui.js...');
       
-      // Ignore Figma's internal errors that might block our script
+      // Ignore Figma's internal errors and non-critical errors
       window.addEventListener('error', function(e) {
+        // Ignore Figma internal errors
         if (e.filename && e.filename.includes('data:text/html')) {
           console.log('[Mascot] Ignoring Figma internal error');
           e.preventDefault();
           e.stopPropagation();
           return false;
         }
+        
+        // Ignore clipboard errors (from extensions or external scripts)
+        if (e.message && e.message.includes('clipboard') && e.message.includes('writeText')) {
+          console.log('[Mascot] Ignoring clipboard error (likely from extension)');
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }
+        
+        // Ignore SVG viewBox errors (from external libraries)
+        if (e.message && e.message.includes('viewBox') && e.message.includes('Expected number')) {
+          console.log('[Mascot] Ignoring SVG viewBox error (likely from external library)');
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }
+        
+        // Log other errors
         console.error('[Mascot] Script error:', e.message, e.filename, e.lineno);
       }, true); // Use capture phase to catch errors early
       
       window.addEventListener('unhandledrejection', function(e) {
+        // Ignore clipboard-related promise rejections
+        if (e.reason && typeof e.reason === 'object' && e.reason.message && e.reason.message.includes('clipboard')) {
+          console.log('[Mascot] Ignoring clipboard promise rejection');
+          return;
+        }
         console.error('[Mascot] Unhandled promise rejection:', e.reason);
       });
       

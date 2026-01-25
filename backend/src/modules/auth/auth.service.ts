@@ -30,7 +30,7 @@ export class AuthService {
       passwordHash,
       name: registerDto.name,
       plan: UserPlan.FREE,
-      creditBalance: 1, // Free tier: 1 credit for 1 mascot
+      creditBalance: 100, // Free tier: 100 credits for testing
     });
 
     const saved = await this.userRepository.save(user);

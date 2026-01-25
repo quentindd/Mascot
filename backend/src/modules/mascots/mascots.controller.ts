@@ -37,7 +37,12 @@ export class MascotsController {
     @Body() createMascotDto: CreateMascotDto,
     @Request() req,
   ): Promise<MascotResponseDto[]> {
-    return this.mascotsService.create(createMascotDto, req.user.id);
+    try {
+      return await this.mascotsService.create(createMascotDto, req.user.id);
+    } catch (error) {
+      console.error('[MascotsController] Error creating mascot:', error);
+      throw error;
+    }
   }
 
   @Get()

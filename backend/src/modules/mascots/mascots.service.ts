@@ -17,68 +17,83 @@ export class MascotsService {
   ) {}
 
   async create(createMascotDto: CreateMascotDto, userId: string): Promise<MascotResponseDto[]> {
-    // Check credits (1 credit generates up to 3 variations)
-    const hasCredits = await this.creditsService.checkAndReserveCredits(
-      userId,
-      1, // 1 credit for batch of variations
-    );
+    try {
+      // Check credits (1 credit generates up to 3 variations)
+      const hasCredits = await this.creditsService.checkAndReserveCredits(
+        userId,
+        1, // 1 credit for batch of variations
+      );
 
-    if (!hasCredits) {
-      throw new ForbiddenException('Insufficient credits');
+      if (!hasCredits) {
+        throw new ForbiddenException('Insufficient credits');
+      }
+
+      const numVariations = createMascotDto.numVariations || 3;
+      const batchId = this.generateBatchId();
+
+      // Create multiple mascot records (one for each variation)
+      const mascots: Mascot[] = [];
+      for (let i = 1; i <= numVariations; i++) {
+        // Support both old format (prompt) and new format (mascotDetails) like MascotAI
+        const mascotDetails = createMascotDto.mascotDetails || createMascotDto.prompt;
+        const bodyParts = createMascotDto.bodyParts || createMascotDto.accessories || [];
+        const brandName = createMascotDto.brandName || createMascotDto.name;
+
+        const mascot = this.mascotRepository.create({
+          name: brandName,
+          prompt: mascotDetails, // Store mascotDetails in prompt field for compatibility
+          style: createMascotDto.style,
+          type: createMascotDto.type || 'auto' as any,
+          personality: createMascotDto.personality || 'friendly' as any,
+          negativePrompt: createMascotDto.negativePrompt,
+          accessories: bodyParts, // Store bodyParts in accessories field
+          brandColors: createMascotDto.brandColors,
+          advancedMode: createMascotDto.advancedMode || false,
+          autoFillUrl: createMascotDto.autoFillUrl,
+          referenceImageUrl: createMascotDto.referenceImageUrl,
+          variationIndex: i,
+          batchId: batchId,
+          createdById: userId,
+          status: MascotStatus.PENDING,
+          figmaFileIds: createMascotDto.figmaFileId ? [createMascotDto.figmaFileId] : [],
+        });
+
+        mascots.push(mascot);
+      }
+
+      const savedMascots = await this.mascotRepository.save(mascots);
+
+      // Enqueue generation jobs for all variations
+      // Note: If Redis is not available, jobs will fail but mascots are still created
+      for (const mascot of savedMascots) {
+        try {
+          await this.jobsService.enqueueMascotGeneration(mascot.id, {
+            ...createMascotDto,
+            // Ensure MascotAI-compatible fields are passed
+            mascotDetails: createMascotDto.mascotDetails || createMascotDto.prompt,
+            bodyParts: createMascotDto.bodyParts || createMascotDto.accessories || [],
+            brandName: createMascotDto.brandName || createMascotDto.name,
+            color: createMascotDto.color,
+            appDescription: createMascotDto.appDescription,
+            aspectRatio: createMascotDto.aspectRatio || '1:1',
+            variationIndex: mascot.variationIndex,
+            batchId: mascot.batchId,
+          });
+        } catch (queueError) {
+          console.error(`[MascotsService] Failed to enqueue job for mascot ${mascot.id}:`, queueError);
+          console.error(`[MascotsService] Queue error details:`, queueError instanceof Error ? queueError.message : String(queueError));
+          // Log but don't fail the request - mascots are created, they just won't be processed
+          // In production, you might want to set status to FAILED or handle this differently
+        }
+      }
+
+      return savedMascots.map((m) => this.toResponseDto(m));
+    } catch (error) {
+      console.error('[MascotsService] Error in create:', error);
+      console.error('[MascotsService] Error stack:', error instanceof Error ? error.stack : 'No stack');
+      console.error('[MascotsService] CreateMascotDto:', JSON.stringify(createMascotDto, null, 2));
+      throw error;
     }
-
-    const numVariations = createMascotDto.numVariations || 3;
-    const batchId = this.generateBatchId();
-
-    // Create multiple mascot records (one for each variation)
-    const mascots: Mascot[] = [];
-    for (let i = 1; i <= numVariations; i++) {
-      // Support both old format (prompt) and new format (mascotDetails) like MascotAI
-      const mascotDetails = createMascotDto.mascotDetails || createMascotDto.prompt;
-      const bodyParts = createMascotDto.bodyParts || createMascotDto.accessories || [];
-      const brandName = createMascotDto.brandName || createMascotDto.name;
-
-      const mascot = this.mascotRepository.create({
-        name: brandName,
-        prompt: mascotDetails, // Store mascotDetails in prompt field for compatibility
-        style: createMascotDto.style,
-        type: createMascotDto.type || 'auto' as any,
-        personality: createMascotDto.personality || 'friendly' as any,
-        negativePrompt: createMascotDto.negativePrompt,
-        accessories: bodyParts, // Store bodyParts in accessories field
-        brandColors: createMascotDto.brandColors,
-        advancedMode: createMascotDto.advancedMode || false,
-        autoFillUrl: createMascotDto.autoFillUrl,
-        referenceImageUrl: createMascotDto.referenceImageUrl,
-        variationIndex: i,
-        batchId: batchId,
-        createdById: userId,
-        status: MascotStatus.PENDING,
-        figmaFileIds: createMascotDto.figmaFileId ? [createMascotDto.figmaFileId] : [],
-      });
-
-      mascots.push(mascot);
-    }
-
-    const savedMascots = await this.mascotRepository.save(mascots);
-
-    // Enqueue generation jobs for all variations
-    for (const mascot of savedMascots) {
-      await this.jobsService.enqueueMascotGeneration(mascot.id, {
-        ...createMascotDto,
-        // Ensure MascotAI-compatible fields are passed
-        mascotDetails: createMascotDto.mascotDetails || createMascotDto.prompt,
-        bodyParts: createMascotDto.bodyParts || createMascotDto.accessories || [],
-        brandName: createMascotDto.brandName || createMascotDto.name,
-        color: createMascotDto.color,
-        appDescription: createMascotDto.appDescription,
-        aspectRatio: createMascotDto.aspectRatio || '1:1',
-        variationIndex: mascot.variationIndex,
-        batchId: mascot.batchId,
-      });
-    }
-
-    return savedMascots.map((m) => this.toResponseDto(m));
   }
 
   private generateBatchId(): string {

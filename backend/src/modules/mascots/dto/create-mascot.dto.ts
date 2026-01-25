@@ -71,6 +71,7 @@ export class CreateMascotDto {
     default: MascotPersonality.FRIENDLY,
   })
   @IsOptional()
+  @ValidateIf((o) => o.personality !== undefined && o.personality !== null)
   @IsEnum(MascotPersonality, { message: 'personality must be a valid MascotPersonality' })
   @Type(() => String)
   personality?: MascotPersonality;

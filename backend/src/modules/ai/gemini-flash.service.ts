@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 /**
@@ -12,16 +12,19 @@ import { ConfigService } from '@nestjs/config';
  * - Or: GOOGLE_CLOUD_CREDENTIALS (base64 encoded JSON)
  */
 @Injectable()
-export class GeminiFlashService {
+export class GeminiFlashService implements OnModuleInit {
   private readonly logger = new Logger(GeminiFlashService.name);
   private vertexAI: any;
   private initialized = false;
+  private initializationPromise: Promise<void> | null = null;
 
-  constructor(private configService: ConfigService) {
-    // Initialize asynchronously - don't await to avoid blocking constructor
-    this.initialize().catch((error) => {
-      this.logger.error('Failed to initialize Gemini Flash in constructor:', error);
-    });
+  constructor(private configService: ConfigService) {}
+
+  async onModuleInit() {
+    this.logger.log('GeminiFlashService module initializing...');
+    this.initializationPromise = this.initialize();
+    await this.initializationPromise;
+    this.logger.log('GeminiFlashService module initialization complete');
   }
 
   private async initialize() {
@@ -103,6 +106,12 @@ export class GeminiFlashService {
       seed?: number;
     }
   ): Promise<Buffer> {
+    // Wait for initialization if it's still in progress
+    if (this.initializationPromise && !this.initialized) {
+      this.logger.log('Waiting for Gemini Flash initialization to complete...');
+      await this.initializationPromise;
+    }
+
     if (!this.initialized) {
       const projectId = this.configService.get<string>('GOOGLE_CLOUD_PROJECT_ID');
       const hasCredentials = !!(this.configService.get<string>('GOOGLE_APPLICATION_CREDENTIALS') || 

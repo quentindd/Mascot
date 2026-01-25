@@ -1,45 +1,60 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 @Injectable()
 export class StorageService {
-  private s3Client: S3Client;
+  private readonly logger = new Logger(StorageService.name);
+  private supabase: SupabaseClient | null = null;
   private bucket: string;
-  private cdnBaseUrl: string;
+  private useSupabase: boolean;
 
   constructor(private configService: ConfigService) {
-    const region = this.configService.get('AWS_REGION') || 'us-east-1';
-    const accessKeyId = this.configService.get('AWS_ACCESS_KEY_ID');
-    const secretAccessKey = this.configService.get('AWS_SECRET_ACCESS_KEY');
+    const supabaseUrl = this.configService.get<string>('SUPABASE_URL');
+    const supabaseKey = this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY');
+    this.bucket = this.configService.get<string>('SUPABASE_BUCKET') || 'mascots';
     
-    if (!accessKeyId || !secretAccessKey) {
-      console.warn('[StorageService] AWS credentials not configured. Image uploads will fail.');
+    // Use Supabase if credentials are provided, otherwise fall back to AWS
+    if (supabaseUrl && supabaseKey) {
+      this.useSupabase = true;
+      this.supabase = createClient(supabaseUrl, supabaseKey);
+      this.logger.log('StorageService initialized with Supabase Storage');
+    } else {
+      this.useSupabase = false;
+      this.logger.warn('[StorageService] Supabase credentials not configured. Image uploads will fail.');
+      this.logger.warn('[StorageService] Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Railway');
     }
-    
-    this.s3Client = new S3Client({
-      region: region,
-      credentials: {
-        accessKeyId: accessKeyId,
-        secretAccessKey: secretAccessKey,
-      },
-    });
-    this.bucket = this.configService.get('AWS_S3_BUCKET');
-    this.cdnBaseUrl = this.configService.get('CDN_BASE_URL');
   }
 
   async uploadFile(key: string, buffer: Buffer, contentType: string): Promise<string> {
-    const command = new PutObjectCommand({
-      Bucket: this.bucket,
-      Key: key,
-      Body: buffer,
-      ContentType: contentType,
-    });
+    if (!this.useSupabase || !this.supabase) {
+      throw new Error('Storage not configured. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.');
+    }
 
-    await this.s3Client.send(command);
+    try {
+      const { data, error } = await this.supabase.storage
+        .from(this.bucket)
+        .upload(key, buffer, {
+          contentType,
+          upsert: true, // Overwrite if exists
+        });
 
-    // Return CDN URL
-    return `${this.cdnBaseUrl}/${key}`;
+      if (error) {
+        this.logger.error(`Failed to upload file ${key}:`, error);
+        throw error;
+      }
+
+      // Get public URL
+      const { data: urlData } = this.supabase.storage
+        .from(this.bucket)
+        .getPublicUrl(key);
+
+      this.logger.log(`Successfully uploaded ${key} to Supabase Storage`);
+      return urlData.publicUrl;
+    } catch (error) {
+      this.logger.error(`Error uploading file ${key}:`, error);
+      throw error;
+    }
   }
 
   async uploadImage(key: string, imageBuffer: Buffer): Promise<string> {

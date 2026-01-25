@@ -99,20 +99,33 @@ export class MascotGenerationProcessor extends WorkerHost {
       const timestamp = Date.now();
       const baseKey = `mascots/${mascotId}`;
 
-      const fullBodyUrl = await this.storageService.uploadImage(
-        `${baseKey}/full-body-${timestamp}.png`,
-        fullBodyBuffer,
-      );
+      let fullBodyUrl: string | null = null;
+      let avatarUrl: string | null = null;
+      let squareIconUrl: string | null = null;
 
-      const avatarUrl = await this.storageService.uploadImage(
-        `${baseKey}/avatar-${timestamp}.png`,
-        avatarBuffer,
-      );
+      try {
+        fullBodyUrl = await this.storageService.uploadImage(
+          `${baseKey}/full-body-${timestamp}.png`,
+          fullBodyBuffer,
+        );
 
-      const squareIconUrl = await this.storageService.uploadImage(
-        `${baseKey}/square-icon-${timestamp}.png`,
-        squareIconBuffer,
-      );
+        avatarUrl = await this.storageService.uploadImage(
+          `${baseKey}/avatar-${timestamp}.png`,
+          avatarBuffer,
+        );
+
+        squareIconUrl = await this.storageService.uploadImage(
+          `${baseKey}/square-icon-${timestamp}.png`,
+          squareIconBuffer,
+        );
+
+        this.logger.log(`Successfully uploaded images for mascot ${mascotId}`);
+      } catch (uploadError) {
+        this.logger.error(`Failed to upload images for mascot ${mascotId}:`, uploadError);
+        this.logger.error('Upload error:', uploadError instanceof Error ? uploadError.message : String(uploadError));
+        // Continue anyway - images are generated, just not uploaded
+        // The URLs will be null, but the generation succeeded
+      }
 
       // Update mascot record
       await this.mascotRepository.update(mascotId, {

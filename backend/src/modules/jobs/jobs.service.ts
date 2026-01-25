@@ -16,8 +16,12 @@ export class JobsService {
   async enqueueMascotGeneration(mascotId: string, data: any) {
     try {
       await this.mascotQueue.add('generate', { mascotId, ...data });
+      console.log(`[JobsService] Successfully enqueued mascot generation for ${mascotId}`);
     } catch (error) {
       console.error(`[JobsService] Failed to enqueue mascot generation for ${mascotId}:`, error);
+      console.error(`[JobsService] Error type:`, error?.constructor?.name);
+      console.error(`[JobsService] Error message:`, error instanceof Error ? error.message : String(error));
+      console.error(`[JobsService] Error stack:`, error instanceof Error ? error.stack : 'No stack');
       // Re-throw to let the caller handle it
       throw error;
     }

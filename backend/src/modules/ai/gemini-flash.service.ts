@@ -18,7 +18,10 @@ export class GeminiFlashService {
   private initialized = false;
 
   constructor(private configService: ConfigService) {
-    this.initialize();
+    // Initialize asynchronously - don't await to avoid blocking constructor
+    this.initialize().catch((error) => {
+      this.logger.error('Failed to initialize Gemini Flash in constructor:', error);
+    });
   }
 
   private async initialize() {
@@ -29,6 +32,8 @@ export class GeminiFlashService {
         return;
       }
 
+      this.logger.log(`Initializing Gemini Flash with project: ${projectId}`);
+
       // Dynamic import to avoid requiring @google-cloud/vertexai at build time
       const { VertexAI } = await import('@google-cloud/vertexai');
       
@@ -36,24 +41,46 @@ export class GeminiFlashService {
       const credentialsPath = this.configService.get<string>('GOOGLE_APPLICATION_CREDENTIALS');
       const credentialsBase64 = this.configService.get<string>('GOOGLE_CLOUD_CREDENTIALS');
       
+      this.logger.log(`Credentials path set: ${!!credentialsPath}`);
+      this.logger.log(`Credentials base64 set: ${!!credentialsBase64} (length: ${credentialsBase64?.length || 0})`);
+      
       const config: any = {
         project: projectId,
         location: this.configService.get<string>('GOOGLE_CLOUD_LOCATION') || 'us-central1',
       };
 
       if (credentialsPath) {
+        this.logger.log(`Using credentials from file: ${credentialsPath}`);
         config.keyFilename = credentialsPath;
       } else if (credentialsBase64) {
-        // Decode base64 credentials
-        const credentials = JSON.parse(Buffer.from(credentialsBase64, 'base64').toString());
-        config.credentials = credentials;
+        try {
+          // Decode base64 credentials
+          const decoded = Buffer.from(credentialsBase64, 'base64').toString();
+          const credentials = JSON.parse(decoded);
+          
+          // Log some info (without sensitive data)
+          this.logger.log(`Decoded credentials successfully. Client email: ${credentials.client_email || 'N/A'}`);
+          this.logger.log(`Project ID in credentials: ${credentials.project_id || 'N/A'}`);
+          
+          config.credentials = credentials;
+        } catch (decodeError) {
+          this.logger.error('Failed to decode/parse credentials:', decodeError);
+          throw new Error(`Invalid credentials format: ${decodeError instanceof Error ? decodeError.message : String(decodeError)}`);
+        }
+      } else {
+        this.logger.warn('No credentials provided (neither GOOGLE_APPLICATION_CREDENTIALS nor GOOGLE_CLOUD_CREDENTIALS)');
+        // Will try to use default credentials (ADC - Application Default Credentials)
+        this.logger.log('Attempting to use Application Default Credentials (ADC)');
       }
 
+      this.logger.log(`Creating VertexAI instance with config: project=${config.project}, location=${config.location}`);
       this.vertexAI = new VertexAI(config);
       this.initialized = true;
-      this.logger.log('Gemini 2.5 Flash Image service initialized');
+      this.logger.log('Gemini 2.5 Flash Image service initialized successfully');
     } catch (error) {
       this.logger.error('Failed to initialize Gemini Flash service:', error);
+      this.logger.error('Error details:', error instanceof Error ? error.stack : String(error));
+      this.initialized = false;
     }
   }
 
@@ -77,6 +104,10 @@ export class GeminiFlashService {
     }
   ): Promise<Buffer> {
     if (!this.initialized) {
+      const projectId = this.configService.get<string>('GOOGLE_CLOUD_PROJECT_ID');
+      const hasCredentials = !!(this.configService.get<string>('GOOGLE_APPLICATION_CREDENTIALS') || 
+                                this.configService.get<string>('GOOGLE_CLOUD_CREDENTIALS'));
+      this.logger.error(`Gemini Flash service not initialized. Project ID: ${projectId || 'NOT SET'}, Has credentials: ${hasCredentials}`);
       throw new Error('Gemini Flash service not initialized. Check GOOGLE_CLOUD_PROJECT_ID and credentials.');
     }
 
@@ -239,6 +270,13 @@ export class GeminiFlashService {
    * Check if service is available
    */
   isAvailable(): boolean {
+    if (!this.initialized) {
+      // Log why it's not available for debugging
+      const projectId = this.configService.get<string>('GOOGLE_CLOUD_PROJECT_ID');
+      const hasCredentials = !!(this.configService.get<string>('GOOGLE_APPLICATION_CREDENTIALS') || 
+                                this.configService.get<string>('GOOGLE_CLOUD_CREDENTIALS'));
+      this.logger.warn(`Gemini Flash not available. Project ID: ${projectId || 'NOT SET'}, Has credentials: ${hasCredentials}`);
+    }
     return this.initialized;
   }
 }

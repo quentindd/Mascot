@@ -38,9 +38,17 @@ export class MascotsController {
     @Request() req,
   ): Promise<MascotResponseDto[]> {
     try {
-      return await this.mascotsService.create(createMascotDto, req.user.id);
+      console.log('[MascotsController] Creating mascot for user:', req.user.id);
+      console.log('[MascotsController] DTO:', JSON.stringify(createMascotDto, null, 2));
+      const result = await this.mascotsService.create(createMascotDto, req.user.id);
+      console.log('[MascotsController] Successfully created mascot, returning', result.length, 'variations');
+      return result;
     } catch (error) {
       console.error('[MascotsController] Error creating mascot:', error);
+      console.error('[MascotsController] Error type:', error?.constructor?.name);
+      console.error('[MascotsController] Error message:', error instanceof Error ? error.message : String(error));
+      console.error('[MascotsController] Error stack:', error instanceof Error ? error.stack : 'No stack');
+      // Re-throw to let NestJS handle it properly
       throw error;
     }
   }

@@ -417,14 +417,14 @@ export class GeminiFlashService implements OnModuleInit {
 
     // 8. Requirements standards - MUST have transparent background and NO text
     // Very explicit instructions for transparency and no text - placed at the END for maximum weight
-    prompt += '. CRITICAL REQUIREMENTS: The image MUST have a COMPLETELY transparent background with NO background color, NO background texture, NO background pattern, NO shadows on background. The character must be isolated on a 100% transparent background like a PNG cutout. ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO BRAND NAME, NO LABELS, NO WRITING, NO TEXT OVERLAY, NO TEXT ON CHARACTER, NO TEXT ON ACCESSORIES, NO TEXT ANYWHERE. High quality professional illustration with clean edges.';
+    prompt += '. CRITICAL REQUIREMENTS: The image MUST have a COMPLETELY transparent background with NO background color, NO background texture, NO background pattern, NO shadows on background, NO checkerboard pattern, NO grid pattern. The character must be isolated on a 100% transparent background like a PNG cutout with perfect edges. ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO BRAND NAME, NO LABELS, NO WRITING, NO TEXT OVERLAY, NO TEXT ON CHARACTER, NO TEXT ON ACCESSORIES, NO TEXT ANYWHERE, NO TEXT ON CLOTHING, NO TEXT ON ITEMS. The character should be a clean cutout with no background visible. High quality professional illustration with clean edges.';
 
-    // 9. Negative prompt - add default restrictions
-    let negativePromptText = 'background, solid background, white background, colored background, text, words, letters, brand name, labels, writing, text overlay';
+    // 9. Negative prompt - add default restrictions (very explicit)
+    let negativePromptText = 'background, solid background, white background, colored background, checkerboard background, grid background, pattern background, text, words, letters, brand name, labels, writing, text overlay, text on character, text on accessories, text on clothing, text on items, any text, any writing, any letters, any words';
     if (config.negativePrompt && config.negativePrompt.trim()) {
       negativePromptText += `, ${config.negativePrompt}`;
     }
-    prompt += `, avoid: ${negativePromptText}`;
+    prompt += `. STRICTLY AVOID: ${negativePromptText}`;
 
     return prompt.trim();
   }

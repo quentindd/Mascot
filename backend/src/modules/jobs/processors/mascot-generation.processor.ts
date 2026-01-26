@@ -25,11 +25,11 @@ export class MascotGenerationProcessor extends WorkerHost {
 
   /**
    * Remove background from image by making white/light pixels transparent
-   * Uses Sharp's unflatten() method and additional processing for better results
+   * Uses Sharp's unflatten() method and aggressive edge-based background removal
    */
   private async removeBackground(imageBuffer: Buffer): Promise<Buffer> {
     try {
-      this.logger.log('Removing background from image...');
+      this.logger.log('Removing background from image (aggressive mode)...');
       
       // First, ensure alpha channel exists
       let processed = sharp(imageBuffer).ensureAlpha();
@@ -38,7 +38,7 @@ export class MascotGenerationProcessor extends WorkerHost {
       // This makes all white pixel values fully transparent
       processed = processed.unflatten();
       
-      // Additional processing: make very light pixels (near white) transparent too
+      // Get raw pixel data for aggressive processing
       const { data, info } = await processed
         .raw()
         .toBuffer({ resolveWithObject: true });
@@ -48,10 +48,35 @@ export class MascotGenerationProcessor extends WorkerHost {
       const height = info.height;
       const channels = info.channels;
       
-      // Threshold for "very light" pixels to make transparent
-      const lightThreshold = 240; // RGB value (240-255 = very light/white)
+      // More aggressive thresholds
+      const lightThreshold = 230; // Lower threshold (230-255 = light/white)
+      const edgeSize = 20; // Larger edge area to process
       
-      // Process pixels to make very light backgrounds transparent
+      // Sample corners to detect background color
+      const cornerSamples: number[] = [];
+      const sampleSize = Math.min(15, Math.floor(width / 8), Math.floor(height / 8));
+      
+      for (let y = 0; y < sampleSize; y++) {
+        for (let x = 0; x < sampleSize; x++) {
+          // All four corners
+          const corners = [
+            (y * width + x) * channels, // top-left
+            (y * width + (width - 1 - x)) * channels, // top-right
+            ((height - 1 - y) * width + x) * channels, // bottom-left
+            ((height - 1 - y) * width + (width - 1 - x)) * channels, // bottom-right
+          ];
+          
+          corners.forEach(idx => {
+            const brightness = (pixels[idx] + pixels[idx + 1] + pixels[idx + 2]) / 3;
+            cornerSamples.push(brightness);
+          });
+        }
+      }
+      
+      const avgCornerBrightness = cornerSamples.reduce((a, b) => a + b, 0) / cornerSamples.length;
+      const isLikelyLightBackground = avgCornerBrightness > 200;
+      
+      // Process all pixels aggressively
       for (let i = 0; i < pixels.length; i += channels) {
         const r = pixels[i];
         const g = pixels[i + 1];
@@ -63,15 +88,29 @@ export class MascotGenerationProcessor extends WorkerHost {
         const x = pixelIndex % width;
         const y = Math.floor(pixelIndex / width);
         
-        // Check if pixel is on the edge (more likely to be background)
-        const isOnEdge = x < 10 || x > width - 10 || y < 10 || y > height - 10;
+        // Check if pixel is on the edge (larger area)
+        const isOnEdge = x < edgeSize || x > width - edgeSize || y < edgeSize || y > height - edgeSize;
+        
+        // Calculate brightness
+        const brightness = (r + g + b) / 3;
         
         // Check if pixel is very light (white/light background)
         const isVeryLight = r > lightThreshold && g > lightThreshold && b > lightThreshold;
         
-        // Make transparent if it's very light AND on edge
-        if (isVeryLight && isOnEdge) {
+        // Check if pixel is similar to corner background (if background is light)
+        const isSimilarToBackground = isLikelyLightBackground && Math.abs(brightness - avgCornerBrightness) < 30;
+        
+        // Aggressive removal: make transparent if:
+        // 1. Very light AND on edge, OR
+        // 2. Similar to background color AND on edge, OR
+        // 3. Very light anywhere (not just edge) if background is light
+        if ((isVeryLight && isOnEdge) || 
+            (isSimilarToBackground && isOnEdge) ||
+            (isVeryLight && isLikelyLightBackground)) {
           pixels[alphaIdx] = 0; // Fully transparent
+        } else if (isVeryLight && !isOnEdge) {
+          // For very light pixels in center, make semi-transparent
+          pixels[alphaIdx] = Math.min(pixels[alphaIdx] || 255, 150);
         }
       }
       
@@ -135,11 +174,22 @@ export class MascotGenerationProcessor extends WorkerHost {
       }
 
       // Prepare config exactly like MascotAI
-      const mascotDetailsText = mascotDetails || prompt;
+      let mascotDetailsText = mascotDetails || prompt;
       const bodyPartsArray = bodyParts || accessories || [];
       
+      // Remove brand name from prompt if it appears (to prevent text on image)
+      // Only keep it if user explicitly wants it (they can add it back in their prompt)
+      if (brandName || name) {
+        const nameToRemove = brandName || name;
+        // Remove the name if it appears in the prompt (case insensitive)
+        const nameRegex = new RegExp(`\\b${nameToRemove}\\b`, 'gi');
+        mascotDetailsText = mascotDetailsText.replace(nameRegex, '').trim();
+        // Clean up any double spaces or commas
+        mascotDetailsText = mascotDetailsText.replace(/\s+/g, ' ').replace(/,\s*,/g, ',').trim();
+      }
+      
       // Don't pass brandName to avoid text appearing on image
-      // If user wants brand name, they should include it in their prompt
+      // If user wants brand name, they should include it in their prompt explicitly
       // brandName is only used for database storage, not for image generation
 
       // Generate image with Gemini 2.5 Flash (exactly like MascotAI)

@@ -1,4 +1,4 @@
-import { Injectable, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Inject, forwardRef, Logger } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, VerifyCallback } from 'passport-google-oauth20';
 import { ConfigService } from '@nestjs/config';
@@ -9,6 +9,8 @@ import { AuthService } from '../auth.service';
 
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
+  private readonly logger = new Logger(GoogleStrategy.name);
+
   constructor(
     private configService: ConfigService,
     @InjectRepository(User)
@@ -21,23 +23,30 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     const callbackURL = configService.get('GOOGLE_CALLBACK_URL') || '/api/v1/auth/google/callback';
 
     // Log configuration (without secrets)
-    console.log('[GoogleStrategy] Initializing with:', {
-      hasClientID: !!clientID,
-      hasClientSecret: !!clientSecret,
-      callbackURL,
-    });
+    this.logger.log('Initializing GoogleStrategy...');
+    this.logger.log(`Has Client ID: ${!!clientID}`);
+    this.logger.log(`Has Client Secret: ${!!clientSecret}`);
+    this.logger.log(`Callback URL: ${callbackURL}`);
 
     if (!clientID || !clientSecret) {
-      console.warn('[GoogleStrategy] Google OAuth credentials not configured. Google OAuth will not work.');
-      console.warn('[GoogleStrategy] Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in Railway.');
+      this.logger.warn('Google OAuth credentials not configured. Google OAuth will not work.');
+      this.logger.warn('Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in Railway.');
+      // Don't initialize strategy if credentials are missing
+      // This will cause an error, but it's better than silent failure
     }
 
-    super({
-      clientID: clientID || 'dummy', // Dummy value to prevent crash, but OAuth won't work
-      clientSecret: clientSecret || 'dummy',
-      callbackURL,
-      scope: ['email', 'profile'],
-    });
+    try {
+      super({
+        clientID: clientID || 'dummy', // Dummy value to prevent crash, but OAuth won't work
+        clientSecret: clientSecret || 'dummy',
+        callbackURL,
+        scope: ['email', 'profile'],
+      });
+      this.logger.log('GoogleStrategy initialized successfully');
+    } catch (error) {
+      this.logger.error('Failed to initialize GoogleStrategy:', error);
+      throw error;
+    }
   }
 
   async validate(

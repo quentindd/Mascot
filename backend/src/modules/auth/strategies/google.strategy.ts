@@ -16,10 +16,26 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     @Inject(forwardRef(() => AuthService))
     private authService: AuthService,
   ) {
+    const clientID = configService.get('GOOGLE_CLIENT_ID');
+    const clientSecret = configService.get('GOOGLE_CLIENT_SECRET');
+    const callbackURL = configService.get('GOOGLE_CALLBACK_URL') || '/api/v1/auth/google/callback';
+
+    // Log configuration (without secrets)
+    console.log('[GoogleStrategy] Initializing with:', {
+      hasClientID: !!clientID,
+      hasClientSecret: !!clientSecret,
+      callbackURL,
+    });
+
+    if (!clientID || !clientSecret) {
+      console.warn('[GoogleStrategy] Google OAuth credentials not configured. Google OAuth will not work.');
+      console.warn('[GoogleStrategy] Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in Railway.');
+    }
+
     super({
-      clientID: configService.get('GOOGLE_CLIENT_ID'),
-      clientSecret: configService.get('GOOGLE_CLIENT_SECRET'),
-      callbackURL: configService.get('GOOGLE_CALLBACK_URL') || '/api/v1/auth/google/callback',
+      clientID: clientID || 'dummy', // Dummy value to prevent crash, but OAuth won't work
+      clientSecret: clientSecret || 'dummy',
+      callbackURL,
       scope: ['email', 'profile'],
     });
   }

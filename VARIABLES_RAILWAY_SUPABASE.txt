@@ -1,0 +1,38 @@
+# Variables d'environnement à ajouter dans Railway
+
+## ✅ Variables Supabase (3 variables seulement)
+
+1. SUPABASE_URL
+   Valeur : https://xxxxx.supabase.co
+   (Remplacez xxxxx par votre Project ID)
+
+2. SUPABASE_SERVICE_ROLE_KEY
+   Valeur : eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+   (La clé service_role, pas la clé anon)
+
+3. SUPABASE_BUCKET
+   Valeur : mascots
+   (Le nom de votre bucket dans Supabase)
+
+## ❌ Variables à NE PAS ajouter
+
+- SUPABASE_REGION (n'existe pas, pas besoin)
+- AWS_REGION (plus nécessaire si vous utilisez Supabase)
+- AWS_ACCESS_KEY_ID (plus nécessaire)
+- AWS_SECRET_ACCESS_KEY (plus nécessaire)
+- AWS_S3_BUCKET (plus nécessaire)
+- CDN_BASE_URL (plus nécessaire, Supabase gère le CDN)
+
+## 📝 Où trouver ces valeurs ?
+
+1. SUPABASE_URL :
+   - Allez dans Supabase → Settings → API
+   - Copiez "Project URL"
+
+2. SUPABASE_SERVICE_ROLE_KEY :
+   - Allez dans Supabase → Settings → API
+   - Copiez "service_role" key (⚠️ PAS la "anon" key)
+
+3. SUPABASE_BUCKET :
+   - Allez dans Supabase → Storage
+   - Le nom de votre bucket (probablement "mascots")

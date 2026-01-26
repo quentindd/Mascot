@@ -85,6 +85,31 @@ export const App: React.FC = () => {
     setShowTokenInput(true);
   };
 
+  const handleGoogleLogin = async () => {
+    console.log('[Mascot] Google Sign In button clicked');
+    // Open Google OAuth URL in browser
+    const apiBaseUrl = 'https://mascot-production.up.railway.app';
+    const googleAuthUrl = `${apiBaseUrl}/api/v1/auth/google`;
+    
+    // Send message to plugin code to open browser
+    rpc.send('open-google-auth', { url: googleAuthUrl });
+    
+    // Listen for OAuth success message from browser
+    window.addEventListener('message', handleOAuthMessage, false);
+  };
+
+  const handleOAuthMessage = (event: MessageEvent) => {
+    // Security: only accept messages from our domain
+    if (event.data?.type === 'mascot-oauth-success' && event.data?.token) {
+      console.log('[Mascot] Received OAuth token');
+      const token = event.data.token;
+      setToken(token);
+      rpc.send('init', { token });
+      setIsAuthenticated(true);
+      window.removeEventListener('message', handleOAuthMessage);
+    }
+  };
+
   const handleTokenSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log('[Mascot] Token submitted');
@@ -117,7 +142,10 @@ export const App: React.FC = () => {
           
           {!showTokenInput ? (
             <>
-              <button onClick={handleLogin} className="btn-primary" style={{ width: '100%' }}>
+              <button onClick={handleGoogleLogin} className="btn-primary" style={{ width: '100%', marginBottom: '8px', background: '#4285f4' }}>
+                🔵 Sign in with Google
+              </button>
+              <button onClick={handleLogin} className="btn-secondary" style={{ width: '100%' }}>
                 Sign In with API Token
               </button>
               <div className="auth-hint" style={{ marginTop: '16px', fontSize: '11px', color: '#666', lineHeight: '1.5' }}>

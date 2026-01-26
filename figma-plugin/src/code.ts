@@ -79,6 +79,14 @@ figma.ui.onmessage = async (msg) => {
         rpc.send('figma-file-id', { fileId: figma.fileKey || 'local' });
         break;
 
+      case 'open-google-auth':
+        // Open Google OAuth URL in browser
+        if (msg.data?.url) {
+          figma.openExternal(msg.data.url);
+          console.log('[Mascot Code] Opened Google OAuth URL:', msg.data.url);
+        }
+        break;
+
       case 'generate-mascot':
         await handleGenerateMascot(msg.data);
         break;
@@ -105,6 +113,10 @@ figma.ui.onmessage = async (msg) => {
 
       case 'get-mascots':
         await handleGetMascots();
+        break;
+
+      case 'get-batch-variations':
+        await handleGetBatchVariations(msg.data);
         break;
 
       default:
@@ -429,6 +441,27 @@ async function handleInsertFrames(data: { urls: string[]; name: string }) {
   }
 
   rpc.send('frames-inserted', { count: frame.children.length });
+}
+
+async function handleGetBatchVariations(data: { batchId: string }) {
+  if (!apiClient) {
+    rpc.send('error', { message: 'Not authenticated' });
+    return;
+  }
+
+  try {
+    console.log('[Mascot Code] Fetching batch variations for batchId:', data.batchId);
+    const variations = await apiClient.getBatchVariations(data.batchId);
+    console.log('[Mascot Code] Received variations:', variations.length);
+    console.log('[Mascot Code] Variations with images:', variations.filter(v => v.fullBodyImageUrl || v.avatarImageUrl || v.imageUrl).length);
+    rpc.send('batch-variations-loaded', { variations });
+  } catch (error) {
+    console.error('[Mascot Code] Error fetching batch variations:', error);
+    handleError(error, 'get-batch-variations');
+    rpc.send('error', {
+      message: error instanceof Error ? error.message : 'Failed to load variations',
+    });
+  }
 }
 
 async function handleGetMascots() {

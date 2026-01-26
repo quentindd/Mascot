@@ -5,6 +5,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { User, UserPlan } from '../../entities/user.entity';
 import { RegisterDto, AuthResponseDto } from './dto/auth.dto';
+import { CreditsService } from '../credits/credits.service';
 
 @Injectable()
 export class AuthService {
@@ -12,6 +13,7 @@ export class AuthService {
     @InjectRepository(User)
     private userRepository: Repository<User>,
     private jwtService: JwtService,
+    private creditsService: CreditsService,
   ) {}
 
   async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
@@ -40,7 +42,11 @@ export class AuthService {
 
   async validateUser(email: string, password: string): Promise<any> {
     const user = await this.userRepository.findOne({ where: { email } });
-    if (user && (await bcrypt.compare(password, user.passwordHash))) {
+    // OAuth users don't have passwordHash
+    if (!user || !user.passwordHash) {
+      return null;
+    }
+    if (await bcrypt.compare(password, user.passwordHash)) {
       const { passwordHash, ...result } = user;
       return result;
     }
@@ -57,6 +63,11 @@ export class AuthService {
     await this.userRepository.save(fullUser);
 
     return this.generateAuthResponse(fullUser);
+  }
+
+  async giveInitialCredits(userId: string): Promise<void> {
+    // Give initial credits to new users
+    await this.creditsService.addCredits(userId, 100, 'initial_signup', 'Initial signup bonus');
   }
 
   private generateAuthResponse(user: User): AuthResponseDto {

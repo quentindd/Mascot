@@ -50,6 +50,14 @@
           return false;
         }
         
+        // Ignore Figma's internal ARIA accessibility warnings
+        if (e.message && e.message.includes('aria-hidden') && e.message.includes('assistive technology')) {
+          console.log('[Mascot] Ignoring Figma internal ARIA warning');
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }
+        
         // Log other errors
         console.error('[Mascot] Script error:', e.message, e.filename, e.lineno);
       }, true); // Use capture phase to catch errors early

@@ -1,8 +1,10 @@
-import { Controller, Post, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Request, Get, Res, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto, AuthResponseDto } from './dto/auth.dto';
 import { LocalAuthGuard } from './guards/local-auth.guard';
+import { GoogleAuthGuard } from './guards/google-auth.guard';
+import { Response } from 'express';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -20,5 +22,73 @@ export class AuthController {
   @ApiOperation({ summary: 'Login' })
   async login(@Request() req, @Body() loginDto: LoginDto): Promise<AuthResponseDto> {
     return this.authService.login(req.user);
+  }
+
+  @Get('google')
+  @UseGuards(GoogleAuthGuard)
+  @ApiOperation({ summary: 'Initiate Google OAuth' })
+  async googleAuth() {
+    // Guard redirects to Google
+  }
+
+  @Get('google/callback')
+  @UseGuards(GoogleAuthGuard)
+  @ApiOperation({ summary: 'Google OAuth callback' })
+  async googleAuthCallback(@Request() req, @Res() res: Response) {
+    const user = req.user;
+    const authResponse = await this.authService.login(user);
+
+    // Return HTML page that sends token to Figma plugin
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Mascot - Authentication Success</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background: #f5f5f5;
+    }
+    .container {
+      text-align: center;
+      background: white;
+      padding: 40px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    h1 { color: #18a0fb; margin-bottom: 20px; }
+    p { color: #666; margin-bottom: 30px; }
+    .success { color: #4caf50; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>✅ Authentication Successful!</h1>
+    <p class="success">You can close this window and return to Figma.</p>
+    <p>The plugin will automatically receive your authentication token.</p>
+    <script>
+      // Send token to Figma plugin via postMessage
+      if (window.opener) {
+        window.opener.postMessage({
+          type: 'mascot-oauth-success',
+          token: '${authResponse.accessToken}'
+        }, '*');
+        setTimeout(() => window.close(), 2000);
+      } else {
+        // Fallback: show token for manual copy
+        document.body.innerHTML += '<p style="margin-top: 20px; padding: 10px; background: #f0f0f0; border-radius: 4px; word-break: break-all; font-size: 12px;">Token: ${authResponse.accessToken}</p>';
+      }
+    </script>
+  </div>
+</body>
+</html>
+    `;
+
+    res.send(html);
   }
 }

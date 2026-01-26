@@ -28,13 +28,22 @@ export class AuthController {
     return this.authService.login(req.user);
   }
 
+  @Get('google/test')
+  @ApiOperation({ summary: 'Test Google OAuth route registration' })
+  async googleAuthTest() {
+    this.logger.log('✅ Google OAuth test route is accessible');
+    return { message: 'Google OAuth route is registered', timestamp: new Date().toISOString() };
+  }
+
   @Get('google')
   @UseGuards(GoogleAuthGuard)
   @ApiOperation({ summary: 'Initiate Google OAuth' })
-  async googleAuth() {
+  async googleAuth(@Req() req) {
     // Guard redirects to Google - this handler should never be reached
     // as Passport redirects before the handler runs
     this.logger.log('googleAuth handler called (should not happen - Passport should redirect)');
+    this.logger.log(`Request URL: ${req.url}`);
+    this.logger.log(`Request method: ${req.method}`);
   }
 
   @Get('google/callback')

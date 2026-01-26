@@ -20,7 +20,9 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   ) {
     const clientID = configService.get('GOOGLE_CLIENT_ID');
     const clientSecret = configService.get('GOOGLE_CLIENT_SECRET');
-    const callbackURL = configService.get('GOOGLE_CALLBACK_URL') || '/api/v1/auth/google/callback';
+    // Use full URL for OAuth callback (required by Google OAuth)
+    const baseURL = configService.get('BASE_URL') || 'https://mascot-production.up.railway.app';
+    const callbackURL = configService.get('GOOGLE_CALLBACK_URL') || `${baseURL}/api/v1/auth/google/callback`;
 
     // Call super first (required before using 'this')
     super({

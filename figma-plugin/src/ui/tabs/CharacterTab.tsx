@@ -46,11 +46,37 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
     setGeneratedVariations([]);
   });
 
-  rpc.on('mascot-generated', (data: { mascot: any; variations?: any[] }) => {
+  rpc.on('mascot-generated', async (data: { mascot: any; variations?: any[] }) => {
     setIsGenerating(false);
     if (data.variations && data.variations.length > 0) {
+      console.log('[Mascot] Received variations:', data.variations);
+      console.log('[Mascot] Checking for images in variations...');
+      
+      // Check if images are already available
+      const hasImages = data.variations.some(v => v.fullBodyImageUrl || v.avatarImageUrl || v.imageUrl);
+      console.log('[Mascot] Has images:', hasImages);
+      
       setGeneratedVariations(data.variations);
-      setSuccess(`Generated ${data.variations.length} variations! Select one below.`);
+      
+      // Poll for images if they're not ready yet
+      const batchId = data.variations[0]?.batchId;
+      console.log('[Mascot] BatchId:', batchId);
+      
+      if (batchId) {
+        if (hasImages) {
+          setSuccess(`Generated ${data.variations.length} variations! Select one below.`);
+        } else {
+          setSuccess(`Generated ${data.variations.length} variations! Waiting for images...`);
+          // Start polling immediately
+          pollForVariationImages(batchId);
+        }
+      } else {
+        if (hasImages) {
+          setSuccess(`Generated ${data.variations.length} variations! Select one below.`);
+        } else {
+          setSuccess(`Generated ${data.variations.length} variations! Images are being generated...`);
+        }
+      }
     } else {
       setSuccess(`Mascot "${data.mascot.name}" generated successfully!`);
     }
@@ -79,6 +105,58 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
   rpc.on('auto-fill-failed', (data: { error: string }) => {
     setIsAutoFilling(false);
     setError(data.error);
+  });
+
+  // Poll for variation images
+  const pollForVariationImages = (batchId: string) => {
+    const maxAttempts = 30; // 2.5 minutes max
+    let attempts = 0;
+
+    console.log('[Mascot] Starting to poll for batch variations:', batchId);
+
+    const poll = () => {
+      if (attempts >= maxAttempts) {
+        console.error('[Mascot] Polling timeout after', attempts, 'attempts');
+        setError('Images are taking longer than expected. Please refresh and try again.');
+        return;
+      }
+
+      console.log(`[Mascot] Polling attempt ${attempts + 1}/${maxAttempts} for batch:`, batchId);
+      rpc.send('get-batch-variations', { batchId });
+      attempts++;
+      
+      // Continue polling after 5 seconds
+      setTimeout(poll, 5000);
+    };
+
+    // Start immediately, then poll every 5 seconds
+    poll();
+  };
+
+  // Listen for batch variations updates
+  rpc.on('batch-variations-loaded', (data: { variations: any[] }) => {
+    console.log('[Mascot] Batch variations loaded:', data.variations);
+    if (data.variations && data.variations.length > 0) {
+      // Check if all variations have images
+      const allHaveImages = data.variations.every(v => v.fullBodyImageUrl || v.avatarImageUrl || v.imageUrl);
+      console.log('[Mascot] All variations have images:', allHaveImages);
+      console.log('[Mascot] Image URLs:', data.variations.map(v => ({
+        id: v.id,
+        fullBody: v.fullBodyImageUrl,
+        avatar: v.avatarImageUrl,
+        image: v.imageUrl
+      })));
+      
+      // Always update the variations (even if images aren't ready yet)
+      setGeneratedVariations(data.variations);
+      
+      if (allHaveImages) {
+        setSuccess(`Generated ${data.variations.length} variations! Select one below.`);
+      } else {
+        // Still waiting for images - continue polling
+        setSuccess(`Generated ${data.variations.length} variations! Images are being generated...`);
+      }
+    }
   });
 
   const handleAutoFill = () => {
@@ -115,6 +193,21 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
   };
 
   const handleSelectVariation = (variation: any) => {
+    // Get the image URL (try fullBodyImageUrl first, then imageUrl, then avatarImageUrl)
+    const imageUrl = variation.fullBodyImageUrl || variation.imageUrl || variation.avatarImageUrl;
+    
+    if (!imageUrl) {
+      setError('No image URL found for this variation. The image may still be generating. Please wait a moment and try again.');
+      return;
+    }
+
+    // Insert image into Figma
+    rpc.send('insert-image', {
+      url: imageUrl,
+      name: variation.name || 'Mascot Variation'
+    });
+    
+    // Clear the form and variations immediately (image insertion happens in background)
     onSelectMascot(variation);
     setGeneratedVariations([]);
     setName('');
@@ -124,6 +217,7 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
     setSecondaryColor('');
     setTertiaryColor('');
     setAutoFillUrl('');
+    setSuccess('Inserting image into Figma...');
   };
 
   return (
@@ -155,7 +249,7 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
       </div>
 
       {/* Basic Fields */}
-      <label className="label">Name *</label>
+      <label className="label">✏️ Name *</label>
       <input
         className="input"
         type="text"
@@ -165,7 +259,7 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
         disabled={isGenerating}
       />
 
-      <label className="label">Prompt *</label>
+      <label className="label">📝 Prompt *</label>
       <textarea
         className="input"
         rows={3}
@@ -176,7 +270,7 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
       />
 
       {/* Style */}
-          <label className="label">Art Style</label>
+          <label className="label">🎨 Art Style</label>
           <select
             className="select"
             value={style}
@@ -184,18 +278,18 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
             disabled={isGenerating}
           >
             <option value="kawaii">🎀 Kawaii</option>
-            <option value="minimal">◯ Minimal</option>
+            <option value="minimal">⚪ Minimal</option>
             <option value="3d_pixar">🎬 3D Pixar</option>
             <option value="3d">🎮 3D</option>
             <option value="cartoon">🎨 Cartoon</option>
-            <option value="flat">🎨 Flat</option>
+            <option value="flat">🟦 Flat</option>
             <option value="pixel">👾 Pixel</option>
             <option value="hand_drawn">✏️ Hand Drawn</option>
             <option value="match_brand">🎯 Match Brand</option>
           </select>
 
           {/* Type */}
-          <label className="label">Mascot Type</label>
+          <label className="label">🐾 Mascot Type</label>
           <select
             className="select"
             value={type}
@@ -212,7 +306,7 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
           </select>
 
           {/* Personality */}
-          <label className="label">Personality</label>
+          <label className="label">😊 Personality</label>
           <select
             className="select"
             value={personality}
@@ -228,7 +322,7 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
           </select>
 
           {/* Negative Prompt */}
-          <label className="label">Exclude (Optional)</label>
+          <label className="label">🚫 Exclude (Optional)</label>
           <input
             className="input"
             type="text"
@@ -239,7 +333,7 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
           />
 
           {/* Brand Colors */}
-          <label className="label" style={{ marginTop: '12px' }}>Brand Colors (Optional)</label>
+          <label className="label" style={{ marginTop: '12px' }}>🎨 Brand Colors (Optional)</label>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
             <div>
               <input
@@ -311,27 +405,42 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
                   textAlign: 'center'
                 }}
               >
-                {variation.fullBodyImageUrl ? (
+                {variation.fullBodyImageUrl || variation.avatarImageUrl || variation.imageUrl ? (
                   <img
-                    src={variation.fullBodyImageUrl}
+                    src={variation.fullBodyImageUrl || variation.avatarImageUrl || variation.imageUrl}
                     alt={`Variation ${index + 1}`}
-                    style={{ width: '100%', height: 'auto', borderRadius: '4px' }}
+                    style={{ width: '100%', height: 'auto', borderRadius: '4px', minHeight: '120px', objectFit: 'contain' }}
+                    onError={(e) => {
+                      console.error('[Mascot] Failed to load image:', variation.fullBodyImageUrl || variation.avatarImageUrl || variation.imageUrl);
+                      // Show placeholder instead of hiding
+                      const parent = e.currentTarget.parentElement;
+                      if (parent) {
+                        e.currentTarget.style.display = 'none';
+                        const placeholder = parent.querySelector('.image-placeholder') as HTMLElement;
+                        if (placeholder) placeholder.style.display = 'flex';
+                      }
+                    }}
                   />
-                ) : (
-                  <div style={{
+                ) : null}
+                {!variation.fullBodyImageUrl && !variation.avatarImageUrl && !variation.imageUrl ? (
+                  <div className="image-placeholder" style={{
                     width: '100%',
-                    height: '100px',
-                    background: '#f0f0f0',
+                    height: '120px',
+                    background: 'linear-gradient(135deg, #f0f0f0 0%, #e0e0e0 100%)',
                     borderRadius: '4px',
                     display: 'flex',
+                    flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontSize: '10px',
-                    color: '#999'
+                    color: '#999',
+                    border: '2px dashed #ccc'
                   }}>
-                    Variation {index + 1}
+                    <div style={{ marginBottom: '6px', fontSize: '20px' }}>⏳</div>
+                    <div style={{ fontWeight: 500 }}>Generating...</div>
+                    <div style={{ fontSize: '9px', marginTop: '4px', opacity: 0.7 }}>Please wait</div>
                   </div>
-                )}
+                ) : null}
                 <div style={{ fontSize: '10px', marginTop: '4px', fontWeight: 500 }}>
                   #{index + 1}
                 </div>

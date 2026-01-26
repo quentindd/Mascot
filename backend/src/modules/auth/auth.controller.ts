@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, Request, Get, Res, Req } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Request, Get, Res, Req, Logger } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto, AuthResponseDto } from './dto/auth.dto';
@@ -9,7 +9,11 @@ import { Response } from 'express';
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  private readonly logger = new Logger(AuthController.name);
+
+  constructor(private readonly authService: AuthService) {
+    this.logger.log('AuthController initialized - Google OAuth routes should be available');
+  }
 
   @Post('register')
   @ApiOperation({ summary: 'Register a new user' })
@@ -28,13 +32,16 @@ export class AuthController {
   @UseGuards(GoogleAuthGuard)
   @ApiOperation({ summary: 'Initiate Google OAuth' })
   async googleAuth() {
-    // Guard redirects to Google
+    // Guard redirects to Google - this handler should never be reached
+    // as Passport redirects before the handler runs
+    this.logger.log('googleAuth handler called (should not happen - Passport should redirect)');
   }
 
   @Get('google/callback')
   @UseGuards(GoogleAuthGuard)
   @ApiOperation({ summary: 'Google OAuth callback' })
   async googleAuthCallback(@Request() req, @Res() res: Response) {
+    console.log('[AuthController] googleAuthCallback called');
     const user = req.user;
     const authResponse = await this.authService.login(user);
 

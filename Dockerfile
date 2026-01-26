@@ -8,7 +8,8 @@ WORKDIR /app
 COPY backend/package*.json ./
 
 # Install ALL dependencies (including devDependencies for build)
-RUN npm ci && npm cache clean --force
+# Using npm install temporarily until package-lock.json is updated
+RUN npm install && npm cache clean --force
 
 # Copy rest of backend
 COPY backend/ ./

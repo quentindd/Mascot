@@ -264,7 +264,7 @@ export class MascotGenerationProcessor extends WorkerHost {
           mascotDetails: mascotDetailsText,
           bodyParts: bodyPartsArray,
           color: color,
-          brandName: brandNameText,
+          brandName: brandName || name, // Store for reference, but not used in generation
           appDescription: appDescription,
         } as Record<string, any>,
       });

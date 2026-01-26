@@ -80,19 +80,23 @@ export class MascotGenerationProcessor extends WorkerHost {
       });
 
       // Generate different sizes (full body, avatar, square icon)
+      // Ensure PNG with alpha channel for transparent background
       const fullBodyBuffer = await sharp(imageBuffer)
+        .ensureAlpha() // Ensure alpha channel exists
         .resize(1024, 1024, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-        .png()
+        .png({ compressionLevel: 9, quality: 100, palette: true })
         .toBuffer();
 
       const avatarBuffer = await sharp(imageBuffer)
+        .ensureAlpha() // Ensure alpha channel exists
         .resize(512, 512, { fit: 'cover', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-        .png()
+        .png({ compressionLevel: 9, quality: 100, palette: true })
         .toBuffer();
 
       const squareIconBuffer = await sharp(imageBuffer)
+        .ensureAlpha() // Ensure alpha channel exists
         .resize(256, 256, { fit: 'cover', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-        .png()
+        .png({ compressionLevel: 9, quality: 100, palette: true })
         .toBuffer();
 
       // Upload to S3/CDN

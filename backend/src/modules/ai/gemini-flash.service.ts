@@ -416,8 +416,8 @@ export class GeminiFlashService implements OnModuleInit {
       prompt += `, mascot for ${config.brandName}`;
     }
 
-    // 8. Requirements standards
-    prompt += ', mascot character, transparent background, high quality, professional illustration, clean edges';
+    // 8. Requirements standards - MUST have transparent background
+    prompt += ', mascot character, transparent background, no background, PNG with alpha channel, isolated on transparent background, high quality, professional illustration, clean edges, no shadows on background';
 
     // 9. Negative prompt
     if (config.negativePrompt && config.negativePrompt.trim()) {

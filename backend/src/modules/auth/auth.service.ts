@@ -67,7 +67,7 @@ export class AuthService {
 
   async giveInitialCredits(userId: string): Promise<void> {
     // Give initial credits to new users
-    await this.creditsService.addCredits(userId, 100, 'initial_signup', 'Initial signup bonus');
+    await this.creditsService.addCredits(userId, 100, 'Initial signup bonus');
   }
 
   private generateAuthResponse(user: User): AuthResponseDto {

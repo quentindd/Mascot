@@ -22,7 +22,15 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     const clientSecret = configService.get('GOOGLE_CLIENT_SECRET');
     const callbackURL = configService.get('GOOGLE_CALLBACK_URL') || '/api/v1/auth/google/callback';
 
-    // Log configuration (without secrets)
+    // Call super first (required before using 'this')
+    super({
+      clientID: clientID || 'dummy', // Dummy value to prevent crash, but OAuth won't work
+      clientSecret: clientSecret || 'dummy',
+      callbackURL,
+      scope: ['email', 'profile'],
+    });
+
+    // Now we can use this.logger
     this.logger.log('Initializing GoogleStrategy...');
     this.logger.log(`Has Client ID: ${!!clientID}`);
     this.logger.log(`Has Client Secret: ${!!clientSecret}`);
@@ -31,21 +39,8 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     if (!clientID || !clientSecret) {
       this.logger.warn('Google OAuth credentials not configured. Google OAuth will not work.');
       this.logger.warn('Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in Railway.');
-      // Don't initialize strategy if credentials are missing
-      // This will cause an error, but it's better than silent failure
-    }
-
-    try {
-      super({
-        clientID: clientID || 'dummy', // Dummy value to prevent crash, but OAuth won't work
-        clientSecret: clientSecret || 'dummy',
-        callbackURL,
-        scope: ['email', 'profile'],
-      });
+    } else {
       this.logger.log('GoogleStrategy initialized successfully');
-    } catch (error) {
-      this.logger.error('Failed to initialize GoogleStrategy:', error);
-      throw error;
     }
   }
 

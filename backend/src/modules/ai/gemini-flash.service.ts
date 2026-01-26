@@ -411,18 +411,19 @@ export class GeminiFlashService implements OnModuleInit {
       prompt += `, ${config.appDescription} app mascot`;
     }
 
-    // 7. Brand name
-    if (config.brandName) {
-      prompt += `, mascot for ${config.brandName}`;
-    }
+    // 7. Brand name - ONLY if explicitly mentioned in the original prompt
+    // We don't add brandName automatically to avoid text appearing on the image
+    // If user wants brand name, they should include it in their prompt
 
-    // 8. Requirements standards - MUST have transparent background
-    prompt += ', mascot character, transparent background, no background, PNG with alpha channel, isolated on transparent background, high quality, professional illustration, clean edges, no shadows on background';
+    // 8. Requirements standards - MUST have transparent background and NO text
+    prompt += ', mascot character, transparent background, no background, PNG with alpha channel, isolated on transparent background, high quality, professional illustration, clean edges, no shadows on background, no text, no words, no letters, no brand name visible, no labels, no writing';
 
-    // 9. Negative prompt
+    // 9. Negative prompt - add default restrictions
+    let negativePromptText = 'background, solid background, white background, colored background, text, words, letters, brand name, labels, writing, text overlay';
     if (config.negativePrompt && config.negativePrompt.trim()) {
-      prompt += `, avoid: ${config.negativePrompt}`;
+      negativePromptText += `, ${config.negativePrompt}`;
     }
+    prompt += `, avoid: ${negativePromptText}`;
 
     return prompt.trim();
   }

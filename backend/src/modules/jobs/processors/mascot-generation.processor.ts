@@ -62,7 +62,10 @@ export class MascotGenerationProcessor extends WorkerHost {
       // Prepare config exactly like MascotAI
       const mascotDetailsText = mascotDetails || prompt;
       const bodyPartsArray = bodyParts || accessories || [];
-      const brandNameText = brandName || name;
+      
+      // Don't pass brandName to avoid text appearing on image
+      // If user wants brand name, they should include it in their prompt
+      // brandName is only used for database storage, not for image generation
 
       // Generate image with Gemini 2.5 Flash (exactly like MascotAI)
       const imageBuffer = await this.geminiFlashService.generateImage({
@@ -72,7 +75,7 @@ export class MascotGenerationProcessor extends WorkerHost {
         personality: personality || 'friendly',
         bodyParts: bodyPartsArray,
         color: color,
-        brandName: brandNameText,
+        // brandName removed - we don't want text on images unless user explicitly asks
         appDescription: appDescription,
         negativePrompt: negativePrompt || '',
         aspectRatio: aspectRatio || '1:1',
@@ -81,22 +84,55 @@ export class MascotGenerationProcessor extends WorkerHost {
 
       // Generate different sizes (full body, avatar, square icon)
       // Ensure PNG with alpha channel for transparent background
+      // Use removeAlpha: false to preserve transparency, and ensureAlpha to add it if missing
+      const transparentBackground = { r: 0, g: 0, b: 0, alpha: 0 };
+      
       const fullBodyBuffer = await sharp(imageBuffer)
         .ensureAlpha() // Ensure alpha channel exists
-        .resize(1024, 1024, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-        .png({ compressionLevel: 9, quality: 100, palette: true })
+        .resize(1024, 1024, { 
+          fit: 'contain', 
+          background: transparentBackground,
+          withoutEnlargement: true 
+        })
+        .png({ 
+          compressionLevel: 9, 
+          quality: 100, 
+          palette: false, // Don't use palette mode to preserve full alpha channel
+          adaptiveFiltering: true,
+          force: true // Force PNG output
+        })
         .toBuffer();
 
       const avatarBuffer = await sharp(imageBuffer)
         .ensureAlpha() // Ensure alpha channel exists
-        .resize(512, 512, { fit: 'cover', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-        .png({ compressionLevel: 9, quality: 100, palette: true })
+        .resize(512, 512, { 
+          fit: 'cover', 
+          background: transparentBackground,
+          withoutEnlargement: true 
+        })
+        .png({ 
+          compressionLevel: 9, 
+          quality: 100, 
+          palette: false, // Don't use palette mode to preserve full alpha channel
+          adaptiveFiltering: true,
+          force: true // Force PNG output
+        })
         .toBuffer();
 
       const squareIconBuffer = await sharp(imageBuffer)
         .ensureAlpha() // Ensure alpha channel exists
-        .resize(256, 256, { fit: 'cover', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-        .png({ compressionLevel: 9, quality: 100, palette: true })
+        .resize(256, 256, { 
+          fit: 'cover', 
+          background: transparentBackground,
+          withoutEnlargement: true 
+        })
+        .png({ 
+          compressionLevel: 9, 
+          quality: 100, 
+          palette: false, // Don't use palette mode to preserve full alpha channel
+          adaptiveFiltering: true,
+          force: true // Force PNG output
+        })
         .toBuffer();
 
       // Upload to S3/CDN

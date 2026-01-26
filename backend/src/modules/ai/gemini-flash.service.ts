@@ -416,8 +416,8 @@ export class GeminiFlashService implements OnModuleInit {
     // If user wants brand name, they should include it in their prompt
 
     // 8. Requirements standards - MUST have transparent background and NO text
-    // Very explicit instructions for transparency and no text
-    prompt += ', mascot character, COMPLETELY transparent background, NO background at all, isolated character only, PNG with full alpha channel, 100% transparent background, character cutout, no background color, no background texture, no background pattern, high quality, professional illustration, clean edges, no shadows on background, absolutely no text, no words, no letters, no brand name visible, no labels, no writing, no text overlay, no text on character, no text on accessories';
+    // Very explicit instructions for transparency and no text - placed at the END for maximum weight
+    prompt += '. CRITICAL REQUIREMENTS: The image MUST have a COMPLETELY transparent background with NO background color, NO background texture, NO background pattern, NO shadows on background. The character must be isolated on a 100% transparent background like a PNG cutout. ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO BRAND NAME, NO LABELS, NO WRITING, NO TEXT OVERLAY, NO TEXT ON CHARACTER, NO TEXT ON ACCESSORIES, NO TEXT ANYWHERE. High quality professional illustration with clean edges.';
 
     // 9. Negative prompt - add default restrictions
     let negativePromptText = 'background, solid background, white background, colored background, text, words, letters, brand name, labels, writing, text overlay';

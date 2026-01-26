@@ -8,6 +8,7 @@ import { StorageService } from '../../storage/storage.service';
 import { CreditsService } from '../../credits/credits.service';
 import { Logger } from '@nestjs/common';
 import * as sharp from 'sharp';
+import { removeBackground } from '@imgly/background-removal-node';
 
 @Processor('mascot-generation')
 export class MascotGenerationProcessor extends WorkerHost {
@@ -24,114 +25,38 @@ export class MascotGenerationProcessor extends WorkerHost {
   }
 
   /**
-   * Remove background from image by making white/light pixels transparent
-   * Uses edge detection to identify background pixels
+   * Remove background from image using AI-powered background removal
+   * Uses @imgly/background-removal-node for high-quality results
    */
   private async removeBackground(imageBuffer: Buffer): Promise<Buffer> {
     try {
-      const image = sharp(imageBuffer);
-      const metadata = await image.metadata();
+      this.logger.log('Starting AI-powered background removal...');
       
-      // Get raw pixel data
-      const { data, info } = await image
-        .ensureAlpha()
-        .raw()
-        .toBuffer({ resolveWithObject: true });
-
-      const pixels = new Uint8ClampedArray(data);
-      const width = info.width;
-      const height = info.height;
-      const channels = info.channels;
-
-      // Process pixels to remove background
-      // Strategy: Make pixels transparent if they are:
-      // 1. White or very light (RGB > 240)
-      // 2. Or similar to corner pixels (likely background)
-      const cornerSamples: number[][] = [];
-      const sampleSize = Math.min(10, Math.floor(width / 10), Math.floor(height / 10));
-      
-      // Sample corners to detect background color
-      for (let y = 0; y < sampleSize; y++) {
-        for (let x = 0; x < sampleSize; x++) {
-          // Top-left corner
-          const idx1 = (y * width + x) * channels;
-          cornerSamples.push([pixels[idx1], pixels[idx1 + 1], pixels[idx1 + 2]]);
-          
-          // Top-right corner
-          const idx2 = (y * width + (width - 1 - x)) * channels;
-          cornerSamples.push([pixels[idx2], pixels[idx2 + 1], pixels[idx2 + 2]]);
-          
-          // Bottom-left corner
-          const idx3 = ((height - 1 - y) * width + x) * channels;
-          cornerSamples.push([pixels[idx3], pixels[idx3 + 1], pixels[idx3 + 2]]);
-          
-          // Bottom-right corner
-          const idx4 = ((height - 1 - y) * width + (width - 1 - x)) * channels;
-          cornerSamples.push([pixels[idx4], pixels[idx4 + 1], pixels[idx4 + 2]]);
-        }
-      }
-
-      // Calculate average background color from corners
-      const avgBg = cornerSamples.reduce(
-        (acc, pixel) => [acc[0] + pixel[0], acc[1] + pixel[1], acc[2] + pixel[2]],
-        [0, 0, 0]
-      ).map(sum => sum / cornerSamples.length);
-
-      // Threshold for background detection (similarity to corner colors or very light)
-      const threshold = 25; // Color difference threshold (more conservative)
-      const lightThreshold = 245; // RGB value for "very light" pixels (more conservative - only very white)
-      
-      // Only remove background if corners are actually light/uniform (likely background)
-      const avgBgBrightness = (avgBg[0] + avgBg[1] + avgBg[2]) / 3;
-      const isLikelyBackground = avgBgBrightness > 200; // Only if corners are light
-
-      // Process all pixels
-      for (let i = 0; i < pixels.length; i += channels) {
-        const r = pixels[i];
-        const g = pixels[i + 1];
-        const b = pixels[i + 2];
-        const alphaIdx = i + 3;
-        
-        // Calculate pixel position
-        const pixelIndex = i / channels;
-        const x = pixelIndex % width;
-        const y = Math.floor(pixelIndex / width);
-        
-        // Check if pixel is on the edge (more likely to be background)
-        const isOnEdge = x < 5 || x > width - 5 || y < 5 || y > height - 5;
-
-        // Check if pixel is very light (white/light background)
-        const isLight = r > lightThreshold && g > lightThreshold && b > lightThreshold;
-        
-        // Check if pixel is similar to corner background color
-        const colorDiff = Math.abs(r - avgBg[0]) + Math.abs(g - avgBg[1]) + Math.abs(b - avgBg[2]);
-        const isBackground = colorDiff < threshold;
-
-        // Only remove if:
-        // 1. It's very light (white) AND on edge, OR
-        // 2. It's similar to background color AND (on edge OR background is likely uniform)
-        if ((isLight && isOnEdge) || (isBackground && isLikelyBackground && isOnEdge)) {
-          pixels[alphaIdx] = 0; // Fully transparent
-        } else if (isLight && !isOnEdge) {
-          // For very light pixels in center, make semi-transparent (might be highlights)
-          pixels[alphaIdx] = Math.min(pixels[alphaIdx] || 255, 200);
-        }
-      }
-
-      // Convert back to PNG with transparency
-      return await sharp(Buffer.from(pixels), {
-        raw: {
-          width,
-          height,
-          channels: 4, // RGBA
+      // Use @imgly/background-removal-node for precise background removal
+      const blob = await removeBackground(imageBuffer, {
+        output: {
+          format: 'image/png',
         },
-      })
-        .png({ compressionLevel: 9, quality: 100, force: true })
-        .toBuffer();
+      });
+
+      // Convert Blob to Buffer
+      const arrayBuffer = await blob.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      
+      this.logger.log('Background removal completed successfully');
+      return buffer;
     } catch (error) {
-      this.logger.warn('Failed to remove background, using original image:', error);
-      // If background removal fails, return original with ensureAlpha
-      return await sharp(imageBuffer).ensureAlpha().png().toBuffer();
+      this.logger.error('Failed to remove background with AI, falling back to sharp:', error);
+      // Fallback: try to ensure alpha channel exists
+      try {
+        return await sharp(imageBuffer)
+          .ensureAlpha()
+          .png({ force: true })
+          .toBuffer();
+      } catch (fallbackError) {
+        this.logger.error('Fallback also failed, returning original:', fallbackError);
+        return imageBuffer;
+      }
     }
   }
 

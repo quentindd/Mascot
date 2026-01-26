@@ -35,6 +35,30 @@ export class AuthController {
     return { message: 'Google OAuth route is registered', timestamp: new Date().toISOString() };
   }
 
+  @Get('google/debug')
+  @ApiOperation({ summary: 'Debug Google OAuth strategy availability' })
+  async googleAuthDebug() {
+    // Try to check if the strategy is available
+    try {
+      const passport = require('passport');
+      const strategies = Object.keys(passport._strategies || {});
+      this.logger.log(`Available Passport strategies: ${strategies.join(', ')}`);
+      return {
+        message: 'Google OAuth debug info',
+        availableStrategies: strategies,
+        hasGoogleStrategy: strategies.includes('google'),
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      this.logger.error('Error checking strategies:', error);
+      return {
+        message: 'Error checking strategies',
+        error: error.message,
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
   @Get('google')
   @UseGuards(GoogleAuthGuard)
   @ApiOperation({ summary: 'Initiate Google OAuth' })
@@ -44,6 +68,7 @@ export class AuthController {
     this.logger.log('googleAuth handler called (should not happen - Passport should redirect)');
     this.logger.log(`Request URL: ${req.url}`);
     this.logger.log(`Request method: ${req.method}`);
+    return { message: 'This should not be reached - Passport should redirect to Google' };
   }
 
   @Get('google/callback')

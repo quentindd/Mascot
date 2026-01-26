@@ -8,7 +8,6 @@ import { StorageService } from '../../storage/storage.service';
 import { CreditsService } from '../../credits/credits.service';
 import { Logger } from '@nestjs/common';
 import * as sharp from 'sharp';
-import { removeBackground } from '@imgly/background-removal-node';
 
 @Processor('mascot-generation')
 export class MascotGenerationProcessor extends WorkerHost {
@@ -25,38 +24,77 @@ export class MascotGenerationProcessor extends WorkerHost {
   }
 
   /**
-   * Remove background from image using AI-powered background removal
-   * Uses @imgly/background-removal-node for high-quality results
+   * Remove background from image by making white/light pixels transparent
+   * Uses Sharp's unflatten() method and additional processing for better results
    */
   private async removeBackground(imageBuffer: Buffer): Promise<Buffer> {
     try {
-      this.logger.log('Starting AI-powered background removal...');
+      this.logger.log('Removing background from image...');
       
-      // Use @imgly/background-removal-node for precise background removal
-      const blob = await removeBackground(imageBuffer, {
-        output: {
-          format: 'image/png',
-        },
-      });
+      // First, ensure alpha channel exists
+      let processed = sharp(imageBuffer).ensureAlpha();
+      
+      // Use unflatten() to make white pixels transparent (experimental but works well)
+      // This makes all white pixel values fully transparent
+      processed = processed.unflatten();
+      
+      // Additional processing: make very light pixels (near white) transparent too
+      const { data, info } = await processed
+        .raw()
+        .toBuffer({ resolveWithObject: true });
 
-      // Convert Blob to Buffer
-      const arrayBuffer = await blob.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
+      const pixels = new Uint8ClampedArray(data);
+      const width = info.width;
+      const height = info.height;
+      const channels = info.channels;
+      
+      // Threshold for "very light" pixels to make transparent
+      const lightThreshold = 240; // RGB value (240-255 = very light/white)
+      
+      // Process pixels to make very light backgrounds transparent
+      for (let i = 0; i < pixels.length; i += channels) {
+        const r = pixels[i];
+        const g = pixels[i + 1];
+        const b = pixels[i + 2];
+        const alphaIdx = i + 3;
+        
+        // Calculate pixel position
+        const pixelIndex = i / channels;
+        const x = pixelIndex % width;
+        const y = Math.floor(pixelIndex / width);
+        
+        // Check if pixel is on the edge (more likely to be background)
+        const isOnEdge = x < 10 || x > width - 10 || y < 10 || y > height - 10;
+        
+        // Check if pixel is very light (white/light background)
+        const isVeryLight = r > lightThreshold && g > lightThreshold && b > lightThreshold;
+        
+        // Make transparent if it's very light AND on edge
+        if (isVeryLight && isOnEdge) {
+          pixels[alphaIdx] = 0; // Fully transparent
+        }
+      }
+      
+      // Convert back to PNG with transparency
+      const result = await sharp(Buffer.from(pixels), {
+        raw: {
+          width,
+          height,
+          channels: 4, // RGBA
+        },
+      })
+        .png({ compressionLevel: 9, quality: 100, force: true })
+        .toBuffer();
       
       this.logger.log('Background removal completed successfully');
-      return buffer;
+      return result;
     } catch (error) {
-      this.logger.error('Failed to remove background with AI, falling back to sharp:', error);
-      // Fallback: try to ensure alpha channel exists
-      try {
-        return await sharp(imageBuffer)
-          .ensureAlpha()
-          .png({ force: true })
-          .toBuffer();
-      } catch (fallbackError) {
-        this.logger.error('Fallback also failed, returning original:', fallbackError);
-        return imageBuffer;
-      }
+      this.logger.error('Failed to remove background, using original with alpha:', error);
+      // Fallback: ensure alpha channel exists
+      return await sharp(imageBuffer)
+        .ensureAlpha()
+        .png({ force: true })
+        .toBuffer();
     }
   }
 

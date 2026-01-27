@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, Request, Logger } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { PosesService } from './poses.service';
 import { CreatePoseDto } from './dto/create-pose.dto';
@@ -9,7 +9,11 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 @UseGuards(JwtAuthGuard)
 @Controller()
 export class PosesController {
-  constructor(private readonly posesService: PosesService) {}
+  private readonly logger = new Logger(PosesController.name);
+
+  constructor(private readonly posesService: PosesService) {
+    this.logger.log('PosesController initialized - Routes: POST /mascots/:id/poses, GET /mascots/:id/poses, GET /poses/:id, GET /poses/:id/status');
+  }
 
   @Post('mascots/:id/poses')
   create(@Param('id') mascotId: string, @Body() dto: CreatePoseDto, @Request() req) {

@@ -28,9 +28,8 @@ export class MascotsService {
         throw new ForbiddenException('Insufficient credits');
       }
 
-      // Temporarily reduce to 1 variation to avoid rate limits
-      // TODO: Increase back to 3 once quotas are increased or retry logic is deployed
-      const numVariations = createMascotDto.numVariations || 1;
+      // Generate 3 variations by default (or use provided numVariations)
+      const numVariations = createMascotDto.numVariations || 3;
       const batchId = this.generateBatchId();
 
       // Create multiple mascot records (one for each variation)

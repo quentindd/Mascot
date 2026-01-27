@@ -1,10 +1,11 @@
 import { Injectable, Inject, forwardRef, Logger } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
+// @ts-ignore - passport-google-oauth20 types may not be available
 import { Strategy, VerifyCallback } from 'passport-google-oauth20';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User } from '../../../entities/user.entity';
+import { User, UserPlan } from '../../../entities/user.entity';
 import { AuthService } from '../auth.service';
 
 @Injectable()
@@ -73,6 +74,12 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
         user.avatarUrl = avatarUrl;
         await this.userRepository.save(user);
       }
+      // Give initial credits if user has none (for existing users who never got credits)
+      if (user.creditBalance === 0) {
+        await this.authService.giveInitialCredits(user.id);
+        // Reload user to get updated credit balance
+        user = await this.userRepository.findOne({ where: { id: user.id } });
+      }
     } else {
       // Create new user
       user = this.userRepository.create({
@@ -82,11 +89,16 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
         avatarUrl,
         passwordHash: '', // No password for OAuth users
         isActive: true,
+        plan: UserPlan.FREE, // Set default plan
+        creditBalance: 0, // Will be set by giveInitialCredits
       });
       user = await this.userRepository.save(user);
 
       // Give initial credits
       await this.authService.giveInitialCredits(user.id);
+      
+      // Reload user to get updated credit balance
+      user = await this.userRepository.findOne({ where: { id: user.id } });
     }
 
     // Update last login

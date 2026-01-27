@@ -14,19 +14,25 @@ export const LogosTab: React.FC<LogosTabProps> = ({
   onSelectMascot,
   mascots,
 }) => {
+  const [brandColors, setBrandColors] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  rpc.on('logo-pack-generation-started', () => {
+  React.useEffect(() => {
+    console.log('[LogosTab] Mascots available:', mascots.length);
+    console.log('[LogosTab] Selected mascot:', selectedMascot?.id || 'none');
+  }, [mascots, selectedMascot]);
+
+  rpc.on('logo-generation-started', () => {
     setIsGenerating(true);
     setError(null);
   });
 
-  rpc.on('logo-pack-completed', () => {
+  rpc.on('logo-completed', () => {
     setIsGenerating(false);
   });
 
-  rpc.on('logo-pack-generation-failed', (data: { error: string }) => {
+  rpc.on('logo-generation-failed', (data: { error: string }) => {
     setIsGenerating(false);
     setError(data.error);
   });
@@ -39,22 +45,57 @@ export const LogosTab: React.FC<LogosTabProps> = ({
 
     rpc.send('generate-logo-pack', {
       mascotId: selectedMascot.id,
+      brandColors: brandColors.length > 0 ? brandColors : undefined,
     });
   };
 
-  if (!selectedMascot && mascots.length > 0) {
+  // Show empty state if no mascots
+  if (mascots.length === 0) {
+    return (
+      <div className="empty-state-content">
+        <div className="empty-state-icon">Logos</div>
+        <h3 className="empty-state-title">No mascots available</h3>
+        <p className="empty-state-text">
+          Create a mascot first to generate logo packs.
+        </p>
+      </div>
+    );
+  }
+
+  // Show mascot selection if none selected
+  if (!selectedMascot) {
     return (
       <div>
-        <p className="loading">Select a mascot to generate logo pack</p>
-        <div style={{ marginTop: '12px' }}>
+        <h3 className="section-title">Select a Mascot</h3>
+        <p className="section-description">
+          Choose a mascot to create logo packs:
+        </p>
+        <div className="mascots-selection-grid">
           {mascots.map((mascot) => (
             <div
               key={mascot.id}
-              className="card"
-              style={{ cursor: 'pointer' }}
+              className="mascot-selection-card"
               onClick={() => onSelectMascot(mascot)}
             >
-              {mascot.name}
+              <div className="mascot-selection-image">
+                {(mascot.avatarImageUrl || mascot.imageUrl || mascot.fullBodyImageUrl) ? (
+                  <img
+                    src={mascot.fullBodyImageUrl || mascot.avatarImageUrl || mascot.imageUrl}
+                    alt={mascot.name}
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <div className="mascot-selection-placeholder">
+                    {mascot.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </div>
+              <div className="mascot-selection-info">
+                <div className="mascot-selection-name">{mascot.name}</div>
+                <div className="mascot-selection-meta">{mascot.style || 'mascot'}</div>
+              </div>
             </div>
           ))}
         </div>
@@ -62,46 +103,73 @@ export const LogosTab: React.FC<LogosTabProps> = ({
     );
   }
 
-  if (!selectedMascot) {
-    return <p className="loading">Generate a mascot first in the Character tab</p>;
-  }
-
+  // Show logo generation form
   return (
     <div>
-      <div className="card">
-        <div style={{ fontWeight: 600, marginBottom: '4px' }}>
-          Selected: {selectedMascot.name}
+      {/* Selected Mascot Preview */}
+      <div className="selected-mascot-preview">
+        <div className="selected-mascot-image">
+          {(selectedMascot.avatarImageUrl || selectedMascot.imageUrl || selectedMascot.fullBodyImageUrl) ? (
+            <img
+              src={selectedMascot.fullBodyImageUrl || selectedMascot.avatarImageUrl || selectedMascot.imageUrl}
+              alt={selectedMascot.name}
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+          ) : (
+            <div className="selected-mascot-placeholder">
+              {selectedMascot.name.charAt(0).toUpperCase()}
+            </div>
+          )}
         </div>
-        <button
-          className="btn-secondary"
-          onClick={() => onSelectMascot(null)}
-          style={{ fontSize: '11px', padding: '4px 8px' }}
-        >
-          Change
-        </button>
+        <div className="selected-mascot-details">
+          <div className="selected-mascot-name">{selectedMascot.name}</div>
+          <div className="selected-mascot-meta">{selectedMascot.style || 'mascot'}</div>
+          <button
+            className="btn-link"
+            onClick={() => onSelectMascot(null)}
+          >
+            Change Mascot
+          </button>
+        </div>
       </div>
 
-      <p style={{ fontSize: '11px', color: '#666', marginBottom: '16px' }}>
-        Generate a complete logo pack with 15+ sizes including favicons, iOS, and
-        Android app icons.
-      </p>
-
-      {error && <div className="error">{error}</div>}
-
-      <button
-        className="btn-primary"
-        onClick={handleGenerate}
-        disabled={isGenerating}
-        style={{ width: '100%' }}
-      >
-        {isGenerating ? 'Generating...' : 'Generate Logo Pack (20 credits)'}
-      </button>
-
-      {isGenerating && (
-        <div className="loading" style={{ marginTop: '16px' }}>
-          Generating logo pack... This may take a few minutes.
+      {error && (
+        <div className="error" style={{ marginBottom: '16px' }}>
+          {error}
         </div>
       )}
+
+      <div className="card" style={{ marginBottom: '16px' }}>
+        <label className="label">Brand Colors (Optional)</label>
+        <p className="field-hint">
+          Enter hex colors separated by commas (e.g., #FF5733, #33FF57)
+        </p>
+        <input
+          className="input"
+          type="text"
+          placeholder="#FF5733, #33FF57"
+          value={brandColors.join(', ')}
+          onChange={(e) => {
+            const colors = e.target.value
+              .split(',')
+              .map(c => c.trim())
+              .filter(c => c.startsWith('#'));
+            setBrandColors(colors);
+          }}
+          disabled={isGenerating}
+        />
+
+        <button
+          className="btn-primary"
+          onClick={handleGenerate}
+          disabled={isGenerating || !selectedMascot}
+          style={{ width: '100%', marginTop: '8px' }}
+        >
+          {isGenerating ? 'Generating...' : 'Generate Logo Pack'}
+        </button>
+      </div>
     </div>
   );
 };

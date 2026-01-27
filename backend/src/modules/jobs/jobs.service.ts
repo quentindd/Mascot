@@ -11,6 +11,8 @@ export class JobsService {
     private animationQueue: Queue,
     @InjectQueue('logo-pack-generation')
     private logoPackQueue: Queue,
+    @InjectQueue('pose-generation')
+    private poseQueue: Queue,
   ) {}
 
   async enqueueMascotGeneration(mascotId: string, data: any) {
@@ -33,5 +35,9 @@ export class JobsService {
 
   async enqueueLogoPackGeneration(logoPackId: string, mascotId: string, data: any) {
     await this.logoPackQueue.add('generate', { logoPackId, mascotId, ...data });
+  }
+
+  async enqueuePoseGeneration(poseId: string, mascotId: string, data: any) {
+    await this.poseQueue.add('generate', { poseId, mascotId, ...data });
   }
 }

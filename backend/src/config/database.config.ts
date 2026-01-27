@@ -9,6 +9,7 @@ import { Mascot } from '../entities/mascot.entity';
 import { AnimationJob } from '../entities/animation-job.entity';
 import { LogoPack } from '../entities/logo-pack.entity';
 import { GenerationJob } from '../entities/generation-job.entity';
+import { Pose } from '../entities/pose.entity';
 
 @Injectable()
 export class DatabaseConfig implements TypeOrmOptionsFactory {
@@ -31,6 +32,7 @@ export class DatabaseConfig implements TypeOrmOptionsFactory {
         AnimationJob,
         LogoPack,
         GenerationJob,
+        Pose,
       ],
       synchronize: true, // Force table creation in production (temporary)
       logging: this.configService.get('NODE_ENV') === 'development',

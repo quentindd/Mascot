@@ -1,100 +1,100 @@
-# Comment obtenir plus de crédits
+# 💰 Comment ajouter des crédits à votre compte
 
-## 🚀 Option 1 : Créer un nouveau compte (RAPIDE)
+## Méthode 1 : Via l'API (Recommandé - Simple)
 
-Chaque nouveau compte commence avec **1 crédit gratuit**.
+### Étape 1 : Obtenir votre token
 
-### Via Terminal :
+Votre token est l'`accessToken` que vous avez reçu lors de la connexion. Vous pouvez le trouver :
+
+1. **Dans la console du plugin Figma** :
+   - Ouvrez le plugin
+   - Ouvrez la console (F12 ou Cmd+Option+I)
+   - Cherchez `[Mascot Code] Token received: eyJhbGciOiJIUzI1NiIs...`
+   - Copiez le token complet
+
+2. **Ou depuis la réponse de connexion** :
+   - Si vous vous êtes connecté avec Google OAuth, le token était dans la réponse
+   - Si vous avez utilisé un token API, c'est celui que vous avez entré
+
+### Étape 2 : Utiliser le script
 
 ```bash
-curl -X POST https://mascot-production.up.railway.app/api/v1/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "nouveau-compte@mascot.app",
-    "password": "MotDePasse123!",
-    "name": "Nouveau User"
-  }'
+cd /Users/quentin/Documents/Mascot
+node scripts/add-credits-simple.js <VOTRE_TOKEN> <MONTANT>
 ```
 
-**Dans la réponse**, copiez le `accessToken` et utilisez-le dans le plugin.
+**Exemple** :
+```bash
+node scripts/add-credits-simple.js eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJzdWIiOiIxMjM0NTY3OC0xMjM0LTU2NzgtMTIzNC01Njc4MTIzNDU2NzgifQ.abc123... 100
+```
+
+Cela ajoutera 100 crédits à votre compte.
 
 ---
 
-## 🔧 Option 2 : Ajouter des crédits à votre compte actuel
+## Méthode 2 : Via curl (Alternative)
 
-### Méthode A : Via SQL (direct dans la base de données)
+Si vous préférez utiliser `curl` directement :
+
+```bash
+curl -X POST https://mascot-production.up.railway.app/api/v1/credits/add \
+  -H "Authorization: Bearer <VOTRE_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"amount": 100, "description": "Added via API"}'
+```
+
+---
+
+## Méthode 3 : Via la base de données (Avancé)
 
 Si vous avez accès à la base de données Railway :
 
-1. Allez sur Railway → Projet "Mascot" → Service PostgreSQL
-2. Cliquez sur "Query" ou "Connect"
-3. Exécutez cette requête SQL :
+1. **Connectez-vous à Railway** et ouvrez votre service PostgreSQL
+2. **Ouvrez la console SQL** ou utilisez `psql`
+3. **Trouvez votre user ID** :
+   ```sql
+   SELECT id, email, "creditBalance" FROM users WHERE email = 'votre@email.com';
+   ```
+4. **Ajoutez des crédits** :
+   ```sql
+   UPDATE users 
+   SET "creditBalance" = "creditBalance" + 100 
+   WHERE email = 'votre@email.com';
+   ```
 
-```sql
--- Trouver votre user ID (remplacez l'email)
-SELECT id, email, credit_balance FROM users WHERE email = 'votre-email@example.com';
+---
 
--- Ajouter 10 crédits (remplacez l'ID)
-UPDATE users 
-SET credit_balance = credit_balance + 10 
-WHERE id = 'votre-user-id-ici';
+## Vérifier votre solde
+
+Pour vérifier votre solde actuel :
+
+```bash
+curl https://mascot-production.up.railway.app/api/v1/credits/balance \
+  -H "Authorization: Bearer <VOTRE_TOKEN>"
 ```
 
-### Méthode B : Via un script Node.js (si vous avez accès au backend)
-
-Créez un fichier `add-credits.js` :
-
-```javascript
-// Nécessite d'être exécuté dans le contexte du backend
-const { AppModule } = require('./dist/app.module');
-const { NestFactory } = require('@nestjs/core');
-
-async function addCredits() {
-  const app = await NestFactory.createApplicationContext(AppModule);
-  const creditsService = app.get('CreditsService');
-  const userRepository = app.get('UserRepository');
-  
-  // Trouver l'utilisateur par email
-  const user = await userRepository.findOne({ 
-    where: { email: 'votre-email@example.com' } 
-  });
-  
-  if (!user) {
-    console.log('User not found');
-    return;
-  }
-  
-  // Ajouter 10 crédits
-  await creditsService.addCredits(user.id, 10, 'Crédits ajoutés manuellement');
-  console.log(`✅ Ajouté 10 crédits. Nouveau solde: ${user.creditBalance + 10}`);
-  
-  await app.close();
-}
-
-addCredits();
+Ou utilisez le script :
+```bash
+node scripts/check-balance.js <VOTRE_TOKEN>
 ```
 
 ---
 
-## 💡 Solution la plus simple
+## Notes importantes
 
-**Créer un nouveau compte** est la solution la plus rapide :
-
-1. Exécutez la commande curl ci-dessus
-2. Copiez le `accessToken`
-3. Utilisez-le dans le plugin Figma
-
-Chaque nouveau compte = 1 crédit = 1 génération (4 variations) !
+- ✅ L'endpoint `/api/v1/credits/add` permet aux utilisateurs d'ajouter des crédits à leur propre compte
+- ✅ C'est utile pour les tests et le développement
+- ⚠️ En production, vous voudrez peut-être restreindre cet endpoint aux admins uniquement
+- ✅ Les crédits sont ajoutés immédiatement et apparaissent dans votre solde
 
 ---
 
-## 📊 Combien de crédits pour tester ?
+## Problème : "Insufficient credits"
 
-- **1 crédit** = 1 génération = **4 variations** de mascot
-- Donc 1 compte = 4 mascots différents à tester
-
-Si vous voulez tester plus, créez plusieurs comptes avec des emails différents.
+Si vous voyez cette erreur, cela signifie que votre solde est à 0. Utilisez une des méthodes ci-dessus pour ajouter des crédits.
 
 ---
 
-**Quelle option préférez-vous ? Créer un nouveau compte ou ajouter des crédits à l'existant ?**
+## Solution automatique (Après redéploiement)
+
+Une fois que le code est déployé sur Railway, les nouveaux utilisateurs Google OAuth recevront automatiquement 100 crédits lors de leur première connexion. Les utilisateurs existants avec 0 crédit recevront également 100 crédits lors de leur prochaine connexion Google OAuth.

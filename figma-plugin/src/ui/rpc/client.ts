@@ -5,11 +5,17 @@ export class RPCClient {
 
   constructor() {
     window.onmessage = (event: MessageEvent) => {
-      const { type, data } = event.data.pluginMessage || {};
+      // Figma sends messages directly in event.data, not in event.data.pluginMessage
+      const message = event.data.pluginMessage || event.data;
+      const { type, data } = message || {};
+      
       if (type) {
+        console.log('[RPCClient] Received message:', type, data ? `with ${Array.isArray(data.mascots) ? data.mascots.length + ' mascots' : 'data'}` : 'no data');
         const handlers = this.listeners.get(type);
         if (handlers) {
           handlers.forEach((handler) => handler(data));
+        } else {
+          console.warn('[RPCClient] No handlers registered for type:', type);
         }
       }
     };

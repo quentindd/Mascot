@@ -6,44 +6,57 @@ interface AccountTabProps {
   credits: number | null;
 }
 
-export const AccountTab: React.FC<AccountTabProps> = () => {
+export const AccountTab: React.FC<AccountTabProps> = ({ credits }) => {
   const handleManageBilling = () => {
     // Open web dashboard in browser
-    window.open('https://mascot.com/dashboard', '_blank');
+    window.open('https://mascot-production.up.railway.app/dashboard', '_blank');
   };
 
   return (
     <div>
-      <h3 className="card-title">Account</h3>
+      <h3 className="section-title">Account Settings</h3>
+      <p className="section-description">
+        Manage your account, credits, and billing information.
+      </p>
 
-      <div className="card">
-        <div style={{ marginBottom: '8px' }}>
-          <div style={{ fontSize: '11px', color: '#666', marginBottom: '4px' }}>
-            Credits Remaining
-          </div>
-          <div style={{ fontSize: '24px', fontWeight: 600 }}>100</div>
+      {/* Credits Card */}
+      <div className="account-card">
+        <div className="account-card-header">
+          <div className="account-card-label">Credits Remaining</div>
+          <div className="account-card-value">{credits !== null ? credits : '---'}</div>
         </div>
-        <div style={{ fontSize: '11px', color: '#999' }}>
-          Plan: Creator • Resets monthly
+        <div className="account-card-meta">
+          Plan: Free - Resets monthly
         </div>
       </div>
 
-      <button
-        className="btn-primary"
-        onClick={handleManageBilling}
-        style={{ width: '100%', marginTop: '16px' }}
-      >
-        Manage Billing
-      </button>
+      {/* Actions */}
+      <div className="account-actions">
+        <button
+          className="btn-primary"
+          onClick={handleManageBilling}
+          style={{ width: '100%' }}
+        >
+          Manage Billing
+        </button>
+      </div>
 
-      <div style={{ marginTop: '24px', fontSize: '11px', color: '#666' }}>
-        <h4 style={{ marginBottom: '8px', fontSize: '12px', fontWeight: 600 }}>
-          Credit Costs
-        </h4>
-        <div style={{ lineHeight: '1.6' }}>
-          <div>• Mascot: 1 credit</div>
-          <div>• Animation: 25 credits</div>
-          <div>• Logo Pack: 20 credits</div>
+      {/* Credit Costs Info */}
+      <div className="account-info-section">
+        <h4 className="account-info-title">Credit Costs</h4>
+        <div className="account-info-list">
+          <div className="account-info-item">
+            <span className="account-info-label">Mascot Generation</span>
+            <span className="account-info-value">1 credit</span>
+          </div>
+          <div className="account-info-item">
+            <span className="account-info-label">Animation</span>
+            <span className="account-info-value">25 credits</span>
+          </div>
+          <div className="account-info-item">
+            <span className="account-info-label">Logo Pack</span>
+            <span className="account-info-value">20 credits</span>
+          </div>
         </div>
       </div>
     </div>

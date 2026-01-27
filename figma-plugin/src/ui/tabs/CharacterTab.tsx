@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { RPCClient } from '../rpc/client';
 
 interface CharacterTabProps {
@@ -7,6 +7,8 @@ interface CharacterTabProps {
   selectedMascot: any;
   onSelectMascot: (mascot: any) => void;
   onMascotGenerated: () => void;
+  generatedVariations?: any[];
+  onVariationsChange?: (variations: any[]) => void;
 }
 
 export const CharacterTab: React.FC<CharacterTabProps> = ({
@@ -15,6 +17,8 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
   selectedMascot,
   onSelectMascot,
   onMascotGenerated,
+  generatedVariations: propGeneratedVariations = [],
+  onVariationsChange,
 }) => {
   // Basic fields
   const [name, setName] = useState('');
@@ -37,13 +41,37 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [generatedVariations, setGeneratedVariations] = useState<any[]>([]);
+  
+  // Use prop variations if provided, otherwise use local state
+  const [localVariations, setLocalVariations] = useState<any[]>([]);
+  const generatedVariations = propGeneratedVariations.length > 0 ? propGeneratedVariations : localVariations;
+  
+  const setGeneratedVariations = (variations: any[]) => {
+    if (onVariationsChange) {
+      onVariationsChange(variations);
+    } else {
+      setLocalVariations(variations);
+    }
+  };
+  
+  // Debug: log mascots when component updates
+  useEffect(() => {
+    console.log('[CharacterTab] Mascots prop updated:', mascots.length, 'mascots');
+    if (mascots.length > 0) {
+      console.log('[CharacterTab] First 3 mascot IDs:', mascots.slice(0, 3).map(m => ({ id: m.id, name: m.name })));
+    }
+  }, [mascots]);
 
   rpc.on('mascot-generation-started', () => {
     setIsGenerating(true);
     setError(null);
     setSuccess(null);
-    setGeneratedVariations([]);
+    // Only clear if we're managing local state
+    if (!onVariationsChange) {
+      setLocalVariations([]);
+    } else {
+      onVariationsChange([]);
+    }
   });
 
   rpc.on('mascot-generated', async (data: { mascot: any; variations?: any[] }) => {
@@ -64,21 +92,21 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
       
       if (batchId) {
         if (hasImages) {
-          setSuccess(`Generated ${data.variations.length} variations! Select one below.`);
+          setSuccess(`Created ${data.variations.length} variations! Select one below.`);
         } else {
-          setSuccess(`Generated ${data.variations.length} variations! Waiting for images...`);
+          setSuccess(`Created ${data.variations.length} variations! Waiting for images...`);
           // Start polling immediately
           pollForVariationImages(batchId);
         }
       } else {
         if (hasImages) {
-          setSuccess(`Generated ${data.variations.length} variations! Select one below.`);
+          setSuccess(`Created ${data.variations.length} variations! Select one below.`);
         } else {
-          setSuccess(`Generated ${data.variations.length} variations! Images are being generated...`);
+          setSuccess(`Created ${data.variations.length} variations! Images are being generated...`);
         }
       }
     } else {
-      setSuccess(`Mascot "${data.mascot.name}" generated successfully!`);
+      setSuccess(`Mascot "${data.mascot.name}" created successfully!`);
     }
     onMascotGenerated();
     console.log('[Mascot] Mascot generated:', data);
@@ -107,54 +135,103 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
     setError(data.error);
   });
 
+  // Use ref to track polling timeout so we can clear it
+  const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingAttemptsRef = useRef<number>(0);
+  const currentBatchIdRef = useRef<string | null>(null);
+
   // Poll for variation images
   const pollForVariationImages = (batchId: string) => {
-    const maxAttempts = 30; // 2.5 minutes max
-    let attempts = 0;
+    const maxAttempts = 180; // 15 minutes max (increased significantly for 3 variations that may take longer)
+    pollingAttemptsRef.current = 0;
+    currentBatchIdRef.current = batchId;
 
     console.log('[Mascot] Starting to poll for batch variations:', batchId);
+    console.log('[Mascot] Will poll for up to', maxAttempts, 'attempts (15 minutes)');
 
     const poll = () => {
-      if (attempts >= maxAttempts) {
-        console.error('[Mascot] Polling timeout after', attempts, 'attempts');
-        setError('Images are taking longer than expected. Please refresh and try again.');
+      // Check if we've moved to a new batch
+      if (currentBatchIdRef.current !== batchId) {
+        console.log('[Mascot] Batch changed, stopping old polling');
         return;
       }
 
-      console.log(`[Mascot] Polling attempt ${attempts + 1}/${maxAttempts} for batch:`, batchId);
+      if (pollingAttemptsRef.current >= maxAttempts) {
+        console.error('[Mascot] Polling timeout after', pollingAttemptsRef.current, 'attempts');
+        setError('Images are taking longer than expected. Some variations may still be generating. Please check back later.');
+        // Don't stop polling completely - continue in background
+        return;
+      }
+
+      console.log(`[Mascot] Polling attempt ${pollingAttemptsRef.current + 1}/${maxAttempts} for batch:`, batchId);
       rpc.send('get-batch-variations', { batchId });
-      attempts++;
+      pollingAttemptsRef.current++;
       
       // Continue polling after 5 seconds
-      setTimeout(poll, 5000);
+      pollingTimeoutRef.current = setTimeout(poll, 5000);
     };
 
     // Start immediately, then poll every 5 seconds
     poll();
   };
 
+  // Stop polling when component unmounts or when all variations have images
+  const stopPolling = () => {
+    if (pollingTimeoutRef.current) {
+      clearTimeout(pollingTimeoutRef.current);
+      pollingTimeoutRef.current = null;
+    }
+    currentBatchIdRef.current = null;
+  };
+
+  useEffect(() => {
+    return () => {
+      stopPolling();
+    };
+  }, []);
+
   // Listen for batch variations updates
   rpc.on('batch-variations-loaded', (data: { variations: any[] }) => {
-    console.log('[Mascot] Batch variations loaded:', data.variations);
+    console.log('[Mascot] Batch variations loaded:', data.variations ? data.variations.length : 0);
     if (data.variations && data.variations.length > 0) {
       // Check if all variations have images
-      const allHaveImages = data.variations.every(v => v.fullBodyImageUrl || v.avatarImageUrl || v.imageUrl);
+      const allHaveImages = data.variations.every(v => {
+        const hasImage = !!(v.fullBodyImageUrl || v.avatarImageUrl || v.imageUrl);
+        return hasImage;
+      });
+      const someHaveImages = data.variations.some(v => {
+        const hasImage = !!(v.fullBodyImageUrl || v.avatarImageUrl || v.imageUrl);
+        return hasImage;
+      });
+      const readyCount = data.variations.filter(v => v.fullBodyImageUrl || v.avatarImageUrl || v.imageUrl).length;
+      
       console.log('[Mascot] All variations have images:', allHaveImages);
-      console.log('[Mascot] Image URLs:', data.variations.map(v => ({
-        id: v.id,
-        fullBody: v.fullBodyImageUrl,
-        avatar: v.avatarImageUrl,
-        image: v.imageUrl
-      })));
+      console.log('[Mascot] Some variations have images:', someHaveImages);
+      console.log('[Mascot] Ready variations:', readyCount, '/', data.variations.length);
+      
+      // Log each variation's image status
+      data.variations.forEach((v, idx) => {
+        const hasImage = !!(v.fullBodyImageUrl || v.avatarImageUrl || v.imageUrl);
+        console.log(`[Mascot] Variation ${idx + 1} (${v.id}): hasImage=${hasImage}, fullBody=${!!v.fullBodyImageUrl}, avatar=${!!v.avatarImageUrl}, image=${!!v.imageUrl}`);
+      });
       
       // Always update the variations (even if images aren't ready yet)
       setGeneratedVariations(data.variations);
       
+      // Variations are now stored in global state, no need to update local mascots here
+      
       if (allHaveImages) {
-        setSuccess(`Generated ${data.variations.length} variations! Select one below.`);
+        // All variations are ready - stop polling
+        stopPolling();
+        setSuccess(`Created ${data.variations.length} variations! Select one below.`);
+      } else if (someHaveImages) {
+        // Some have images - allow selection but continue polling for the rest
+        // Don't stop polling - keep checking for remaining variations
+        setSuccess(`Created ${data.variations.length} variations! ${readyCount}/${data.variations.length} ready. Select one below or wait for others...`);
+        // Continue polling - don't stop even if some have images
       } else {
         // Still waiting for images - continue polling
-        setSuccess(`Generated ${data.variations.length} variations! Images are being generated...`);
+        setSuccess(`Created ${data.variations.length} variations! Images are being generated...`);
       }
     }
   });
@@ -193,23 +270,41 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
   };
 
   const handleSelectVariation = (variation: any) => {
+    console.log('[CharacterTab] Variation selected:', variation.id, variation.name);
+    
     // Get the image URL (try fullBodyImageUrl first, then imageUrl, then avatarImageUrl)
     const imageUrl = variation.fullBodyImageUrl || variation.imageUrl || variation.avatarImageUrl;
     
-    if (!imageUrl) {
-      setError('No image URL found for this variation. The image may still be generating. Please wait a moment and try again.');
-      return;
+    if (imageUrl) {
+      // Insert image into Figma if we have an image
+      rpc.send('insert-image', {
+        url: imageUrl,
+        name: variation.name || 'Mascot Variation'
+      });
+    } else {
+      console.warn('[CharacterTab] Variation selected but no image URL yet:', variation.id);
     }
-
-    // Insert image into Figma
-    rpc.send('insert-image', {
-      url: imageUrl,
-      name: variation.name || 'Mascot Variation'
-    });
     
-    // Clear the form and variations immediately (image insertion happens in background)
+    // Select the variation
     onSelectMascot(variation);
-    setGeneratedVariations([]);
+    
+    // Notify App.tsx to add this mascot to the list
+    // This ensures it appears in "Existing Mascots" and can be used in Animations/Logos tabs
+    console.log('[CharacterTab] Sending add-mascot-to-list for variation:', variation.id);
+    rpc.send('add-mascot-to-list', { mascot: variation });
+    
+    // Add to mascots list immediately
+    if (onMascotGenerated) {
+      // The parent will handle adding to mascots list
+    }
+    
+    // Also reload mascots from API to ensure consistency (this will update the list automatically)
+    setTimeout(() => {
+      rpc.send('get-mascots');
+    }, 500);
+    
+    // DON'T clear the variations - let the user see all variations and continue polling
+    // Keep variations in global state so they persist across tab changes
     setName('');
     setPrompt('');
     setNegativePrompt('');
@@ -217,16 +312,19 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
     setSecondaryColor('');
     setTertiaryColor('');
     setAutoFillUrl('');
-    setSuccess('Inserting image into Figma...');
+    setSuccess(imageUrl ? 'Mascot selected and added to Existing Mascots! You can now use it in Animations or Logos tabs. Other variations are still generating...' : 'Mascot selected and added to Existing Mascots! Image is still generating, but you can use it in Animations or Logos tabs. Other variations are still generating...');
   };
 
   return (
     <div>
-      <h3 className="card-title">Generate New Mascot</h3>
+      <h3 className="section-title">Create New Mascot</h3>
+      <p className="section-description">
+        Create a new mascot with AI. Fill in the details below to generate 3 variations.
+      </p>
 
       {/* Auto-fill Section */}
       <div style={{ marginBottom: '16px', padding: '12px', background: '#f8f8f8', borderRadius: '4px' }}>
-        <label className="label" style={{ marginBottom: '4px' }}>🔗 Auto-fill from URL (Optional)</label>
+        <label className="label" style={{ marginBottom: '4px' }}>Auto-fill from URL (Optional)</label>
         <div style={{ display: 'flex', gap: '8px' }}>
           <input
             className="input"
@@ -249,7 +347,7 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
       </div>
 
       {/* Basic Fields */}
-      <label className="label">✏️ Name *</label>
+      <label className="label">Name *</label>
       <input
         className="input"
         type="text"
@@ -259,7 +357,7 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
         disabled={isGenerating}
       />
 
-      <label className="label">📝 Prompt *</label>
+      <label className="label">Character Details *</label>
       <textarea
         className="input"
         rows={3}
@@ -270,59 +368,59 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
       />
 
       {/* Style */}
-          <label className="label">🎨 Art Style</label>
+          <label className="label">Art Style</label>
           <select
             className="select"
             value={style}
             onChange={(e) => setStyle(e.target.value)}
             disabled={isGenerating}
           >
-            <option value="kawaii">🎀 Kawaii</option>
-            <option value="minimal">⚪ Minimal</option>
-            <option value="3d_pixar">🎬 3D Pixar</option>
-            <option value="3d">🎮 3D</option>
-            <option value="cartoon">🎨 Cartoon</option>
-            <option value="flat">🟦 Flat</option>
-            <option value="pixel">👾 Pixel</option>
-            <option value="hand_drawn">✏️ Hand Drawn</option>
-            <option value="match_brand">🎯 Match Brand</option>
+            <option value="kawaii">Kawaii</option>
+            <option value="minimal">Minimal</option>
+            <option value="3d_pixar">3D Pixar</option>
+            <option value="3d">3D</option>
+            <option value="cartoon">Cartoon</option>
+            <option value="flat">Flat</option>
+            <option value="pixel">Pixel</option>
+            <option value="hand_drawn">Hand Drawn</option>
+            <option value="match_brand">Match Brand</option>
           </select>
 
           {/* Type */}
-          <label className="label">🐾 Mascot Type</label>
+          <label className="label">Mascot Type</label>
           <select
             className="select"
             value={type}
             onChange={(e) => setType(e.target.value)}
             disabled={isGenerating}
           >
-            <option value="auto">✨ Auto-detect</option>
-            <option value="animal">🐾 Animal</option>
-            <option value="creature">👻 Creature</option>
-            <option value="robot">🤖 Robot</option>
-            <option value="food">🍕 Food</option>
-            <option value="object">💎 Object</option>
-            <option value="abstract">🌀 Abstract</option>
+            <option value="auto">Auto-detect</option>
+            <option value="animal">Animal</option>
+            <option value="creature">Creature</option>
+            <option value="robot">Robot</option>
+            <option value="food">Food</option>
+            <option value="object">Object</option>
+            <option value="abstract">Abstract</option>
           </select>
 
           {/* Personality */}
-          <label className="label">😊 Personality</label>
+          <label className="label">Personality</label>
           <select
             className="select"
             value={personality}
             onChange={(e) => setPersonality(e.target.value)}
             disabled={isGenerating}
           >
-            <option value="friendly">😊 Friendly</option>
-            <option value="professional">💼 Professional</option>
-            <option value="playful">🎉 Playful</option>
-            <option value="cool">😎 Cool</option>
-            <option value="energetic">⚡ Energetic</option>
-            <option value="calm">😌 Calm</option>
+            <option value="friendly">Friendly</option>
+            <option value="professional">Professional</option>
+            <option value="playful">Playful</option>
+            <option value="cool">Cool</option>
+            <option value="energetic">Energetic</option>
+            <option value="calm">Calm</option>
           </select>
 
           {/* Negative Prompt */}
-          <label className="label">🚫 Exclude (Optional)</label>
+          <label className="label">Exclude (Optional)</label>
           <input
             className="input"
             type="text"
@@ -333,43 +431,120 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
           />
 
           {/* Brand Colors */}
-          <label className="label" style={{ marginTop: '12px' }}>🎨 Brand Colors (Optional)</label>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-            <div>
-              <input
-                className="input"
-                type="text"
-                placeholder="#FF5733"
-                value={primaryColor}
-                onChange={(e) => setPrimaryColor(e.target.value)}
-                disabled={isGenerating}
-                style={{ fontSize: '10px' }}
-              />
-              <div style={{ fontSize: '9px', color: '#999', marginTop: '2px' }}>Primary</div>
+          <label className="label" style={{ marginTop: '12px' }}>Brand Colors (Optional)</label>
+          <div className="color-picker-group">
+            <div className="color-picker-item">
+              <div className="color-picker-header">
+                <span className="color-picker-label">Primary</span>
+                {primaryColor && (
+                  <button
+                    className="color-picker-clear"
+                    onClick={() => setPrimaryColor('')}
+                    disabled={isGenerating}
+                    title="Clear color"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+              <div className="color-picker-wrapper">
+                <input
+                  type="color"
+                  value={primaryColor || '#000000'}
+                  onChange={(e) => setPrimaryColor(e.target.value)}
+                  disabled={isGenerating}
+                  className="color-picker-input"
+                />
+                <input
+                  type="text"
+                  placeholder="#FF5733"
+                  value={primaryColor}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '' || /^#[0-9A-Fa-f]{0,6}$/.test(val)) {
+                      setPrimaryColor(val);
+                    }
+                  }}
+                  disabled={isGenerating}
+                  className="color-picker-text"
+                />
+              </div>
             </div>
-            <div>
-              <input
-                className="input"
-                type="text"
-                placeholder="#33C3FF"
-                value={secondaryColor}
-                onChange={(e) => setSecondaryColor(e.target.value)}
-                disabled={isGenerating}
-                style={{ fontSize: '10px' }}
-              />
-              <div style={{ fontSize: '9px', color: '#999', marginTop: '2px' }}>Secondary</div>
+            
+            <div className="color-picker-item">
+              <div className="color-picker-header">
+                <span className="color-picker-label">Secondary</span>
+                {secondaryColor && (
+                  <button
+                    className="color-picker-clear"
+                    onClick={() => setSecondaryColor('')}
+                    disabled={isGenerating}
+                    title="Clear color"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+              <div className="color-picker-wrapper">
+                <input
+                  type="color"
+                  value={secondaryColor || '#000000'}
+                  onChange={(e) => setSecondaryColor(e.target.value)}
+                  disabled={isGenerating}
+                  className="color-picker-input"
+                />
+                <input
+                  type="text"
+                  placeholder="#33C3FF"
+                  value={secondaryColor}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '' || /^#[0-9A-Fa-f]{0,6}$/.test(val)) {
+                      setSecondaryColor(val);
+                    }
+                  }}
+                  disabled={isGenerating}
+                  className="color-picker-text"
+                />
+              </div>
             </div>
-            <div>
-              <input
-                className="input"
-                type="text"
-                placeholder="#FFD700"
-                value={tertiaryColor}
-                onChange={(e) => setTertiaryColor(e.target.value)}
-                disabled={isGenerating}
-                style={{ fontSize: '10px' }}
-              />
-              <div style={{ fontSize: '9px', color: '#999', marginTop: '2px' }}>Tertiary</div>
+            
+            <div className="color-picker-item">
+              <div className="color-picker-header">
+                <span className="color-picker-label">Tertiary</span>
+                {tertiaryColor && (
+                  <button
+                    className="color-picker-clear"
+                    onClick={() => setTertiaryColor('')}
+                    disabled={isGenerating}
+                    title="Clear color"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+              <div className="color-picker-wrapper">
+                <input
+                  type="color"
+                  value={tertiaryColor || '#000000'}
+                  onChange={(e) => setTertiaryColor(e.target.value)}
+                  disabled={isGenerating}
+                  className="color-picker-input"
+                />
+                <input
+                  type="text"
+                  placeholder="#FFD700"
+                  value={tertiaryColor}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '' || /^#[0-9A-Fa-f]{0,6}$/.test(val)) {
+                      setTertiaryColor(val);
+                    }
+                  }}
+                  disabled={isGenerating}
+                  className="color-picker-text"
+                />
+              </div>
             </div>
           </div>
 
@@ -382,133 +557,57 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
         disabled={isGenerating}
         style={{ width: '100%', marginTop: '12px' }}
       >
-        {isGenerating ? 'Generating...' : 'Generate (1 credit for 3 variations)'}
+        {isGenerating ? 'Creating...' : 'Create (1 credit for 3 variations)'}
       </button>
 
-      {/* Generated Variations */}
+      {/* Created Variations */}
       {generatedVariations.length > 0 && (
-        <div style={{ marginTop: '16px', padding: '12px', background: '#e3f2fd', borderRadius: '4px' }}>
-          <h4 style={{ margin: '0 0 12px 0', fontSize: '12px', fontWeight: 600 }}>
-            Select a Variation:
-          </h4>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+        <div style={{ marginTop: '24px' }}>
+          <h3 className="section-title">Select a Variation</h3>
+          <p className="section-description">
+            Choose one of the {generatedVariations.length} created variations to add to your library.
+          </p>
+          <div className="variations-grid">
             {generatedVariations.map((variation, index) => (
               <div
-                key={variation.id}
+                key={variation.id || index}
+                className={`variation-card ${selectedMascot?.id === variation.id ? 'selected' : ''}`}
                 onClick={() => handleSelectVariation(variation)}
-                style={{
-                  cursor: 'pointer',
-                  padding: '8px',
-                  background: 'white',
-                  borderRadius: '4px',
-                  border: '2px solid #18a0fb',
-                  textAlign: 'center'
-                }}
               >
-                {variation.fullBodyImageUrl || variation.avatarImageUrl || variation.imageUrl ? (
-                  <img
-                    src={variation.fullBodyImageUrl || variation.avatarImageUrl || variation.imageUrl}
-                    alt={`Variation ${index + 1}`}
-                    style={{ width: '100%', height: 'auto', borderRadius: '4px', minHeight: '120px', objectFit: 'contain' }}
-                    onError={(e) => {
-                      console.error('[Mascot] Failed to load image:', variation.fullBodyImageUrl || variation.avatarImageUrl || variation.imageUrl);
-                      // Show placeholder instead of hiding
-                      const parent = e.currentTarget.parentElement;
-                      if (parent) {
-                        e.currentTarget.style.display = 'none';
-                        const placeholder = parent.querySelector('.image-placeholder') as HTMLElement;
+                <div className="variation-image">
+                  {(variation.fullBodyImageUrl || variation.avatarImageUrl || variation.imageUrl) ? (
+                    <img
+                      src={variation.fullBodyImageUrl || variation.avatarImageUrl || variation.imageUrl}
+                      alt={variation.name || `Variation ${index + 1}`}
+                      onError={(e) => {
+                        console.error('[Mascot] Failed to load image for variation', index + 1, ':', variation.id);
+                        console.error('[Mascot] Image URLs:', {
+                          fullBody: variation.fullBodyImageUrl,
+                          avatar: variation.avatarImageUrl,
+                          image: variation.imageUrl
+                        });
+                        const placeholder = e.currentTarget.parentElement?.querySelector('.variation-placeholder') as HTMLElement;
                         if (placeholder) placeholder.style.display = 'flex';
-                      }
-                    }}
-                  />
-                ) : null}
-                {!variation.fullBodyImageUrl && !variation.avatarImageUrl && !variation.imageUrl ? (
-                  <div className="image-placeholder" style={{
-                    width: '100%',
-                    height: '120px',
-                    background: 'linear-gradient(135deg, #f0f0f0 0%, #e0e0e0 100%)',
-                    borderRadius: '4px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '10px',
-                    color: '#999',
-                    border: '2px dashed #ccc'
-                  }}>
-                    <div style={{ marginBottom: '6px', fontSize: '20px' }}>⏳</div>
-                    <div style={{ fontWeight: 500 }}>Generating...</div>
-                    <div style={{ fontSize: '9px', marginTop: '4px', opacity: 0.7 }}>Please wait</div>
-                  </div>
-                ) : null}
-                <div style={{ fontSize: '10px', marginTop: '4px', fontWeight: 500 }}>
-                  #{index + 1}
+                        e.currentTarget.style.display = 'none';
+                      }}
+                      onLoad={() => {
+                        console.log('[Mascot] Successfully loaded image for variation', index + 1, ':', variation.id);
+                      }}
+                    />
+                  ) : (
+                    <div className="variation-placeholder">
+                      <div className="variation-loading-text">Generating...</div>
+                      <div className="variation-loading-subtext">Variation {index + 1}</div>
+                    </div>
+                  )}
                 </div>
+                <div className="variation-number">Variation {index + 1}</div>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      <div style={{ marginTop: '24px' }}>
-        <h3 className="card-title">Existing Mascots</h3>
-        {mascots.length === 0 ? (
-          <p className="loading">No mascots yet. Generate one above!</p>
-        ) : (
-          <div>
-            {mascots.map((mascot) => (
-              <div
-                key={mascot.id}
-                className="card"
-                style={{
-                  cursor: 'pointer',
-                  borderColor:
-                    selectedMascot?.id === mascot.id ? '#18a0fb' : '#e5e5e5',
-                }}
-                onClick={() => onSelectMascot(mascot)}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  {(mascot.avatarImageUrl || mascot.imageUrl) ? (
-                    <img
-                      src={mascot.avatarImageUrl || mascot.imageUrl}
-                      alt={mascot.name}
-                      style={{ width: '48px', height: '48px', borderRadius: '4px', objectFit: 'cover', flexShrink: 0 }}
-                      onError={(e) => {
-                        console.error('[Mascot] Failed to load image:', mascot.avatarImageUrl || mascot.imageUrl);
-                        e.currentTarget.style.display = 'none';
-                      }}
-                    />
-                  ) : (
-                    <div style={{ 
-                      width: '48px', 
-                      height: '48px', 
-                      borderRadius: '4px', 
-                      background: '#18a0fb', 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'center',
-                      color: 'white',
-                      fontSize: '20px',
-                      fontWeight: 'bold',
-                      flexShrink: 0
-                    }}>
-                      {mascot.name.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: '12px' }}>
-                      {mascot.name}
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#999' }}>
-                      {mascot.style} • {mascot.status || 'completed'}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   );
 };

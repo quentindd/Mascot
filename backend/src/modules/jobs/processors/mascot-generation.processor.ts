@@ -9,7 +9,9 @@ import { CreditsService } from '../../credits/credits.service';
 import { Logger } from '@nestjs/common';
 import * as sharp from 'sharp';
 
-@Processor('mascot-generation')
+@Processor('mascot-generation', {
+  concurrency: 3, // Process up to 3 jobs in parallel (one per variation)
+})
 export class MascotGenerationProcessor extends WorkerHost {
   private readonly logger = new Logger(MascotGenerationProcessor.name);
 
@@ -159,7 +161,8 @@ export class MascotGenerationProcessor extends WorkerHost {
       batchId,
     } = job.data;
 
-    this.logger.log(`Processing mascot generation: ${mascotId} (variation ${variationIndex || 1})`);
+    this.logger.log(`[MascotGenerationProcessor] Starting processing for mascot ${mascotId} (variation ${variationIndex || 1} of batch ${batchId})`);
+    this.logger.log(`[MascotGenerationProcessor] Job ID: ${job.id}, Attempt: ${job.attemptsMade + 1}/${job.opts.attempts || 1}`);
 
     try {
       // Update status to GENERATING
@@ -193,6 +196,8 @@ export class MascotGenerationProcessor extends WorkerHost {
       // brandName is only used for database storage, not for image generation
 
       // Generate image with Gemini 2.5 Flash (exactly like MascotAI)
+      this.logger.log(`[MascotGenerationProcessor] Calling Gemini Flash API for variation ${variationIndex || 1}...`);
+      const generationStartTime = Date.now();
       let imageBuffer = await this.geminiFlashService.generateImage({
         mascotDetails: mascotDetailsText,
         type: type || 'auto',
@@ -206,6 +211,8 @@ export class MascotGenerationProcessor extends WorkerHost {
         aspectRatio: aspectRatio || '1:1',
         seed: Date.now() + (variationIndex || 0),
       });
+      const generationTime = Date.now() - generationStartTime;
+      this.logger.log(`[MascotGenerationProcessor] Gemini Flash API completed for variation ${variationIndex || 1} in ${generationTime}ms`);
 
       // Remove background automatically to ensure transparency
       this.logger.log('Removing background from generated image...');
@@ -319,10 +326,12 @@ export class MascotGenerationProcessor extends WorkerHost {
         } as Record<string, any>,
       });
 
-      this.logger.log(`Successfully generated mascot ${mascotId}`);
+      this.logger.log(`[MascotGenerationProcessor] Successfully generated mascot ${mascotId} (variation ${variationIndex || 1})`);
       return { success: true, mascotId };
     } catch (error) {
-      this.logger.error(`Failed to generate mascot ${mascotId}:`, error);
+      this.logger.error(`[MascotGenerationProcessor] Failed to generate mascot ${mascotId} (variation ${variationIndex || 1}):`, error);
+      this.logger.error(`[MascotGenerationProcessor] Error details:`, error instanceof Error ? error.message : String(error));
+      this.logger.error(`[MascotGenerationProcessor] Error stack:`, error instanceof Error ? error.stack : 'No stack');
 
       // Update status to FAILED
       await this.mascotRepository.update(mascotId, {

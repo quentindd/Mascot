@@ -67,9 +67,9 @@ Si vous ne trouvez pas ces APIs ou préférez aller plus vite, vous pouvez **pas
 
 4. **App name** : `Mascot` (ou le nom de votre choix)
 5. **User support email** : Sélectionnez votre email dans la liste déroulante
-6. **App logo** : (Optionnel) Vous pouvez uploader un logo
-7. **Application home page** : `https://mascot-production.up.railway.app` (votre URL de production)
-8. **Application privacy policy link** : (Optionnel pour le moment)
+6. **App logo** : (Optionnel 'https://mascot-production.up.railway.app` (votre URL de production)
+8. **Application privacy policy l) Vous pouvez uploader un logo
+7. **Application home page** : `ink** : (Optionnel pour le moment)
 9. **Application terms of service link** : (Optionnel pour le moment)
 10. **Authorized domains** : Laissez vide pour le moment
 11. **Developer contact information** : Votre email

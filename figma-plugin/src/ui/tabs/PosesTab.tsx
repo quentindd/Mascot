@@ -1,53 +1,43 @@
 import React, { useState } from 'react';
 import { RPCClient } from '../rpc/client';
 
-interface AnimationsTabProps {
+interface PosesTabProps {
   rpc: RPCClient;
   selectedMascot: any;
   onSelectMascot: (mascot: any) => void;
   mascots: any[];
 }
 
-const ANIMATION_ACTIONS = [
-  { value: 'wave', label: 'Wave' },
-  { value: 'celebrate', label: 'Celebrate' },
-  { value: 'think', label: 'Think' },
-  { value: 'sleep', label: 'Sleep' },
-  { value: 'sad', label: 'Sad' },
-  { value: 'exercise', label: 'Exercise' },
-  { value: 'backflip', label: 'Backflip' },
-  { value: 'dance', label: 'Dance' },
-  { value: 'jump', label: 'Jump' },
-  { value: 'idle', label: 'Idle' },
-];
-
-export const AnimationsTab: React.FC<AnimationsTabProps> = ({
+export const PosesTab: React.FC<PosesTabProps> = ({
   rpc,
   selectedMascot,
   onSelectMascot,
   mascots,
 }) => {
-  const [action, setAction] = useState('wave');
-  const [resolution, setResolution] = useState(360);
+  const [customPrompt, setCustomPrompt] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  // Debug: log mascots when component updates
+  const [generatedPose, setGeneratedPose] = useState<any>(null);
+
   React.useEffect(() => {
-    console.log('[AnimationsTab] Mascots available:', mascots.length);
-    console.log('[AnimationsTab] Selected mascot:', selectedMascot?.id || 'none');
+    console.log('[PosesTab] Mascots available:', mascots.length);
+    console.log('[PosesTab] Selected mascot:', selectedMascot?.id || 'none');
   }, [mascots, selectedMascot]);
 
-  rpc.on('animation-generation-started', () => {
+  rpc.on('pose-generation-started', () => {
     setIsGenerating(true);
     setError(null);
+    setGeneratedPose(null);
   });
 
-  rpc.on('animation-completed', () => {
+  rpc.on('pose-completed', (data: { pose: any }) => {
     setIsGenerating(false);
+    if (data.pose) {
+      setGeneratedPose(data.pose);
+    }
   });
 
-  rpc.on('animation-generation-failed', (data: { error: string }) => {
+  rpc.on('pose-generation-failed', (data: { error: string }) => {
     setIsGenerating(false);
     setError(data.error);
   });
@@ -58,10 +48,14 @@ export const AnimationsTab: React.FC<AnimationsTabProps> = ({
       return;
     }
 
-    rpc.send('generate-animation', {
+    if (!customPrompt.trim()) {
+      setError('Please enter a prompt');
+      return;
+    }
+
+    rpc.send('generate-pose', {
       mascotId: selectedMascot.id,
-      action,
-      resolution,
+      prompt: customPrompt.trim(),
     });
   };
 
@@ -69,10 +63,10 @@ export const AnimationsTab: React.FC<AnimationsTabProps> = ({
   if (mascots.length === 0) {
     return (
       <div className="empty-state-content">
-        <div className="empty-state-icon">Animate</div>
+        <div className="empty-state-icon">Poses</div>
         <h3 className="empty-state-title">No mascots available</h3>
         <p className="empty-state-text">
-          Create a mascot first to generate animations.
+          Create a mascot first to generate poses.
         </p>
       </div>
     );
@@ -84,7 +78,7 @@ export const AnimationsTab: React.FC<AnimationsTabProps> = ({
       <div>
         <h3 className="section-title">Select a Mascot</h3>
         <p className="section-description">
-          Choose a mascot to create animations:
+          Choose a mascot to create poses:
         </p>
         <div className="mascots-selection-grid">
           {mascots.map((mascot) => (
@@ -119,7 +113,7 @@ export const AnimationsTab: React.FC<AnimationsTabProps> = ({
     );
   }
 
-  // Show animation generation form
+  // Show poses generation form
   return (
     <div>
       {/* Selected Mascot Preview */}
@@ -158,43 +152,80 @@ export const AnimationsTab: React.FC<AnimationsTabProps> = ({
       )}
 
       <div className="card" style={{ marginBottom: '16px' }}>
-        <label className="label">Action</label>
-        <select
-          className="select"
-          value={action}
-          onChange={(e) => setAction(e.target.value)}
+        <label className="label">Custom Prompt</label>
+        <p style={{ fontSize: '10px', color: '#666', marginBottom: '12px' }}>
+          Describe the pose or modification you want for your mascot (e.g., "waving", "change color to blue", "smiling happily")
+        </p>
+        
+        <textarea
+          className="textarea"
+          value={customPrompt}
+          onChange={(e) => setCustomPrompt(e.target.value)}
+          placeholder="e.g., waving hand, change color to blue, smiling..."
           disabled={isGenerating}
-        >
-          {ANIMATION_ACTIONS.map((act) => (
-            <option key={act.value} value={act.value}>
-              {act.label}
-            </option>
-          ))}
-        </select>
+          style={{ 
+            width: '100%', 
+            minHeight: '60px',
+            marginBottom: '12px',
+            fontSize: '11px',
+            fontFamily: 'inherit',
+          }}
+        />
+      </div>
 
-        <label className="label">Resolution</label>
-        <select
-          className="select"
-          value={resolution}
-          onChange={(e) => setResolution(Number(e.target.value))}
-          disabled={isGenerating}
-        >
-          <option value={128}>128px</option>
-          <option value={240}>240px</option>
-          <option value={360}>360px (Recommended)</option>
-          <option value={480}>480px</option>
-          <option value={720}>720px</option>
-        </select>
-
+      <div className="card" style={{ marginBottom: '16px' }}>
         <button
           className="btn-primary"
           onClick={handleGenerate}
           disabled={isGenerating || !selectedMascot}
-          style={{ width: '100%', marginTop: '8px' }}
+          style={{ width: '100%' }}
         >
-          {isGenerating ? 'Generating...' : 'Generate Animation'}
+          {isGenerating 
+            ? 'Generating...' 
+            : 'Generate Pose (1 credit)'}
         </button>
       </div>
+
+      {generatedPose && (
+        <div className="card">
+          <h3 className="section-title" style={{ marginBottom: '12px' }}>Generated Pose</h3>
+          <div style={{ marginBottom: '12px' }}>
+            <div className="gallery-item">
+              <div className="gallery-item-image">
+                {generatedPose.imageUrl ? (
+                  <img
+                    src={generatedPose.imageUrl}
+                    alt={generatedPose.prompt || 'Pose'}
+                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                  />
+                ) : (
+                  <div className="gallery-placeholder">
+                    {generatedPose.prompt || 'Pose'}
+                  </div>
+                )}
+              </div>
+              <div className="gallery-item-info">
+                <div className="gallery-item-title">{generatedPose.prompt || 'Pose'}</div>
+                <div className="gallery-item-meta">Ready</div>
+              </div>
+            </div>
+          </div>
+          <button
+            className="btn-primary"
+            onClick={() => {
+              if (generatedPose.imageUrl) {
+                rpc.send('insert-image', {
+                  url: generatedPose.imageUrl,
+                  name: `${selectedMascot.name} - ${generatedPose.prompt || 'Pose'}`,
+                });
+              }
+            }}
+            style={{ width: '100%' }}
+          >
+            Insert in Figma
+          </button>
+        </div>
+      )}
     </div>
   );
 };

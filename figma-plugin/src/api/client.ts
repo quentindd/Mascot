@@ -258,7 +258,7 @@ export class MascotAPI {
     const response = await this.request<{ data: AnimationJobResponse[] }>(
       `/mascots/${mascotId}/animations`
     );
-    return response.data;
+    return response && response.data ? response.data : [];
   }
 
   async createLogoPack(
@@ -279,7 +279,29 @@ export class MascotAPI {
     const response = await this.request<{ data: LogoPackResponse[] }>(
       `/mascots/${mascotId}/logo-packs`
     );
-    return response.data;
+    return response && response.data ? response.data : [];
+  }
+
+  async createPose(mascotId: string, data: { prompt: string; figmaFileId?: string }): Promise<any> {
+    return this.request<any>(`/mascots/${mascotId}/poses`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getPose(id: string): Promise<any> {
+    return this.request<any>(`/poses/${id}`);
+  }
+
+  async getPoseStatus(id: string): Promise<any> {
+    return this.request<any>(`/poses/${id}/status`);
+  }
+
+  async getMascotPoses(mascotId: string): Promise<any[]> {
+    const response = await this.request<{ data: any[] }>(
+      `/mascots/${mascotId}/poses`
+    );
+    return response && response.data ? response.data : [];
   }
 
   async getCredits(): Promise<{

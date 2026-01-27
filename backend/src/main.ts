@@ -107,6 +107,7 @@ async function bootstrap() {
     .addTag('mascots', 'Mascot generation endpoints')
     .addTag('animations', 'Animation generation endpoints')
     .addTag('logos', 'Logo pack generation endpoints')
+    .addTag('poses', 'Pose generation endpoints')
     .addTag('credits', 'Credit management endpoints')
     .addTag('billing', 'Billing and subscription endpoints')
     .build();

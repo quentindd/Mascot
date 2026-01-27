@@ -22,8 +22,9 @@ export class AnimationsController {
   }
 
   @Get('mascots/:id/animations')
-  findByMascot(@Param('id') mascotId: string) {
-    return this.animationsService.findByMascot(mascotId);
+  async findByMascot(@Param('id') mascotId: string) {
+    const animations = await this.animationsService.findByMascot(mascotId);
+    return { data: animations };
   }
 
   @Get('animations/:id')

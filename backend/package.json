@@ -19,9 +19,9 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "typeorm": "typeorm-ts-node-commonjs",
-    "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/config/database.config.ts",
-    "migration:run": "typeorm-ts-node-commonjs migration:run -d src/config/database.config.ts",
-    "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/config/database.config.ts"
+    "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/config/data-source.ts",
+    "migration:run": "typeorm-ts-node-commonjs migration:run -d src/config/data-source.ts",
+    "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/config/data-source.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.3.0",
@@ -58,7 +58,8 @@
     "socket.io": "^4.6.1",
     "sharp": "^0.33.1",
     "@google-cloud/vertexai": "^1.0.0",
-    "@supabase/supabase-js": "^2.39.0"
+    "@supabase/supabase-js": "^2.39.0",
+    "fluent-ffmpeg": "^2.1.2"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.2.1",
@@ -72,6 +73,7 @@
     "@types/passport-jwt": "^4.0.1",
     "@types/passport-local": "^1.0.0",
     "@types/uuid": "^9.0.6",
+    "@types/fluent-ffmpeg": "^2.1.24",
     "@typescript-eslint/eslint-plugin": "^6.17.0",
     "@typescript-eslint/parser": "^6.17.0",
     "eslint": "^8.56.0",

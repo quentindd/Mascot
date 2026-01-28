@@ -56,13 +56,17 @@ export class PoseGenerationProcessor extends WorkerHost {
             ? '3D character'
             : 'cartoon illustration';
       const hasWings = mascot.accessories?.some((a) => String(a).toLowerCase().includes('wing')) ?? false;
-      const bodyPartsRule = hasWings
-        ? 'The reference has WINGS, not hands. Output MUST have wings only. FORBIDDEN: human hands, arms, fingers. Do not add any limb that is not in the reference.'
-        : 'Copy EXACTLY the body parts from the reference. Do not add human hands, arms, or fingers if the reference does not have them. Same limbs only.';
+      const isAnimalOrCreature =
+        mascot.type === 'animal' || mascot.type === 'creature' || mascot.type === 'auto';
+      const noHandsRule =
+        hasWings || isAnimalOrCreature
+          ? 'FORBIDDEN: hands, fingers, human arms. The reference has NO human hands. Output MUST have NO hands, NO arms, NO fingers. Only wings/paws/feet as in the reference. Do not add any limb that is not in the reference.'
+          : 'Copy EXACTLY the body parts from the reference. Do not add hands or arms if the reference does not have them.';
       const posePromptText =
-        `Do not denature the character. The output must have EXACTLY the same body parts as the reference image—nothing more, nothing less. ${bodyPartsRule} ` +
-        `Keep the EXACT same character: same ${styleHint} style, same colors, same design, same proportions. Do NOT add or draw human hands, arms, or fingers. Same number of limbs and same type (wings stay wings, paws stay paws). ` +
-        `Only change the pose or action to: ${prompt}. The output must be the same stylized mascot as the reference. Transparent background, no background.`;
+        `CRITICAL: Do not denature the character. ${noHandsRule} The output must have EXACTLY the same body parts as the reference—nothing more. ` +
+        `Keep the EXACT same character: same ${styleHint} style, same colors, same design, same proportions. Same limbs only (wings stay wings, paws stay paws, NO hands). ` +
+        `Only change the pose or action to: ${prompt}. Same stylized mascot as the reference. ` +
+        `No glow, no aura, no halo, no outline. Flat colors only. Completely transparent background only—no dark background, no gradient.`;
       this.logger.log('[PoseGenerationProcessor] Using Replicate');
       let imageBuffer = await this.replicateService.generatePoseFromReference(refImageUrl, posePromptText, {
         negativePrompt: mascot.negativePrompt || undefined,
@@ -88,11 +92,17 @@ export class PoseGenerationProcessor extends WorkerHost {
       try {
         imageBuffer = await this.replicateService.removeBackgroundReplicate(imageBuffer);
         this.logger.log('Background removal (rembg) completed');
-        // Cleanup: remove any remaining edge gray (border-only, does not touch interior)
-        imageBuffer = await removeBackground(imageBuffer, { aggressive: true });
+        // Cleanup: remove edge gray/dark + glow/halo (border-only, does not touch interior)
+        imageBuffer = await removeBackground(imageBuffer, {
+          aggressive: true,
+          eraseSemiTransparentBorder: true,
+        });
       } catch (rembgErr) {
         this.logger.warn('[PoseGenerationProcessor] rembg failed, using local removal:', rembgErr);
-        imageBuffer = await removeBackground(imageBuffer, { aggressive: true });
+        imageBuffer = await removeBackground(imageBuffer, {
+          aggressive: true,
+          eraseSemiTransparentBorder: true,
+        });
       }
 
       // Same resize style as mascot avatar (512x512, contain, transparent)

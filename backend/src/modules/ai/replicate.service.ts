@@ -102,7 +102,7 @@ export class ReplicateService {
     const fullPrompt = isSeedEdit
       ? `Only change the pose or action to: ${prompt.trim()}. Do not denature: keep exactly the same body parts as the reference (no human hands/arms if reference has wings or paws). Same character, same illustration style, same colors, same design. Do not make it realistic or photorealistic. Transparent background.`
       : isKontextBfl || isKontextPruna
-        ? `${prompt.trim()} Preserve the exact same character and illustration style. Do not denature: same body parts as reference only. NO human hands, NO human arms, NO fingers. If reference has wings then wings only (no hands). Do not add any limb not in the reference. Do not convert to photo or realistic. Transparent background, no background. No text, no watermark.`
+        ? `${prompt.trim()} Preserve the exact same character. Same body parts as reference only—zero hands, zero arms, zero fingers if reference has none. Do not add any limb. No glow, no aura, no halo. Flat colors. Completely transparent background only. Do not convert to photo or realistic. No text, no watermark.`
         : prompt.trim() + '. Same character, same design. Transparent background. No text, no watermark.';
 
     try {

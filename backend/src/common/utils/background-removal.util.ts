@@ -4,13 +4,15 @@ import * as sharp from 'sharp';
  * Background removal for mascot/create and poses.
  * Only removes pixels that are CONNECTED TO THE BORDER (flood fill from edges).
  * Interior light areas (eyes, white inside character) are NOT touched.
- * Use aggressive: true for pose images (gray bg, larger edge tolerance).
+ * Use aggressive: true for pose images (gray/dark bg, larger tolerance).
+ * Use eraseSemiTransparentBorder: true to remove glow/halo at edges (alpha < 120 connected to border).
  */
 export async function removeBackground(
   imageBuffer: Buffer,
-  options?: { aggressive?: boolean },
+  options?: { aggressive?: boolean; eraseSemiTransparentBorder?: boolean },
 ): Promise<Buffer> {
   const aggressive = options?.aggressive ?? false;
+  const eraseSemiTransparentBorder = options?.eraseSemiTransparentBorder ?? false;
   try {
     let processed = sharp(imageBuffer).ensureAlpha();
     processed = processed.unflatten();
@@ -52,15 +54,19 @@ export async function removeBackground(
     const avgBrightness = (avgR + avgG + avgB) / 3;
     const isLightBg = avgBrightness > 200;
     const isGrayBg = aggressive && avgBrightness >= 80 && avgBrightness <= 240;
+    const isDarkBg = aggressive && avgBrightness < 80;
     const colorTolerance = aggressive ? 45 : 28;
+    const darkTolerance = 40;
 
     const isBackgroundLike = (r: number, g: number, b: number, alpha?: number): boolean => {
       if (alpha !== undefined && alpha < 30) return true;
+      if (eraseSemiTransparentBorder && alpha !== undefined && alpha < 120) return true;
       const brightness = (r + g + b) / 3;
       if (isLightBg && r > lightThreshold && g > lightThreshold && b > lightThreshold) return true;
       if (isLightBg && Math.abs(brightness - avgBrightness) < colorTolerance) return true;
       if (isGrayBg && Math.abs(r - avgR) < colorTolerance && Math.abs(g - avgG) < colorTolerance && Math.abs(b - avgB) < colorTolerance) return true;
       if (isGrayBg && brightness >= 70 && brightness <= 230 && Math.abs(r - avgR) + Math.abs(g - avgG) + Math.abs(b - avgB) < 80) return true;
+      if (isDarkBg && Math.abs(r - avgR) < darkTolerance && Math.abs(g - avgG) < darkTolerance && Math.abs(b - avgB) < darkTolerance) return true;
       return false;
     };
 

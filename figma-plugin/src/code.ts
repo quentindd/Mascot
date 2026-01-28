@@ -392,7 +392,12 @@ async function pollPoseStatus(poseId: string) {
 
       if (status.status === 'completed') {
         const pose = await apiClient!.getPose(poseId);
-        rpc.send('pose-completed', { pose });
+        try {
+          const imageDataUrl = await apiClient!.getPoseImageDataUrl(poseId);
+          rpc.send('pose-completed', { pose: { ...pose, imageDataUrl } });
+        } catch (imgErr) {
+          rpc.send('pose-completed', { pose });
+        }
       } else if (status.status === 'failed') {
         rpc.send('pose-generation-failed', {
           error: status.errorMessage || 'Generation failed',

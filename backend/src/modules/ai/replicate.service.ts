@@ -2,13 +2,20 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 
-const DEFAULT_POSE_MODEL = 'fofr/consistent-character';
+const DEFAULT_POSE_MODEL = 'prunaai/flux-kontext-fast';
 const REPLICATE_API = 'https://api.replicate.com/v1';
+
+/** Kontext (BFL): input_image + prompt. */
+const KONTEXT_BFL_MODELS = ['black-forest-labs/flux-kontext-pro', 'black-forest-labs/flux-kontext-dev'];
+/** Kontext (Pruna): img_cond_path + prompt. Match by owner or model name. */
+const KONTEXT_PRUNA_MODELS = ['prunaai/flux-kontext-fast', 'prunaai/flux-kontext-dev'];
+/** SeedEdit: preserves image details, targeted edits only. Good for mascots/cartoons. */
+const SEEDEDIT_MODELS = ['bytedance/seededit-3.0'];
 
 /**
  * Replicate API for pose generation (reference image + prompt).
- * Uses consistent-character: same character in new pose, ~$0.01–0.06/gen.
- * Set REPLICATE_API_TOKEN to enable. Optionally set REPLICATE_POSE_MODEL (default: fofr/consistent-character).
+ * Default: prunaai/flux-kontext-fast (ultra-fast Kontext, mascottes/cartoons).
+ * Alternatives: black-forest-labs/flux-kontext-pro, bytedance/seededit-3.0, sdxl-based/consistent-character.
  */
 @Injectable()
 export class ReplicateService {
@@ -31,8 +38,8 @@ export class ReplicateService {
 
   /**
    * Generate a pose from a reference image (mascot) + text prompt.
-   * Calls fofr/consistent-character: subject image + prompt → new image.
-   * Model uses predefined half-body poses; prompt describes the character for consistency.
+   * prunaai/flux-kontext-fast: ultra-fast Kontext (mascottes/cartoons).
+   * flux-kontext-pro, seededit-3.0, consistent-character: alternatives.
    */
   async generatePoseFromReference(
     imageUrl: string,
@@ -43,25 +50,55 @@ export class ReplicateService {
       throw new Error('REPLICATE_API_TOKEN is not set. Cannot use Replicate for poses.');
     }
 
+    const isKontextBfl = KONTEXT_BFL_MODELS.some((m) => this.poseModel === m || this.poseModel.includes('flux-kontext'));
+    // Pruna models use img_cond_path (not input_image). Check Pruna before BFL.
+    const isKontextPruna =
+      this.poseModel.includes('prunaai') || this.poseModel.includes('flux-kontext-fast');
+    const isSeedEdit = SEEDEDIT_MODELS.some((m) => this.poseModel === m || this.poseModel.includes('seededit'));
+    const fullPrompt = isSeedEdit
+      ? `Only change the pose or action to: ${prompt.trim()}. Keep the exact same character, same illustration style, same colors, same design. Do not make it realistic or photorealistic. Transparent background.`
+      : isKontextBfl || isKontextPruna
+        ? `${prompt.trim()} Preserve the exact same character and illustration style. Do not convert to photo or realistic. Transparent background. No text, no watermark.`
+        : prompt.trim() + '. Same character, same design. Transparent background. No text, no watermark.';
+
     try {
       this.logger.log(`[Replicate] Using model: ${this.poseModel}`);
+      if (isKontextPruna) {
+        this.logger.log('[Replicate] Pruna model: sending img_cond_path + prompt');
+      }
       const version = await this.getLatestVersion();
       this.logger.log(`[Replicate] Creating prediction (pose from reference) with ${this.poseModel}`);
 
+      if (isKontextPruna && !imageUrl?.trim()) {
+        throw new Error('Pose generation (Pruna) requires a reference image URL. Mascot has no image.');
+      }
+      const input = isSeedEdit
+        ? { image: imageUrl, prompt: fullPrompt, ...(options?.seed != null && { seed: options.seed }) }
+        : isKontextPruna
+          ? {
+              img_cond_path: imageUrl,
+              prompt: fullPrompt,
+              ...(options?.seed != null && { seed: options.seed }),
+            }
+          : isKontextBfl
+            ? {
+                input_image: imageUrl,
+                prompt: fullPrompt,
+                ...(options?.seed != null && { seed: options.seed }),
+              }
+            : {
+              subject: imageUrl,
+              prompt: fullPrompt,
+              negative_prompt: options?.negativePrompt ?? 'text, watermark, lowres, blurry',
+              number_of_outputs: 1,
+              number_of_images_per_pose: 1,
+              randomise_poses: false,
+              seed: options?.seed ?? Math.floor(Math.random() * 1e9),
+            };
+
       const createRes = await axios.post(
         `${REPLICATE_API}/predictions`,
-        {
-          version,
-          input: {
-            subject: imageUrl,
-            prompt: prompt.trim() + '. Same character, same design. Transparent background.',
-            negative_prompt: options?.negativePrompt ?? 'text, watermark, lowres, blurry',
-            number_of_outputs: 1,
-            number_of_images_per_pose: 1,
-            randomise_poses: false,
-            seed: options?.seed ?? Math.floor(Math.random() * 1e9),
-          },
-        },
+        { version, input },
         {
           headers: {
             Authorization: `Bearer ${this.token}`,
@@ -83,7 +120,7 @@ export class ReplicateService {
       const output = await this.waitForPrediction(predictionId);
       const imageUrlOut = this.extractOutputUrl(output);
       if (!imageUrlOut) {
-        throw new Error('Replicate consistent-character did not return an image URL');
+        throw new Error(`Replicate (${this.poseModel}) did not return an image URL`);
       }
 
       this.logger.log('[Replicate] Downloading output image');

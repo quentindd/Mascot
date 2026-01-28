@@ -32,6 +32,12 @@ export const PosesTab: React.FC<PosesTabProps> = ({
     setGeneratedPose(null);
   });
 
+  rpc.on('pose-generated', (data: { pose: any }) => {
+    if (data.pose) {
+      setGeneratedPose(data.pose);
+    }
+  });
+
   rpc.on('pose-completed', (data: { pose: any }) => {
     setIsGenerating(false);
     if (data.pose) {
@@ -241,15 +247,16 @@ export const PosesTab: React.FC<PosesTabProps> = ({
           <div style={{ marginBottom: '12px' }}>
             <div className="gallery-item" style={{ position: 'relative' }}>
               <div className="gallery-item-image">
-                {generatedPose.imageUrl ? (
+                {(generatedPose.imageDataUrl || generatedPose.imageUrl) ? (
                   <img
-                    src={generatedPose.imageUrl}
+                    src={generatedPose.imageDataUrl || generatedPose.imageUrl}
                     alt={generatedPose.prompt || 'Pose'}
                     style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                    crossOrigin="anonymous"
                   />
                 ) : (
                   <div className="gallery-placeholder">
-                    {generatedPose.prompt || 'Pose'}
+                    {isGenerating ? 'Generating…' : (generatedPose.prompt || 'Pose')}
                   </div>
                 )}
               </div>
@@ -261,28 +268,14 @@ export const PosesTab: React.FC<PosesTabProps> = ({
           </div>
           <button
             className="btn-primary"
-            disabled={isInserting}
+            disabled={isInserting || !(generatedPose?.imageDataUrl || generatedPose?.imageUrl)}
             onClick={async () => {
-              if (!generatedPose?.imageUrl) return;
+              const imageUrl = generatedPose?.imageDataUrl || generatedPose?.imageUrl;
+              if (!imageUrl) return;
               setInsertError(null);
               setIsInserting(true);
               const name = `${selectedMascot.name} - ${generatedPose.prompt || 'Pose'}`;
-              try {
-                const res = await fetch(generatedPose.imageUrl, { mode: 'cors' });
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const blob = await res.blob();
-                const dataUrl = await new Promise<string>((resolve, reject) => {
-                  const reader = new FileReader();
-                  reader.onload = () => resolve(reader.result as string);
-                  reader.onerror = () => reject(new Error('Failed to read image'));
-                  reader.readAsDataURL(blob);
-                });
-                rpc.send('insert-image', { url: dataUrl, name });
-              } catch (e) {
-                setIsInserting(false);
-                setInsertError(e instanceof Error ? e.message : 'Failed to load image. Insert in Figma may fail due to CORS.');
-                rpc.send('insert-image', { url: generatedPose.imageUrl, name });
-              }
+              rpc.send('insert-image', { url: imageUrl, name });
             }}
             style={{ width: '100%' }}
           >

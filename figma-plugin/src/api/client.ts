@@ -300,6 +300,24 @@ export class MascotAPI {
     return this.request<any>(`/poses/${id}`);
   }
 
+  /** Fetch pose image via API proxy (CORS-safe for display in plugin UI). Returns data URL. */
+  async getPoseImageDataUrl(poseId: string): Promise<string> {
+    const url = `${API_BASE_URL}/poses/${poseId}/image`;
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${this.token}` },
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to load pose image: ${response.status}`);
+    }
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error('Failed to read image'));
+      reader.readAsDataURL(blob);
+    });
+  }
+
   async getPoseStatus(id: string): Promise<any> {
     return this.request<any>(`/poses/${id}/status`);
   }

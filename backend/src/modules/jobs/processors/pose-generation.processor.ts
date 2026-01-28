@@ -28,7 +28,7 @@ export class PoseGenerationProcessor extends WorkerHost {
   }
 
   /**
-   * Poses use only Replicate (consistent-character): reference image + prompt.
+   * Poses use only Replicate (default: prunaai/flux-kontext-fast): reference image + prompt.
    */
   async process(job: Job<any, any, string>): Promise<any> {
     const { poseId, mascotId, prompt } = job.data;
@@ -49,8 +49,15 @@ export class PoseGenerationProcessor extends WorkerHost {
         throw new Error('Pose generation requires Replicate. Set REPLICATE_API_TOKEN in your environment.');
       }
 
-      const posePromptText = `${mascot.prompt}. Same character, same design. Only change the pose or action: ${prompt}`;
-      this.logger.log('[PoseGenerationProcessor] Using Replicate (consistent-character)');
+      const styleHint =
+        mascot.style === 'kawaii'
+          ? 'kawaii cartoon'
+          : mascot.style === '3d' || mascot.style === '3d_pixar'
+            ? '3D character'
+            : 'cartoon illustration';
+      const posePromptText =
+        `This is a stylized mascot character. Keep the EXACT same character: same ${styleHint} style, same colors, same design, same proportions. Do NOT make it realistic or photorealistic. Only change the pose or action to: ${prompt}. The output must be the same stylized mascot, not a real animal or photo.`;
+      this.logger.log('[PoseGenerationProcessor] Using Replicate');
       let imageBuffer = await this.replicateService.generatePoseFromReference(refImageUrl, posePromptText, {
         negativePrompt: mascot.negativePrompt || undefined,
         seed: mascot.seed ?? undefined,

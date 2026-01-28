@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import axios from 'axios';
 import { Pose, PoseStatus } from '../../entities/pose.entity';
 import { CreatePoseDto } from './dto/create-pose.dto';
 import { CreditsService } from '../credits/credits.service';
@@ -78,5 +79,25 @@ export class PosesService {
     await this.storageService.deleteFileByUrl(pose.imageUrl);
 
     await this.poseRepository.remove(pose);
+  }
+
+  /**
+   * Fetch pose image from storage URL and return as buffer (for CORS-safe proxy in plugin).
+   */
+  async getImageBuffer(poseId: string, userId: string): Promise<Buffer> {
+    const pose = await this.poseRepository.findOne({
+      where: { id: poseId, createdById: userId },
+    });
+    if (!pose) {
+      throw new NotFoundException(`Pose with ID ${poseId} not found`);
+    }
+    if (!pose.imageUrl) {
+      throw new NotFoundException(`Pose ${poseId} has no image yet`);
+    }
+    const response = await axios.get<ArrayBuffer>(pose.imageUrl, {
+      responseType: 'arraybuffer',
+      timeout: 30000,
+    });
+    return Buffer.from(response.data);
   }
 }

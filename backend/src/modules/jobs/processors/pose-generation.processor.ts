@@ -67,10 +67,12 @@ export class PoseGenerationProcessor extends WorkerHost {
         `Keep the EXACT same character: same ${styleHint} style, same colors, same design, same proportions. Same limbs only (wings stay wings, paws stay paws, NO hands). ` +
         `Only change the pose or action to: ${prompt}. Same stylized mascot as the reference. ` +
         `No glow, no aura, no halo, no outline. Flat colors only. Completely transparent background only—no dark background, no gradient.`;
-      this.logger.log('[PoseGenerationProcessor] Using Replicate');
+      // Use a different seed per pose so each generation varies (same mascot.seed would always give the same pose).
+      const poseSeed = Math.floor(Math.random() * 1e9);
+      this.logger.log('[PoseGenerationProcessor] Using Replicate (random seed per pose for variation)');
       let imageBuffer = await this.replicateService.generatePoseFromReference(refImageUrl, posePromptText, {
         negativePrompt: mascot.negativePrompt || undefined,
-        seed: mascot.seed ?? undefined,
+        seed: poseSeed,
       });
 
       // Keep under ~1MB for rembg data URI (Replicate limit)

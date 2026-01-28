@@ -72,6 +72,11 @@ export const App: React.FC = () => {
       loadCredits();
     });
 
+    rpc.on('mascot-deleted', () => {
+      // Reload mascots after deletion
+      loadMascots();
+    });
+
     rpc.on('mascots-loaded', (data: { mascots: any[] }) => {
       console.log('[App] ===== MASCOTS-LOADED EVENT RECEIVED =====');
       console.log('[App] Data received:', data);

@@ -18,10 +18,7 @@ export class LogosService {
   ) {}
 
   async create(mascotId: string, dto: CreateLogoPackDto, userId: string) {
-    const hasCredits = await this.creditsService.checkAndReserveCredits(userId, 20);
-    if (!hasCredits) {
-      throw new Error('Insufficient credits');
-    }
+    // Logo packs are free (no credit check). Re-enable: checkAndReserveCredits(userId, 20) then throw if !hasCredits
 
     const logoPack = this.logoPackRepository.create({
       mascotId,

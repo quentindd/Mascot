@@ -312,4 +312,28 @@ export class MascotAPI {
   }> {
     return this.request('/credits/balance');
   }
+
+  async deleteMascot(id: string): Promise<void> {
+    return this.request<void>(`/mascots/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async deleteAnimation(id: string): Promise<void> {
+    return this.request<void>(`/animations/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async deleteLogoPack(id: string): Promise<void> {
+    return this.request<void>(`/logo-packs/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async deletePose(id: string): Promise<void> {
+    return this.request<void>(`/poses/${id}`, {
+      method: 'DELETE',
+    });
+  }
 }

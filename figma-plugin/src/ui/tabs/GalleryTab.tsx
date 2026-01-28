@@ -90,6 +90,18 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
     return mascot?.name || 'Unknown';
   };
 
+  const handleDeleteMascot = (e: React.MouseEvent, mascotId: string) => {
+    e.stopPropagation();
+    if (confirm('Are you sure you want to delete this mascot? This action cannot be undone.')) {
+      rpc.send('delete-mascot', { id: mascotId });
+    }
+  };
+
+  rpc.on('mascot-deleted', (data: { id: string }) => {
+    // Mascots will be reloaded automatically by App.tsx
+    console.log('[GalleryTab] Mascot deleted:', data.id);
+  });
+
   const renderMascots = () => {
     if (mascots.length === 0) {
       return (
@@ -122,8 +134,32 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
                 console.warn('[GalleryTab] No image URL available for mascot:', mascot.id);
               }
             }}
-            style={{ cursor: 'pointer' }}
+            style={{ cursor: 'pointer', position: 'relative' }}
           >
+            <button
+              className="delete-btn"
+              onClick={(e) => handleDeleteMascot(e, mascot.id)}
+              title="Delete mascot"
+              style={{
+                position: 'absolute',
+                top: '4px',
+                right: '4px',
+                width: '20px',
+                height: '20px',
+                borderRadius: '4px',
+                border: 'none',
+                background: 'rgba(0, 0, 0, 0.7)',
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 10,
+              }}
+            >
+              ×
+            </button>
             <div className="gallery-item-image">
               {(mascot.fullBodyImageUrl || mascot.avatarImageUrl || mascot.imageUrl) ? (
                 <img
@@ -148,6 +184,18 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
       </div>
     );
   };
+
+  const handleDeleteAnimation = (e: React.MouseEvent, animationId: string) => {
+    e.stopPropagation();
+    if (confirm('Are you sure you want to delete this animation? This action cannot be undone.')) {
+      rpc.send('delete-animation', { id: animationId });
+    }
+  };
+
+  rpc.on('animation-deleted', (data: { id: string }) => {
+    setAnimations((prev) => prev.filter(a => a.id !== data.id));
+    console.log('[GalleryTab] Animation deleted:', data.id);
+  });
 
   const renderAnimations = () => {
     if (animations.length === 0) {
@@ -179,8 +227,32 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
                 console.log('[Gallery] Animation not ready yet, status:', animation.status);
               }
             }}
-            style={{ cursor: animation.status === 'completed' ? 'pointer' : 'default' }}
+            style={{ cursor: animation.status === 'completed' ? 'pointer' : 'default', position: 'relative' }}
           >
+            <button
+              className="delete-btn"
+              onClick={(e) => handleDeleteAnimation(e, animation.id)}
+              title="Delete animation"
+              style={{
+                position: 'absolute',
+                top: '4px',
+                right: '4px',
+                width: '20px',
+                height: '20px',
+                borderRadius: '4px',
+                border: 'none',
+                background: 'rgba(0, 0, 0, 0.7)',
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 10,
+              }}
+            >
+              ×
+            </button>
             <div className="gallery-item-image">
               {animation.webmVideoUrl ? (
                 <video
@@ -220,6 +292,18 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
     );
   };
 
+  const handleDeleteLogoPack = (e: React.MouseEvent, logoPackId: string) => {
+    e.stopPropagation();
+    if (confirm('Are you sure you want to delete this logo pack? This action cannot be undone.')) {
+      rpc.send('delete-logo-pack', { id: logoPackId });
+    }
+  };
+
+  rpc.on('logo-pack-deleted', (data: { id: string }) => {
+    setLogos((prev) => prev.filter(l => l.id !== data.id));
+    console.log('[GalleryTab] Logo pack deleted:', data.id);
+  });
+
   const renderLogos = () => {
     if (logos.length === 0) {
       return (
@@ -236,7 +320,31 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
     return (
       <div className="gallery-grid">
         {logos.map((logoPack) => (
-          <div key={logoPack.id} className="gallery-item">
+          <div key={logoPack.id} className="gallery-item" style={{ position: 'relative' }}>
+            <button
+              className="delete-btn"
+              onClick={(e) => handleDeleteLogoPack(e, logoPack.id)}
+              title="Delete logo pack"
+              style={{
+                position: 'absolute',
+                top: '4px',
+                right: '4px',
+                width: '20px',
+                height: '20px',
+                borderRadius: '4px',
+                border: 'none',
+                background: 'rgba(0, 0, 0, 0.7)',
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 10,
+              }}
+            >
+              ×
+            </button>
             <div className="gallery-item-image">
               {logoPack.sizes && logoPack.sizes.length > 0 ? (
                 <img

@@ -18,6 +18,8 @@ export const PosesTab: React.FC<PosesTabProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [generatedPose, setGeneratedPose] = useState<any>(null);
+  const [isInserting, setIsInserting] = useState(false);
+  const [insertError, setInsertError] = useState<string | null>(null);
 
   React.useEffect(() => {
     console.log('[PosesTab] Mascots available:', mascots.length);
@@ -41,6 +43,31 @@ export const PosesTab: React.FC<PosesTabProps> = ({
     setIsGenerating(false);
     setError(data.error);
   });
+
+  rpc.on('pose-deleted', (data: { id: string }) => {
+    if (generatedPose && generatedPose.id === data.id) {
+      setGeneratedPose(null);
+    }
+    console.log('[PosesTab] Pose deleted:', data.id);
+  });
+
+  rpc.on('image-inserted', () => {
+    setIsInserting(false);
+    setInsertError(null);
+  });
+
+  rpc.on('error', (data: { message?: string; context?: string }) => {
+    if (data.context === 'insert-image') {
+      setIsInserting(false);
+      setInsertError(data.message || 'Failed to insert in Figma');
+    }
+  });
+
+  const handleDeletePose = (poseId: string) => {
+    if (confirm('Are you sure you want to delete this pose? This action cannot be undone.')) {
+      rpc.send('delete-pose', { id: poseId });
+    }
+  };
 
   const handleGenerate = () => {
     if (!selectedMascot) {
@@ -188,9 +215,31 @@ export const PosesTab: React.FC<PosesTabProps> = ({
 
       {generatedPose && (
         <div className="card">
-          <h3 className="section-title" style={{ marginBottom: '12px' }}>Generated Pose</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <h3 className="section-title" style={{ margin: 0 }}>Generated Pose</h3>
+            <button
+              onClick={() => handleDeletePose(generatedPose.id)}
+              title="Delete pose"
+              style={{
+                width: '24px',
+                height: '24px',
+                borderRadius: '4px',
+                border: 'none',
+                background: '#ff4444',
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0,
+              }}
+            >
+              ×
+            </button>
+          </div>
           <div style={{ marginBottom: '12px' }}>
-            <div className="gallery-item">
+            <div className="gallery-item" style={{ position: 'relative' }}>
               <div className="gallery-item-image">
                 {generatedPose.imageUrl ? (
                   <img
@@ -212,18 +261,38 @@ export const PosesTab: React.FC<PosesTabProps> = ({
           </div>
           <button
             className="btn-primary"
-            onClick={() => {
-              if (generatedPose.imageUrl) {
-                rpc.send('insert-image', {
-                  url: generatedPose.imageUrl,
-                  name: `${selectedMascot.name} - ${generatedPose.prompt || 'Pose'}`,
+            disabled={isInserting}
+            onClick={async () => {
+              if (!generatedPose?.imageUrl) return;
+              setInsertError(null);
+              setIsInserting(true);
+              const name = `${selectedMascot.name} - ${generatedPose.prompt || 'Pose'}`;
+              try {
+                const res = await fetch(generatedPose.imageUrl, { mode: 'cors' });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const blob = await res.blob();
+                const dataUrl = await new Promise<string>((resolve, reject) => {
+                  const reader = new FileReader();
+                  reader.onload = () => resolve(reader.result as string);
+                  reader.onerror = () => reject(new Error('Failed to read image'));
+                  reader.readAsDataURL(blob);
                 });
+                rpc.send('insert-image', { url: dataUrl, name });
+              } catch (e) {
+                setIsInserting(false);
+                setInsertError(e instanceof Error ? e.message : 'Failed to load image. Insert in Figma may fail due to CORS.');
+                rpc.send('insert-image', { url: generatedPose.imageUrl, name });
               }
             }}
             style={{ width: '100%' }}
           >
-            Insert in Figma
+            {isInserting ? 'Inserting…' : 'Insert in Figma'}
           </button>
+          {insertError && (
+            <p className="section-description" style={{ color: 'var(--color-error, #c00)', marginTop: 8, fontSize: 12 }}>
+              {insertError}
+            </p>
+          )}
         </div>
       )}
     </div>

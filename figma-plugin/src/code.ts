@@ -147,6 +147,22 @@ figma.ui.onmessage = async (msg) => {
         await handleGetMascotLogos(msg.data);
         break;
 
+      case 'delete-mascot':
+        await handleDeleteMascot(msg.data);
+        break;
+
+      case 'delete-animation':
+        await handleDeleteAnimation(msg.data);
+        break;
+
+      case 'delete-logo-pack':
+        await handleDeleteLogoPack(msg.data);
+        break;
+
+      case 'delete-pose':
+        await handleDeletePose(msg.data);
+        break;
+
       default:
         rpc.send('error', { message: `Unknown message type: ${msg.type}` });
     }
@@ -469,8 +485,12 @@ async function pollLogoPackStatus(logoPackId: string) {
 }
 
 async function handleInsertImage(data: { url: string; name: string }) {
-  await insertImageFromUrl(data.url, data.name);
-  rpc.send('image-inserted', { url: data.url });
+  try {
+    await insertImageFromUrl(data.url, data.name);
+    rpc.send('image-inserted', { url: data.url });
+  } catch {
+    // Error already sent by insertImageFromUrl
+  }
 }
 
 async function handleInsertAnimation(data: { animationId: string; animation: any }) {
@@ -556,11 +576,11 @@ async function insertImageFromUrl(url: string, name: string) {
     figma.notify(`Image "${name}" inserted successfully!`);
   } catch (error) {
     console.error('[Mascot] Failed to insert image:', error);
+    const msg = error instanceof Error ? error.message : 'Unknown error';
     handleError(error, 'insert-image');
-    rpc.send('error', {
-      message: `Failed to insert image: ${error instanceof Error ? error.message : 'Unknown error'}`,
-    });
-    figma.notify(`Failed to insert image: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    rpc.send('error', { message: `Failed to insert image: ${msg}`, context: 'insert-image' });
+    figma.notify(`Failed to insert image: ${msg}`);
+    throw error;
   }
 }
 
@@ -732,6 +752,76 @@ async function handleGetMascotLogos(data: { mascotId: string }) {
     console.error('[Mascot Code] Error loading logos:', error);
     handleError(error, 'get-mascot-logos');
     rpc.send('mascot-logos-loaded', { mascotId: data.mascotId, logos: [] });
+  }
+}
+
+async function handleDeleteMascot(data: { id: string }) {
+  if (!apiClient) {
+    rpc.send('error', { message: 'Not authenticated' });
+    return;
+  }
+
+  try {
+    console.log('[Mascot Code] Deleting mascot:', data.id);
+    await apiClient.deleteMascot(data.id);
+    figma.notify('Mascot deleted successfully');
+    rpc.send('mascot-deleted', { id: data.id });
+    // Reload mascots list
+    await handleGetMascots();
+  } catch (error) {
+    handleError(error, 'delete-mascot');
+    rpc.send('delete-failed', { id: data.id, type: 'mascot' });
+  }
+}
+
+async function handleDeleteAnimation(data: { id: string }) {
+  if (!apiClient) {
+    rpc.send('error', { message: 'Not authenticated' });
+    return;
+  }
+
+  try {
+    console.log('[Mascot Code] Deleting animation:', data.id);
+    await apiClient.deleteAnimation(data.id);
+    figma.notify('Animation deleted successfully');
+    rpc.send('animation-deleted', { id: data.id });
+  } catch (error) {
+    handleError(error, 'delete-animation');
+    rpc.send('delete-failed', { id: data.id, type: 'animation' });
+  }
+}
+
+async function handleDeleteLogoPack(data: { id: string }) {
+  if (!apiClient) {
+    rpc.send('error', { message: 'Not authenticated' });
+    return;
+  }
+
+  try {
+    console.log('[Mascot Code] Deleting logo pack:', data.id);
+    await apiClient.deleteLogoPack(data.id);
+    figma.notify('Logo pack deleted successfully');
+    rpc.send('logo-pack-deleted', { id: data.id });
+  } catch (error) {
+    handleError(error, 'delete-logo-pack');
+    rpc.send('delete-failed', { id: data.id, type: 'logo-pack' });
+  }
+}
+
+async function handleDeletePose(data: { id: string }) {
+  if (!apiClient) {
+    rpc.send('error', { message: 'Not authenticated' });
+    return;
+  }
+
+  try {
+    console.log('[Mascot Code] Deleting pose:', data.id);
+    await apiClient.deletePose(data.id);
+    figma.notify('Pose deleted successfully');
+    rpc.send('pose-deleted', { id: data.id });
+  } catch (error) {
+    handleError(error, 'delete-pose');
+    rpc.send('delete-failed', { id: data.id, type: 'pose' });
   }
 }
 

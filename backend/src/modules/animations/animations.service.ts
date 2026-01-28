@@ -18,10 +18,7 @@ export class AnimationsService {
   ) {}
 
   async create(mascotId: string, dto: CreateAnimationDto, userId: string) {
-    const hasCredits = await this.creditsService.checkAndReserveCredits(userId, 25);
-    if (!hasCredits) {
-      throw new Error('Insufficient credits');
-    }
+    // Animations are free (no credit check). Re-enable: checkAndReserveCredits(userId, 25) then throw if !hasCredits
 
     const animation = this.animationRepository.create({
       mascotId,

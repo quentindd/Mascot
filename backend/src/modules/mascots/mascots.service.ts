@@ -20,15 +20,7 @@ export class MascotsService {
 
   async create(createMascotDto: CreateMascotDto, userId: string): Promise<MascotResponseDto[]> {
     try {
-      // Check credits (1 credit generates up to 3 variations)
-      const hasCredits = await this.creditsService.checkAndReserveCredits(
-        userId,
-        1, // 1 credit for batch of variations
-      );
-
-      if (!hasCredits) {
-        throw new ForbiddenException('Insufficient credits');
-      }
+      // Create is free (no credit check). Re-enable: checkAndReserveCredits(userId, 1) then throw if !hasCredits
 
       // Generate 3 variations by default (or use provided numVariations)
       const numVariations = createMascotDto.numVariations || 3;
@@ -182,11 +174,7 @@ export class MascotsService {
    * Create an evolved version of a mascot (life stage progression)
    */
   async evolve(parentMascotId: string, targetStage: any, userId: string): Promise<MascotResponseDto> {
-    // Check credits
-    const hasCredits = await this.creditsService.checkAndReserveCredits(userId, 1);
-    if (!hasCredits) {
-      throw new ForbiddenException('Insufficient credits');
-    }
+    // Evolve is free (no credit check). Re-enable: checkAndReserveCredits(userId, 1) then throw if !hasCredits
 
     // Get parent mascot
     const parentMascot = await this.mascotRepository.findOne({

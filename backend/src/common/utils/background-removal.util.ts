@@ -54,7 +54,8 @@ export async function removeBackground(
     const isGrayBg = aggressive && avgBrightness >= 80 && avgBrightness <= 240;
     const colorTolerance = aggressive ? 45 : 28;
 
-    const isBackgroundLike = (r: number, g: number, b: number): boolean => {
+    const isBackgroundLike = (r: number, g: number, b: number, alpha?: number): boolean => {
+      if (alpha !== undefined && alpha < 30) return true;
       const brightness = (r + g + b) / 3;
       if (isLightBg && r > lightThreshold && g > lightThreshold && b > lightThreshold) return true;
       if (isLightBg && Math.abs(brightness - avgBrightness) < colorTolerance) return true;
@@ -87,7 +88,8 @@ export async function removeBackground(
       const r = pixels[idx];
       const g = pixels[idx + 1];
       const b = pixels[idx + 2];
-      if (!isBackgroundLike(r, g, b)) continue;
+      const a = channels >= 4 ? pixels[idx + 3] : 255;
+      if (!isBackgroundLike(r, g, b, a)) continue;
       toRemove[i] = 1;
       stack.push([x - 1, y]);
       stack.push([x + 1, y]);

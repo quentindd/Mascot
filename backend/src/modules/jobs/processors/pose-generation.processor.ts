@@ -55,21 +55,41 @@ export class PoseGenerationProcessor extends WorkerHost {
           : mascot.style === '3d' || mascot.style === '3d_pixar'
             ? '3D character'
             : 'cartoon illustration';
+      const hasWings = mascot.accessories?.some((a) => String(a).toLowerCase().includes('wing')) ?? false;
+      const bodyPartsRule = hasWings
+        ? 'The reference has WINGS, not hands. Output MUST have wings only. FORBIDDEN: human hands, arms, fingers. Do not add any limb that is not in the reference.'
+        : 'Copy EXACTLY the body parts from the reference. Do not add human hands, arms, or fingers if the reference does not have them. Same limbs only.';
       const posePromptText =
-        `This is a stylized mascot character. Keep the EXACT same character: same ${styleHint} style, same colors, same design, same proportions. ` +
-        `CRITICAL: Keep the SAME body parts. If the character has WINGS, keep WINGS only (NO human hands, NO human arms, NO fingers). If it has a tail, keep the tail. If it has paws or animal limbs, keep them. Do NOT add or draw human hands, arms, or fingers. Same number of limbs and same type (wings stay wings, paws stay paws). ` +
-        `Do NOT make it realistic or photorealistic. Only change the pose or action to: ${prompt}. The output must be the same stylized mascot, not a real animal or photo. Transparent background, no background.`;
+        `Do not denature the character. The output must have EXACTLY the same body parts as the reference image—nothing more, nothing less. ${bodyPartsRule} ` +
+        `Keep the EXACT same character: same ${styleHint} style, same colors, same design, same proportions. Do NOT add or draw human hands, arms, or fingers. Same number of limbs and same type (wings stay wings, paws stay paws). ` +
+        `Only change the pose or action to: ${prompt}. The output must be the same stylized mascot as the reference. Transparent background, no background.`;
       this.logger.log('[PoseGenerationProcessor] Using Replicate');
       let imageBuffer = await this.replicateService.generatePoseFromReference(refImageUrl, posePromptText, {
         negativePrompt: mascot.negativePrompt || undefined,
         seed: mascot.seed ?? undefined,
       });
 
+      // Keep under ~1MB for rembg data URI (Replicate limit)
+      if (imageBuffer.length > 900 * 1024) {
+        const meta = await sharp(imageBuffer).metadata();
+        const w = meta.width ?? 1024;
+        const h = meta.height ?? 1024;
+        const maxSide = 1024;
+        if (w > maxSide || h > maxSide) {
+          imageBuffer = await sharp(imageBuffer)
+            .resize(maxSide, maxSide, { fit: 'inside', withoutEnlargement: true })
+            .png({ compressionLevel: 9 })
+            .toBuffer();
+        }
+      }
+
       // Real cutout: Replicate rembg (transparent background, no gray)
       this.logger.log('Removing background with Replicate rembg (cutout)...');
       try {
         imageBuffer = await this.replicateService.removeBackgroundReplicate(imageBuffer);
         this.logger.log('Background removal (rembg) completed');
+        // Cleanup: remove any remaining edge gray (border-only, does not touch interior)
+        imageBuffer = await removeBackground(imageBuffer, { aggressive: true });
       } catch (rembgErr) {
         this.logger.warn('[PoseGenerationProcessor] rembg failed, using local removal:', rembgErr);
         imageBuffer = await removeBackground(imageBuffer, { aggressive: true });

@@ -156,7 +156,12 @@ export class LogoPackGenerationProcessor extends WorkerHost {
       mascotDetails: mascot.prompt || undefined,
     });
     this.logger.log('[LogoPack] Removing background from AI-generated logo...');
-    generated = await removeBackground(generated);
+    generated = await removeBackground(generated, {
+      aggressive: true,
+      eraseSemiTransparentBorder: true,
+      borderAlphaThreshold: 160,
+      eraseWhiteOutline: true,
+    });
     return generated;
   }
 

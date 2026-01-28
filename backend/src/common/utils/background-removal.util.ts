@@ -5,14 +5,26 @@ import * as sharp from 'sharp';
  * Only removes pixels that are CONNECTED TO THE BORDER (flood fill from edges).
  * Interior light areas (eyes, white inside character) are NOT touched.
  * Use aggressive: true for pose images (gray/dark bg, larger tolerance).
- * Use eraseSemiTransparentBorder: true to remove glow/halo at edges (alpha < 120 connected to border).
+ * Use eraseSemiTransparentBorder: true to remove glow/halo at edges (alpha < threshold connected to border).
+ * Use eraseWhiteOutline: true to erode semi-transparent white pixels adjacent to transparent (removes white outline).
  */
+const DEFAULT_BORDER_ALPHA_THRESHOLD = 120;
+
 export async function removeBackground(
   imageBuffer: Buffer,
-  options?: { aggressive?: boolean; eraseSemiTransparentBorder?: boolean },
+  options?: {
+    aggressive?: boolean;
+    eraseSemiTransparentBorder?: boolean;
+    /** Alpha below this at border is removed (default 120). Use 160–180 for stronger halo removal. */
+    borderAlphaThreshold?: number;
+    /** Erode semi-transparent white pixels next to transparent (removes white outline). */
+    eraseWhiteOutline?: boolean;
+  },
 ): Promise<Buffer> {
   const aggressive = options?.aggressive ?? false;
   const eraseSemiTransparentBorder = options?.eraseSemiTransparentBorder ?? false;
+  const borderAlphaThreshold = options?.borderAlphaThreshold ?? DEFAULT_BORDER_ALPHA_THRESHOLD;
+  const eraseWhiteOutline = options?.eraseWhiteOutline ?? false;
   try {
     let processed = sharp(imageBuffer).ensureAlpha();
     processed = processed.unflatten();
@@ -60,7 +72,9 @@ export async function removeBackground(
 
     const isBackgroundLike = (r: number, g: number, b: number, alpha?: number): boolean => {
       if (alpha !== undefined && alpha < 30) return true;
-      if (eraseSemiTransparentBorder && alpha !== undefined && alpha < 120) return true;
+      if (eraseSemiTransparentBorder && alpha !== undefined && alpha < borderAlphaThreshold) return true;
+      // Always remove near-white at border (fixes white outline even when corners aren't white).
+      if (r >= 248 && g >= 248 && b >= 248) return true;
       const brightness = (r + g + b) / 3;
       if (isLightBg && r > lightThreshold && g > lightThreshold && b > lightThreshold) return true;
       if (isLightBg && Math.abs(brightness - avgBrightness) < colorTolerance) return true;
@@ -107,6 +121,35 @@ export async function removeBackground(
       const pixelIndex = i / channels;
       if (toRemove[pixelIndex]) {
         pixels[i + 3] = 0;
+      }
+    }
+
+    // Optional: erode semi-transparent white pixels adjacent to transparent (removes white outline).
+    if (eraseWhiteOutline) {
+      const getA = (i: number) => (i >= 0 && i < pixels.length ? pixels[i + 3] : 255);
+      const getBrightness = (i: number) =>
+        i >= 0 && i < pixels.length ? (pixels[i] + pixels[i + 1] + pixels[i + 2]) / 3 : 0;
+      for (let pass = 0; pass < 2; pass++) {
+        const toErode = new Uint8Array(width * height);
+        for (let y = 1; y < height - 1; y++) {
+          for (let x = 1; x < width - 1; x++) {
+            const i = (y * width + x) * channels;
+            const a = pixels[i + 3];
+            if (a < 10 || a > 215) continue;
+            const brightness = getBrightness(i);
+            if (brightness < 230) continue;
+            const idx = y * width + x;
+            const hasTransparentNeighbor =
+              pixels[getIdx(x - 1, y) + 3] < 10 ||
+              pixels[getIdx(x + 1, y) + 3] < 10 ||
+              pixels[getIdx(x, y - 1) + 3] < 10 ||
+              pixels[getIdx(x, y + 1) + 3] < 10;
+            if (hasTransparentNeighbor) toErode[idx] = 1;
+          }
+        }
+        for (let i = 0; i < pixels.length; i += channels) {
+          if (toErode[i / channels]) pixels[i + 3] = 0;
+        }
       }
     }
 

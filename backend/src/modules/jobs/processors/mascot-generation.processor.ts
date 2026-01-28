@@ -101,9 +101,14 @@ export class MascotGenerationProcessor extends WorkerHost {
       const generationTime = Date.now() - generationStartTime;
       this.logger.log(`[MascotGenerationProcessor] Gemini Flash API completed for variation ${variationIndex || 1} in ${generationTime}ms`);
 
-      // Remove background (same util as Create / Poses)
+      // Remove background + white outline (same util as Poses, with outline erosion for create)
       this.logger.log('Removing background from generated image...');
-      imageBuffer = await removeBackground(imageBuffer);
+      imageBuffer = await removeBackground(imageBuffer, {
+        aggressive: true,
+        eraseSemiTransparentBorder: true,
+        borderAlphaThreshold: 160,
+        eraseWhiteOutline: true,
+      });
       this.logger.log('Background removal completed');
 
       // Generate different sizes (full body, avatar, square icon)

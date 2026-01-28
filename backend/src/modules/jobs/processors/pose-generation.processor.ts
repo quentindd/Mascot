@@ -94,16 +94,20 @@ export class PoseGenerationProcessor extends WorkerHost {
       try {
         imageBuffer = await this.replicateService.removeBackgroundReplicate(imageBuffer);
         this.logger.log('Background removal (rembg) completed');
-        // Cleanup: remove edge gray/dark + glow/halo (border-only, does not touch interior)
+        // Cleanup: remove edge gray/dark + glow/halo + white outline (border-only)
         imageBuffer = await removeBackground(imageBuffer, {
           aggressive: true,
           eraseSemiTransparentBorder: true,
+          borderAlphaThreshold: 160,
+          eraseWhiteOutline: true,
         });
       } catch (rembgErr) {
         this.logger.warn('[PoseGenerationProcessor] rembg failed, using local removal:', rembgErr);
         imageBuffer = await removeBackground(imageBuffer, {
           aggressive: true,
           eraseSemiTransparentBorder: true,
+          borderAlphaThreshold: 160,
+          eraseWhiteOutline: true,
         });
       }
 

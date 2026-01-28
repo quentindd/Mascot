@@ -4,6 +4,7 @@ import axios from 'axios';
 
 const DEFAULT_POSE_MODEL = 'prunaai/flux-kontext-fast';
 const REPLICATE_API = 'https://api.replicate.com/v1';
+const REMBG_MODEL = 'cjwbw/rembg';
 
 /** Kontext (BFL): input_image + prompt. */
 const KONTEXT_BFL_MODELS = ['black-forest-labs/flux-kontext-pro', 'black-forest-labs/flux-kontext-dev'];
@@ -37,6 +38,49 @@ export class ReplicateService {
   }
 
   /**
+   * Remove background from an image using Replicate rembg (real cutout, transparent).
+   * Use after pose generation to get a clean detouré without gray/white background.
+   */
+  async removeBackgroundReplicate(imageBuffer: Buffer): Promise<Buffer> {
+    if (!this.token) {
+      throw new Error('REPLICATE_API_TOKEN is not set. Cannot use Replicate for background removal.');
+    }
+    const dataUri = `data:image/png;base64,${imageBuffer.toString('base64')}`;
+    try {
+      this.logger.log('[Replicate] Running rembg for background removal...');
+      const version = await this.getModelVersion(REMBG_MODEL);
+      const createRes = await axios.post(
+        `${REPLICATE_API}/predictions`,
+        { version, input: { image: dataUri } },
+        {
+          headers: {
+            Authorization: `Bearer ${this.token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 15000,
+        },
+      );
+      const predictionId = createRes.data?.id;
+      if (!predictionId) throw new Error('Replicate rembg did not return prediction id');
+      const output = await this.waitForPrediction(predictionId, 60000);
+      const imageUrlOut = this.extractOutputUrl(output);
+      if (!imageUrlOut) throw new Error('Replicate rembg did not return an image URL');
+      const imageResponse = await axios.get<ArrayBuffer>(imageUrlOut, {
+        responseType: 'arraybuffer',
+        timeout: 30000,
+      });
+      this.logger.log('[Replicate] rembg completed');
+      return Buffer.from(imageResponse.data);
+    } catch (err: any) {
+      if (axios.isAxiosError(err)) {
+        const msg = err.response?.data?.detail ?? err.message ?? 'Unknown error';
+        throw new Error(`Replicate rembg failed: ${msg}`);
+      }
+      throw err;
+    }
+  }
+
+  /**
    * Generate a pose from a reference image (mascot) + text prompt.
    * prunaai/flux-kontext-fast: ultra-fast Kontext (mascottes/cartoons).
    * flux-kontext-pro, seededit-3.0, consistent-character: alternatives.
@@ -50,21 +94,21 @@ export class ReplicateService {
       throw new Error('REPLICATE_API_TOKEN is not set. Cannot use Replicate for poses.');
     }
 
-    const isKontextBfl = KONTEXT_BFL_MODELS.some((m) => this.poseModel === m || this.poseModel.includes('flux-kontext'));
+    const modelLower = this.poseModel.toLowerCase();
+    const isKontextBfl = KONTEXT_BFL_MODELS.some((m) => this.poseModel === m || modelLower.includes('flux-kontext'));
     // Pruna models use img_cond_path (not input_image). Check Pruna before BFL.
-    const isKontextPruna =
-      this.poseModel.includes('prunaai') || this.poseModel.includes('flux-kontext-fast');
+    const isKontextPruna = modelLower.includes('prunaai') || modelLower.includes('flux-kontext-fast');
     const isSeedEdit = SEEDEDIT_MODELS.some((m) => this.poseModel === m || this.poseModel.includes('seededit'));
     const fullPrompt = isSeedEdit
       ? `Only change the pose or action to: ${prompt.trim()}. Keep the exact same character, same illustration style, same colors, same design. Do not make it realistic or photorealistic. Transparent background.`
       : isKontextBfl || isKontextPruna
-        ? `${prompt.trim()} Preserve the exact same character and illustration style. Do not convert to photo or realistic. Transparent background. No text, no watermark.`
+        ? `${prompt.trim()} Preserve the exact same character and illustration style. NO human hands, NO human arms, NO fingers. If character has wings keep wings only. Same body parts. Do not convert to photo or realistic. Transparent background, no background. No text, no watermark.`
         : prompt.trim() + '. Same character, same design. Transparent background. No text, no watermark.';
 
     try {
       this.logger.log(`[Replicate] Using model: ${this.poseModel}`);
       if (isKontextPruna) {
-        this.logger.log('[Replicate] Pruna model: sending img_cond_path + prompt');
+        this.logger.log(`[Replicate] Pruna model: sending img_cond_path + prompt (imageUrl length: ${imageUrl?.length ?? 0})`);
       }
       const version = await this.getLatestVersion();
       this.logger.log(`[Replicate] Creating prediction (pose from reference) with ${this.poseModel}`);
@@ -75,11 +119,14 @@ export class ReplicateService {
       const input = isSeedEdit
         ? { image: imageUrl, prompt: fullPrompt, ...(options?.seed != null && { seed: options.seed }) }
         : isKontextPruna
-          ? {
-              img_cond_path: imageUrl,
-              prompt: fullPrompt,
-              ...(options?.seed != null && { seed: options.seed }),
-            }
+          ? (() => {
+              const prunaInput: Record<string, unknown> = {
+                img_cond_path: imageUrl,
+                prompt: fullPrompt,
+              };
+              if (options?.seed != null) prunaInput.seed = options.seed;
+              return prunaInput;
+            })()
           : isKontextBfl
             ? {
                 input_image: imageUrl,
@@ -96,6 +143,9 @@ export class ReplicateService {
               seed: options?.seed ?? Math.floor(Math.random() * 1e9),
             };
 
+      if (isKontextPruna) {
+        this.logger.log(`[Replicate] Input keys: ${Object.keys(input).join(', ')}`);
+      }
       const createRes = await axios.post(
         `${REPLICATE_API}/predictions`,
         { version, input },
@@ -161,16 +211,17 @@ export class ReplicateService {
   }
 
   private async getLatestVersion(): Promise<string> {
-    const res = await axios.get(
-      `${REPLICATE_API}/models/${this.poseModel}`,
-      {
-        headers: { Authorization: `Bearer ${this.token}` },
-        timeout: 5000,
-      },
-    );
+    return this.getModelVersion(this.poseModel);
+  }
+
+  private async getModelVersion(modelId: string): Promise<string> {
+    const res = await axios.get(`${REPLICATE_API}/models/${modelId}`, {
+      headers: { Authorization: `Bearer ${this.token}` },
+      timeout: 5000,
+    });
     const versionId = res.data?.latest_version?.id;
     if (!versionId) {
-      throw new Error(`Could not get latest version for ${this.poseModel}`);
+      throw new Error(`Could not get latest version for ${modelId}`);
     }
     return versionId;
   }

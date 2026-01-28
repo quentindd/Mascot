@@ -56,17 +56,24 @@ export class PoseGenerationProcessor extends WorkerHost {
             ? '3D character'
             : 'cartoon illustration';
       const posePromptText =
-        `This is a stylized mascot character. Keep the EXACT same character: same ${styleHint} style, same colors, same design, same proportions. Do NOT make it realistic or photorealistic. Only change the pose or action to: ${prompt}. The output must be the same stylized mascot, not a real animal or photo.`;
+        `This is a stylized mascot character. Keep the EXACT same character: same ${styleHint} style, same colors, same design, same proportions. ` +
+        `CRITICAL: Keep the SAME body parts. If the character has WINGS, keep WINGS only (NO human hands, NO human arms, NO fingers). If it has a tail, keep the tail. If it has paws or animal limbs, keep them. Do NOT add or draw human hands, arms, or fingers. Same number of limbs and same type (wings stay wings, paws stay paws). ` +
+        `Do NOT make it realistic or photorealistic. Only change the pose or action to: ${prompt}. The output must be the same stylized mascot, not a real animal or photo. Transparent background, no background.`;
       this.logger.log('[PoseGenerationProcessor] Using Replicate');
       let imageBuffer = await this.replicateService.generatePoseFromReference(refImageUrl, posePromptText, {
         negativePrompt: mascot.negativePrompt || undefined,
         seed: mascot.seed ?? undefined,
       });
 
-      // Same background removal as Create
-      this.logger.log('Removing background from generated pose image...');
-      imageBuffer = await removeBackground(imageBuffer);
-      this.logger.log('Background removal completed');
+      // Real cutout: Replicate rembg (transparent background, no gray)
+      this.logger.log('Removing background with Replicate rembg (cutout)...');
+      try {
+        imageBuffer = await this.replicateService.removeBackgroundReplicate(imageBuffer);
+        this.logger.log('Background removal (rembg) completed');
+      } catch (rembgErr) {
+        this.logger.warn('[PoseGenerationProcessor] rembg failed, using local removal:', rembgErr);
+        imageBuffer = await removeBackground(imageBuffer, { aggressive: true });
+      }
 
       // Same resize style as mascot avatar (512x512, contain, transparent)
       const transparentBackground = { r: 0, g: 0, b: 0, alpha: 0 };

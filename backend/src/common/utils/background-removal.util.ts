@@ -1,10 +1,16 @@
 import * as sharp from 'sharp';
 
 /**
- * Same background removal as Create (mascot generation).
- * Makes white/light pixels transparent (corners + full-image for light background).
+ * Background removal for mascot/create and poses.
+ * Only removes pixels that are CONNECTED TO THE BORDER (flood fill from edges).
+ * Interior light areas (eyes, white inside character) are NOT touched.
+ * Use aggressive: true for pose images (gray bg, larger edge tolerance).
  */
-export async function removeBackground(imageBuffer: Buffer): Promise<Buffer> {
+export async function removeBackground(
+  imageBuffer: Buffer,
+  options?: { aggressive?: boolean },
+): Promise<Buffer> {
+  const aggressive = options?.aggressive ?? false;
   try {
     let processed = sharp(imageBuffer).ensureAlpha();
     processed = processed.unflatten();
@@ -19,9 +25,10 @@ export async function removeBackground(imageBuffer: Buffer): Promise<Buffer> {
     const channels = info.channels;
 
     const lightThreshold = 230;
-    const edgeSize = 20;
-    const cornerSamples: number[] = [];
     const sampleSize = Math.min(15, Math.floor(width / 8), Math.floor(height / 8));
+    const cornerR: number[] = [];
+    const cornerG: number[] = [];
+    const cornerB: number[] = [];
 
     for (let y = 0; y < sampleSize; y++) {
       for (let x = 0; x < sampleSize; x++) {
@@ -32,36 +39,66 @@ export async function removeBackground(imageBuffer: Buffer): Promise<Buffer> {
           ((height - 1 - y) * width + (width - 1 - x)) * channels,
         ];
         corners.forEach((idx) => {
-          const brightness = (pixels[idx] + pixels[idx + 1] + pixels[idx + 2]) / 3;
-          cornerSamples.push(brightness);
+          cornerR.push(pixels[idx]);
+          cornerG.push(pixels[idx + 1]);
+          cornerB.push(pixels[idx + 2]);
         });
       }
     }
 
-    const avgCornerBrightness = cornerSamples.reduce((a, b) => a + b, 0) / cornerSamples.length;
-    const isLikelyLightBackground = avgCornerBrightness > 200;
+    const avgR = cornerR.reduce((a, b) => a + b, 0) / cornerR.length;
+    const avgG = cornerG.reduce((a, b) => a + b, 0) / cornerG.length;
+    const avgB = cornerB.reduce((a, b) => a + b, 0) / cornerB.length;
+    const avgBrightness = (avgR + avgG + avgB) / 3;
+    const isLightBg = avgBrightness > 200;
+    const isGrayBg = aggressive && avgBrightness >= 80 && avgBrightness <= 240;
+    const colorTolerance = aggressive ? 45 : 28;
+
+    const isBackgroundLike = (r: number, g: number, b: number): boolean => {
+      const brightness = (r + g + b) / 3;
+      if (isLightBg && r > lightThreshold && g > lightThreshold && b > lightThreshold) return true;
+      if (isLightBg && Math.abs(brightness - avgBrightness) < colorTolerance) return true;
+      if (isGrayBg && Math.abs(r - avgR) < colorTolerance && Math.abs(g - avgG) < colorTolerance && Math.abs(b - avgB) < colorTolerance) return true;
+      if (isGrayBg && brightness >= 70 && brightness <= 230 && Math.abs(r - avgR) + Math.abs(g - avgG) + Math.abs(b - avgB) < 80) return true;
+      return false;
+    };
+
+    const getIdx = (x: number, y: number) => (y * width + x) * channels;
+    const visited = new Uint8Array(width * height);
+    const toRemove = new Uint8Array(width * height);
+    const stack: [number, number][] = [];
+
+    for (let x = 0; x < width; x++) {
+      stack.push([x, 0]);
+      stack.push([x, height - 1]);
+    }
+    for (let y = 1; y < height - 1; y++) {
+      stack.push([0, y]);
+      stack.push([width - 1, y]);
+    }
+
+    while (stack.length > 0) {
+      const [x, y] = stack.pop()!;
+      if (x < 0 || x >= width || y < 0 || y >= height) continue;
+      const i = y * width + x;
+      if (visited[i]) continue;
+      visited[i] = 1;
+      const idx = getIdx(x, y);
+      const r = pixels[idx];
+      const g = pixels[idx + 1];
+      const b = pixels[idx + 2];
+      if (!isBackgroundLike(r, g, b)) continue;
+      toRemove[i] = 1;
+      stack.push([x - 1, y]);
+      stack.push([x + 1, y]);
+      stack.push([x, y - 1]);
+      stack.push([x, y + 1]);
+    }
 
     for (let i = 0; i < pixels.length; i += channels) {
-      const r = pixels[i];
-      const g = pixels[i + 1];
-      const b = pixels[i + 2];
-      const alphaIdx = i + 3;
       const pixelIndex = i / channels;
-      const x = pixelIndex % width;
-      const y = Math.floor(pixelIndex / width);
-      const isOnEdge = x < edgeSize || x > width - edgeSize || y < edgeSize || y > height - edgeSize;
-      const brightness = (r + g + b) / 3;
-      const isVeryLight = r > lightThreshold && g > lightThreshold && b > lightThreshold;
-      const isSimilarToBackground = isLikelyLightBackground && Math.abs(brightness - avgCornerBrightness) < 30;
-
-      if (
-        (isVeryLight && isOnEdge) ||
-        (isSimilarToBackground && isOnEdge) ||
-        (isVeryLight && isLikelyLightBackground)
-      ) {
-        pixels[alphaIdx] = 0;
-      } else if (isVeryLight && !isOnEdge) {
-        pixels[alphaIdx] = Math.min(pixels[alphaIdx] || 255, 150);
+      if (toRemove[pixelIndex]) {
+        pixels[i + 3] = 0;
       }
     }
 

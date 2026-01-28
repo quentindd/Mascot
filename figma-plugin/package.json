@@ -4,7 +4,7 @@
   "description": "Mascot - AI mascot generation plugin for Figma",
   "scripts": {
     "build": "npm run build:code && npm run build:ui && npm run copy:html",
-    "build:code": "esbuild src/code.ts --bundle --format=iife --outfile=code.js --target=es2020 --external:figma",
+    "build:code": "esbuild src/code.ts --bundle --format=iife --outfile=code.js --target=es2018 --external:figma",
     "build:ui": "vite build",
     "copy:html": "cp src/ui/index.html ui.html && node scripts/inline-ui.js",
     "watch": "tsc --watch",

@@ -12,6 +12,7 @@ import { CreditsModule } from '../credits/credits.module';
 import { Mascot } from '../../entities/mascot.entity';
 import { AnimationJob } from '../../entities/animation-job.entity';
 import { Pose } from '../../entities/pose.entity';
+import { LogoPack } from '../../entities/logo-pack.entity';
 
 @Module({
   imports: [
@@ -50,7 +51,7 @@ import { Pose } from '../../entities/pose.entity';
         },
       },
     ),
-    TypeOrmModule.forFeature([Mascot, AnimationJob, Pose]),
+    TypeOrmModule.forFeature([Mascot, AnimationJob, Pose, LogoPack]),
     AIModule,
     StorageModule,
     CreditsModule,

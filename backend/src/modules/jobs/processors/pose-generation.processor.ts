@@ -4,7 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Pose, PoseStatus } from '../../../entities/pose.entity';
 import { Mascot } from '../../../entities/mascot.entity';
-import { GeminiFlashService } from '../../ai/gemini-flash.service';
+import { ReplicateService } from '../../ai/replicate.service';
 import { StorageService } from '../../storage/storage.service';
 import { Logger } from '@nestjs/common';
 import * as sharp from 'sharp';
@@ -21,15 +21,14 @@ export class PoseGenerationProcessor extends WorkerHost {
     private poseRepository: Repository<Pose>,
     @InjectRepository(Mascot)
     private mascotRepository: Repository<Mascot>,
-    private geminiFlashService: GeminiFlashService,
+    private replicateService: ReplicateService,
     private storageService: StorageService,
   ) {
     super();
   }
 
   /**
-   * Same flow as Create (mascot): same generateImage call, same removeBackground, same resize.
-   * Only change: mascotDetails = mascot.prompt + "Only change the pose or action: [prompt]".
+   * Poses use only Replicate (consistent-character): reference image + prompt.
    */
   async process(job: Job<any, any, string>): Promise<any> {
     const { poseId, mascotId, prompt } = job.data;
@@ -42,27 +41,19 @@ export class PoseGenerationProcessor extends WorkerHost {
       const mascot = await this.mascotRepository.findOne({ where: { id: mascotId } });
       if (!mascot) throw new Error(`Mascot ${mascotId} not found`);
 
-      // Same as Create: reuse mascot's prompt + add only the pose modification
-      const mascotDetailsText = `${mascot.prompt}. Same character, same design. Only change the pose or action: ${prompt}`;
-
-      let seed = mascot.seed;
-      if (!seed && mascot.characterId) {
-        seed = mascot.characterId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-      } else if (!seed) {
-        seed = mascotId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      const refImageUrl = mascot.fullBodyImageUrl || mascot.avatarImageUrl || mascot.squareIconUrl;
+      if (!refImageUrl) {
+        throw new Error('Mascot has no image (fullBody, avatar or squareIcon). Poses require a reference image.');
+      }
+      if (!this.replicateService.isAvailable()) {
+        throw new Error('Pose generation requires Replicate. Set REPLICATE_API_TOKEN in your environment.');
       }
 
-      // Same generateImage call as Create (mascot-generation.processor)
-      let imageBuffer = await this.geminiFlashService.generateImage({
-        mascotDetails: mascotDetailsText,
-        type: mascot.type || 'auto',
-        style: mascot.style,
-        personality: mascot.personality || 'friendly',
-        bodyParts: mascot.accessories || [],
-        color: mascot.brandColors?.primary || null,
-        negativePrompt: mascot.negativePrompt || '',
-        aspectRatio: '1:1',
-        seed,
+      const posePromptText = `${mascot.prompt}. Same character, same design. Only change the pose or action: ${prompt}`;
+      this.logger.log('[PoseGenerationProcessor] Using Replicate (consistent-character)');
+      let imageBuffer = await this.replicateService.generatePoseFromReference(refImageUrl, posePromptText, {
+        negativePrompt: mascot.negativePrompt || undefined,
+        seed: mascot.seed ?? undefined,
       });
 
       // Same background removal as Create

@@ -15,6 +15,9 @@ export const LogosTab: React.FC<LogosTabProps> = ({
   mascots,
 }) => {
   const [brandColors, setBrandColors] = useState<string[]>([]);
+  const [imageSource, setImageSource] = useState<'fullBody' | 'avatar' | 'squareIcon'>('avatar');
+  const [background, setBackground] = useState<'transparent' | 'white' | 'brand'>('transparent');
+  const [referenceLogoUrl, setReferenceLogoUrl] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,18 +26,23 @@ export const LogosTab: React.FC<LogosTabProps> = ({
     console.log('[LogosTab] Selected mascot:', selectedMascot?.id || 'none');
   }, [mascots, selectedMascot]);
 
-  rpc.on('logo-generation-started', () => {
+  rpc.on('logo-pack-generation-started', () => {
     setIsGenerating(true);
     setError(null);
   });
 
-  rpc.on('logo-completed', () => {
+  rpc.on('logo-pack-completed', () => {
     setIsGenerating(false);
   });
 
-  rpc.on('logo-generation-failed', (data: { error: string }) => {
+  rpc.on('logo-pack-generation-failed', (data: { error: string }) => {
     setIsGenerating(false);
-    setError(data.error);
+    setError(data?.error ?? 'Generation failed');
+  });
+
+  rpc.on('logo-pack-generation-timeout', () => {
+    setIsGenerating(false);
+    setError('Logo pack generation timed out. Check the Gallery tab later.');
   });
 
   const handleGenerate = () => {
@@ -46,6 +54,9 @@ export const LogosTab: React.FC<LogosTabProps> = ({
     rpc.send('generate-logo-pack', {
       mascotId: selectedMascot.id,
       brandColors: brandColors.length > 0 ? brandColors : undefined,
+      imageSource,
+      background,
+      referenceLogoUrl: referenceLogoUrl.trim() || undefined,
     });
   };
 
@@ -142,9 +153,51 @@ export const LogosTab: React.FC<LogosTabProps> = ({
       )}
 
       <div className="card" style={{ marginBottom: '16px' }}>
+        <label className="label">Image source</label>
+        <p className="field-hint">Which mascot image to use for the logo</p>
+        <select
+          className="input"
+          value={imageSource}
+          onChange={(e) => setImageSource(e.target.value as 'fullBody' | 'avatar' | 'squareIcon')}
+          disabled={isGenerating}
+          style={{ marginBottom: '12px' }}
+        >
+          <option value="fullBody">Full body</option>
+          <option value="avatar">Avatar (portrait)</option>
+          <option value="squareIcon">Square icon</option>
+        </select>
+
+        <label className="label">Reference logo (optional)</label>
+        <p className="field-hint">
+          Paste a direct image URL (PNG/JPEG/WebP). AI will adapt your mascot logo to match this style.
+        </p>
+        <input
+          className="input"
+          type="url"
+          placeholder="https://… (logo image URL)"
+          value={referenceLogoUrl}
+          onChange={(e) => setReferenceLogoUrl(e.target.value)}
+          disabled={isGenerating}
+          style={{ marginBottom: '12px' }}
+        />
+
+        <label className="label">Background</label>
+        <p className="field-hint">Transparent, white, or your brand color</p>
+        <select
+          className="input"
+          value={background}
+          onChange={(e) => setBackground(e.target.value as 'transparent' | 'white' | 'brand')}
+          disabled={isGenerating}
+          style={{ marginBottom: '12px' }}
+        >
+          <option value="transparent">Transparent</option>
+          <option value="white">White</option>
+          <option value="brand">Brand color (use first color below)</option>
+        </select>
+
         <label className="label">Brand Colors (Optional)</label>
         <p className="field-hint">
-          Enter hex colors separated by commas (e.g., #FF5733, #33FF57)
+          Enter hex colors separated by commas (e.g., #FF5733, #33FF57). Used for &quot;Brand color&quot; background.
         </p>
         <input
           className="input"

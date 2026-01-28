@@ -99,8 +99,15 @@ export interface AnimationStatusResponse {
   errorMessage?: string;
 }
 
+export type LogoImageSource = 'fullBody' | 'avatar' | 'squareIcon';
+export type LogoBackground = 'transparent' | 'white' | 'brand';
+
 export interface CreateLogoPackRequest {
   brandColors?: string[];
+  imageSource?: LogoImageSource;
+  background?: LogoBackground;
+  /** Direct image URL (PNG/JPEG/WebP). AI adapts mascot logo to this style. */
+  referenceLogoUrl?: string;
   figmaFileId?: string;
 }
 

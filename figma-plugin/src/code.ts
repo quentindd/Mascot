@@ -410,7 +410,13 @@ async function pollPoseStatus(poseId: string) {
   poll();
 }
 
-async function handleGenerateLogoPack(data: { mascotId: string; brandColors?: string[] }) {
+async function handleGenerateLogoPack(data: {
+  mascotId: string;
+  brandColors?: string[];
+  imageSource?: 'fullBody' | 'avatar' | 'squareIcon';
+  background?: 'transparent' | 'white' | 'brand';
+  referenceLogoUrl?: string;
+}) {
   // Demo mode: show message
   if (!apiClient) {
     rpc.send('logo-pack-generation-started', { mascotId: data.mascotId });
@@ -431,6 +437,9 @@ async function handleGenerateLogoPack(data: { mascotId: string; brandColors?: st
   try {
     const logoPack = await apiClient.createLogoPack(data.mascotId, {
       brandColors: data.brandColors,
+      imageSource: data.imageSource,
+      background: data.background,
+      referenceLogoUrl: data.referenceLogoUrl,
       figmaFileId,
     });
 
@@ -488,7 +497,7 @@ async function handleInsertImage(data: { url: string; name: string }) {
   try {
     await insertImageFromUrl(data.url, data.name);
     rpc.send('image-inserted', { url: data.url });
-  } catch {
+  } catch (_) {
     // Error already sent by insertImageFromUrl
   }
 }

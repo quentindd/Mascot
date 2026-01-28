@@ -23,7 +23,19 @@ export class PosesController {
   @Get('mascots/:id/poses')
   async findByMascot(@Param('id') mascotId: string) {
     const poses = await this.posesService.findByMascot(mascotId);
-    return { data: poses };
+    return {
+      data: poses.map((p) => ({
+        id: p.id,
+        mascotId: p.mascotId,
+        prompt: p.prompt,
+        status: p.status,
+        imageUrl: p.imageUrl,
+        errorMessage: p.errorMessage,
+        figmaFileId: p.figmaFileId,
+        createdAt: p.createdAt instanceof Date ? p.createdAt.toISOString() : p.createdAt,
+        updatedAt: p.updatedAt instanceof Date ? p.updatedAt.toISOString() : p.updatedAt,
+      })),
+    };
   }
 
   @Get('poses/:id')

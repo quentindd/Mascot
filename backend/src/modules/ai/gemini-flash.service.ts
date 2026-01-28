@@ -326,6 +326,141 @@ export class GeminiFlashService implements OnModuleInit {
   }
 
   /**
+   * Generate an app icon of the mascot in the visual style of a reference logo.
+   * Sends mascot image + reference logo image + prompt; returns generated icon buffer.
+   */
+  async generateLogoInStyle(config: {
+    mascotImage: { data: Buffer; mimeType: string };
+    referenceLogoImage: { data: Buffer; mimeType: string };
+    mascotDetails?: string;
+  }): Promise<Buffer> {
+    if (this.initializationPromise && !this.initialized) {
+      await this.initializationPromise;
+    }
+    if (!this.initialized) {
+      throw new Error('Gemini Flash service not initialized.');
+    }
+
+    const prompt = this.buildLogoInStylePrompt(config.mascotDetails);
+
+    const parts: any[] = [
+      {
+        inlineData: {
+          mimeType: config.mascotImage.mimeType,
+          data: config.mascotImage.data.toString('base64'),
+        },
+      },
+      {
+        inlineData: {
+          mimeType: config.referenceLogoImage.mimeType,
+          data: config.referenceLogoImage.data.toString('base64'),
+        },
+      },
+      { text: prompt },
+    ];
+
+    const model = this.vertexAI.preview.getGenerativeModel({
+      model: 'gemini-2.5-flash-image',
+    });
+
+    const request = {
+      contents: [{ role: 'user', parts }],
+      generationConfig: {
+        temperature: 0.35,
+        topK: 32,
+        topP: 1,
+        maxOutputTokens: 1024,
+      },
+    };
+
+    this.logger.log('[generateLogoInStyle] Sending request (mascot + reference logo)...');
+    const response = await this.sendGenerateContentWithRetry(model, request);
+    return this.extractImageFromResponse(response);
+  }
+
+  private buildLogoInStylePrompt(mascotDetails?: string): string {
+    let p =
+      'Image 1 is a mascot character. Image 2 is a reference app logo. ' +
+      'Generate a single square app icon (1024x1024) showing ONLY the mascot from image 1, ' +
+      'but drawn in the exact same visual style as the reference logo in image 2: same type of colors, shading, line style, and overall look. ' +
+      'Keep the mascot\'s identity and design. Do NOT copy the reference logo\'s character or text. ';
+    if (mascotDetails?.trim()) {
+      p += `Mascot description: ${mascotDetails.trim()}. `;
+    }
+    p +=
+      'The output MUST have a completely transparent background. No text, no words, no letters anywhere. ' +
+      'CRITICAL: Transparent background only, no white/gray/colored background. High quality, clean edges.';
+    return p;
+  }
+
+  private async sendGenerateContentWithRetry(model: any, request: any): Promise<any> {
+    let response: any;
+    let retries = 0;
+    const maxRetries = 3;
+    const baseDelay = 2000;
+    while (retries <= maxRetries) {
+      try {
+        response = await model.generateContent(request);
+        return response;
+      } catch (error: any) {
+        if (
+          error?.message?.includes('429') ||
+          error?.message?.includes('RESOURCE_EXHAUSTED') ||
+          error?.message?.includes('Too Many Requests')
+        ) {
+          if (retries < maxRetries) {
+            const delay = baseDelay * Math.pow(2, retries);
+            this.logger.warn(`Rate limit. Retrying in ${delay}ms... (${retries + 1}/${maxRetries + 1})`);
+            await new Promise((r) => setTimeout(r, delay));
+            retries++;
+            continue;
+          }
+        }
+        throw error;
+      }
+    }
+    return response!;
+  }
+
+  private extractImageFromResponse(response: any): Buffer {
+    const candidate = response?.response?.candidates?.[0];
+    if (!candidate) {
+      this.logger.error('No candidate in response.', JSON.stringify(response, null, 2));
+      throw new Error('No candidate in Gemini Flash response');
+    }
+    let imageData: string | null = null;
+    if (candidate.content?.parts) {
+      for (const part of candidate.content.parts) {
+        if (part.inlineData?.data && part.inlineData.mimeType?.startsWith('image/')) {
+          imageData = part.inlineData.data;
+          break;
+        }
+      }
+    }
+    if (!imageData && candidate.parts) {
+      for (const part of candidate.parts) {
+        if (part.inlineData?.data && part.inlineData.mimeType?.startsWith('image/')) {
+          imageData = part.inlineData.data;
+          break;
+        }
+      }
+    }
+    if (!imageData && response?.response?.parts) {
+      for (const part of response.response.parts) {
+        if (part.inlineData?.data && part.inlineData.mimeType?.startsWith('image/')) {
+          imageData = part.inlineData.data;
+          break;
+        }
+      }
+    }
+    if (!imageData) {
+      this.logger.error('No image data in response.', JSON.stringify(candidate, null, 2));
+      throw new Error('No image data in Gemini Flash response');
+    }
+    return Buffer.from(imageData, 'base64');
+  }
+
+  /**
    * Generate multiple variations (for batch generation)
    */
   async generateVariations(

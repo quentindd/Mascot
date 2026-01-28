@@ -7,33 +7,46 @@ export class RedisConfig implements SharedBullConfigurationFactory {
   constructor(private configService: ConfigService) {}
 
   createSharedConfiguration(): BullRootModuleOptions {
-    const host = this.configService.get('REDIS_HOST');
-    const port = this.configService.get('REDIS_PORT', 6379);
-    const password = this.configService.get('REDIS_PASSWORD');
+    let host = this.configService.get<string>('REDIS_HOST');
+    let port = this.configService.get<string | number>('REDIS_PORT', 6379);
+    let password = this.configService.get<string>('REDIS_PASSWORD');
 
-    // Log configuration for debugging
+    // Railway (and others) often provide a single REDIS_URL
+    const redisUrl = this.configService.get<string>('REDIS_URL');
+    if (redisUrl) {
+      try {
+        const u = new URL(redisUrl);
+        host = u.hostname;
+        port = u.port ? parseInt(u.port, 10) : 6379;
+        password = u.password || undefined;
+      } catch {
+        console.warn('[RedisConfig] REDIS_URL invalid, using REDIS_HOST/PORT/PASSWORD');
+      }
+    }
+
+    const portNum = typeof port === 'string' ? parseInt(port, 10) : port;
+
     console.log('[RedisConfig] Redis configuration:', {
       host: host || 'NOT SET (will use localhost)',
-      port,
+      port: portNum,
       hasPassword: !!password,
+      fromUrl: !!redisUrl,
     });
 
     if (!host) {
-      console.warn('[RedisConfig] REDIS_HOST not set. BullMQ will try to connect to localhost, which will fail in production.');
+      console.warn('[RedisConfig] REDIS_HOST (or REDIS_URL) not set. BullMQ will try localhost.');
     }
 
     return {
       connection: {
         host: host || 'localhost',
-        port: typeof port === 'string' ? parseInt(port, 10) : port,
+        port: portNum,
         password: password || undefined,
-        // Add connection retry strategy
         retryStrategy: (times: number) => {
           const delay = Math.min(times * 50, 2000);
           console.log(`[RedisConfig] Retrying connection (attempt ${times}), delay: ${delay}ms`);
           return delay;
         },
-        // BullMQ requires maxRetriesPerRequest to be null
         maxRetriesPerRequest: null,
       },
     };

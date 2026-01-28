@@ -77,6 +77,18 @@ export const App: React.FC = () => {
       loadMascots();
     });
 
+    // Logo-pack events: register at App level so messages are handled even when LogosTab is not mounted (avoids "No handlers registered")
+    rpc.on('logo-pack-generation-started', () => {});
+    rpc.on('logo-pack-generated', () => {});
+    rpc.on('logo-pack-completed', () => {});
+    rpc.on('logo-pack-generation-failed', () => {});
+    rpc.on('logo-pack-generation-timeout', () => {});
+    rpc.on('logo-pack-status-update', () => {});
+
+    // Pose events: same idea, avoids "No handlers registered" for pose-generated / pose-status-update
+    rpc.on('pose-generated', () => {});
+    rpc.on('pose-status-update', () => {});
+
     rpc.on('mascots-loaded', (data: { mascots: any[] }) => {
       console.log('[App] ===== MASCOTS-LOADED EVENT RECEIVED =====');
       console.log('[App] Data received:', data);

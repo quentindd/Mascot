@@ -22,6 +22,7 @@ export class CreateLogoPackDto {
     enum: LOGO_IMAGE_SOURCES,
   })
   @IsOptional()
+  @IsString()
   @IsIn(LOGO_IMAGE_SOURCES)
   imageSource?: LogoImageSource;
 
@@ -30,6 +31,7 @@ export class CreateLogoPackDto {
     enum: LOGO_BACKGROUNDS,
   })
   @IsOptional()
+  @IsString()
   @IsIn(LOGO_BACKGROUNDS)
   background?: LogoBackground;
 

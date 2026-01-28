@@ -2,7 +2,7 @@
 
 ## En 3 phrases
 
-- **Les poses = Replicate uniquement** (modèle `sdxl-based/consistent-character`). Pas de Gemini.
+- **Les poses = Replicate uniquement** (modèle `fofr/consistent-character`). Pas de Gemini.
 - Tu dois avoir **le même token Replicate** dans ton backend (`.env` / Railway) que celui avec lequel tu te connectes sur replicate.com, sinon tu ne verras pas tes runs.
 - Après une génération de pose, le backend écrit dans les logs un **lien direct** vers la run Replicate : ouvre ce lien pour vérifier que c’est bien ton compte.
 
@@ -63,7 +63,7 @@ Le backend accepte soit **REDIS_URL** (une seule URL, fournie par Railway quand 
 
 3. **Lancer le backend**
    - Depuis le dossier `backend/` : `npm run start:dev`
-   - Dans les logs : `Poses: Replicate configured (model: sdxl-based/consistent-character)` et `[RedisConfig] Redis configuration: ...`
+   - Dans les logs : `Poses: Replicate configured (model: fofr/consistent-character)` et `[RedisConfig] Redis configuration: ...`
 
 4. **Voir tes runs sur Replicate**
    - Génère une pose depuis le plugin Figma (onglet Poses, mascotte + prompt + Generate)
@@ -72,7 +72,7 @@ Le backend accepte soit **REDIS_URL** (une seule URL, fournie par Railway quand 
    - Ouvre ce lien : la page doit s’ouvrir sur **ton** compte Replicate. Sinon → change le token pour celui de ce compte.
 
 5. **(Optionnel) Changer de modèle**
-   - Dans `backend/.env` (ou variable Railway) : `REPLICATE_POSE_MODEL=fofr/consistent-character` puis redémarre / redéploie.
+   - Dans `backend/.env` (ou variable Railway) : `REPLICATE_POSE_MODEL=sdxl-based/consistent-character` (ou autre) puis redémarre / redéploie.
 
 ---
 
@@ -89,6 +89,6 @@ Le backend accepte soit **REDIS_URL** (une seule URL, fournie par Railway quand 
 
 ## Détails (si tu veux)
 
-- **Modèle utilisé** : `sdxl-based/consistent-character` (configurable via `REPLICATE_POSE_MODEL`).
+- **Modèle utilisé** : `fofr/consistent-character` (configurable via `REPLICATE_POSE_MODEL`).
 - **Prérequis** : une mascotte **terminée** avec au moins une image (fullBody, avatar ou squareIcon).
 - **Où sont les runs** : sur replicate.com → ton profil (en haut à droite) → Runs / Activity, ou via le lien logué par le backend après chaque création de prédiction.

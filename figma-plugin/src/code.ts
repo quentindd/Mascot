@@ -435,10 +435,9 @@ async function handleGenerateLogoPack(data: {
   rpc.send('logo-pack-generation-started', { mascotId: data.mascotId });
 
   try {
+    // Omit imageSource/background until backend is deployed with CreateLogoPackDto that accepts them (avoids 400 "property should not exist")
     const logoPack = await apiClient.createLogoPack(data.mascotId, {
       brandColors: data.brandColors,
-      imageSource: data.imageSource,
-      background: data.background,
       referenceLogoUrl: data.referenceLogoUrl,
       figmaFileId,
     });

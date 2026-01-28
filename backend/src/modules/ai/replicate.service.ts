@@ -2,13 +2,13 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 
-const DEFAULT_POSE_MODEL = 'sdxl-based/consistent-character';
+const DEFAULT_POSE_MODEL = 'fofr/consistent-character';
 const REPLICATE_API = 'https://api.replicate.com/v1';
 
 /**
  * Replicate API for pose generation (reference image + prompt).
  * Uses consistent-character: same character in new pose, ~$0.01–0.06/gen.
- * Set REPLICATE_API_TOKEN to enable. Optionally set REPLICATE_POSE_MODEL (default: sdxl-based/consistent-character).
+ * Set REPLICATE_API_TOKEN to enable. Optionally set REPLICATE_POSE_MODEL (default: fofr/consistent-character).
  */
 @Injectable()
 export class ReplicateService {
@@ -31,7 +31,7 @@ export class ReplicateService {
 
   /**
    * Generate a pose from a reference image (mascot) + text prompt.
-   * Calls sdxl-based/consistent-character: subject image + prompt → new image.
+   * Calls fofr/consistent-character: subject image + prompt → new image.
    * Model uses predefined half-body poses; prompt describes the character for consistency.
    */
   async generatePoseFromReference(
@@ -44,9 +44,9 @@ export class ReplicateService {
     }
 
     try {
-      this.logger.log(`[Replicate] Resolving model version for ${this.poseModel}`);
+      this.logger.log(`[Replicate] Using model: ${this.poseModel}`);
       const version = await this.getLatestVersion();
-      this.logger.log('[Replicate] Creating prediction (pose from reference)');
+      this.logger.log(`[Replicate] Creating prediction (pose from reference) with ${this.poseModel}`);
 
       const createRes = await axios.post(
         `${REPLICATE_API}/predictions`,

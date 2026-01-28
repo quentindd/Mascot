@@ -5,12 +5,14 @@ import { AnimationsService } from './animations.service';
 import { AnimationJob } from '../../entities/animation-job.entity';
 import { CreditsModule } from '../credits/credits.module';
 import { JobsModule } from '../jobs/jobs.module';
+import { StorageModule } from '../storage/storage.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([AnimationJob]),
     CreditsModule,
     JobsModule,
+    StorageModule,
   ],
   controllers: [AnimationsController],
   providers: [AnimationsService],

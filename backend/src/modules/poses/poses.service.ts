@@ -1,10 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Pose, PoseStatus } from '../../entities/pose.entity';
 import { CreatePoseDto } from './dto/create-pose.dto';
 import { CreditsService } from '../credits/credits.service';
 import { JobsService } from '../jobs/jobs.service';
+import { StorageService } from '../storage/storage.service';
 
 @Injectable()
 export class PosesService {
@@ -15,14 +16,13 @@ export class PosesService {
     private poseRepository: Repository<Pose>,
     private creditsService: CreditsService,
     private jobsService: JobsService,
+    private storageService: StorageService,
   ) {}
 
   async create(mascotId: string, dto: CreatePoseDto, userId: string) {
-    // Check credits (1 credit per pose)
-    const hasCredits = await this.creditsService.checkAndReserveCredits(userId, 1);
-    if (!hasCredits) {
-      throw new Error('Insufficient credits');
-    }
+    // Poses are free (no credit check). Re-enable by uncommenting:
+    // const hasCredits = await this.creditsService.checkAndReserveCredits(userId, 1);
+    // if (!hasCredits) throw new Error('Insufficient credits');
 
     const pose = this.poseRepository.create({
       mascotId,
@@ -63,5 +63,20 @@ export class PosesService {
       status: pose.status,
       errorMessage: pose.errorMessage,
     };
+  }
+
+  async remove(id: string, userId: string): Promise<void> {
+    const pose = await this.poseRepository.findOne({
+      where: { id, createdById: userId },
+    });
+
+    if (!pose) {
+      throw new NotFoundException(`Pose with ID ${id} not found`);
+    }
+
+    // Delete associated file from storage
+    await this.storageService.deleteFileByUrl(pose.imageUrl);
+
+    await this.poseRepository.remove(pose);
   }
 }

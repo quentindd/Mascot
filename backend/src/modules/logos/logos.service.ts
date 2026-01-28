@@ -1,10 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { LogoPack, LogoPackStatus } from '../../entities/logo-pack.entity';
 import { CreateLogoPackDto } from './dto/create-logo-pack.dto';
 import { CreditsService } from '../credits/credits.service';
 import { JobsService } from '../jobs/jobs.service';
+import { StorageService } from '../storage/storage.service';
 
 @Injectable()
 export class LogosService {
@@ -13,6 +14,7 @@ export class LogosService {
     private logoPackRepository: Repository<LogoPack>,
     private creditsService: CreditsService,
     private jobsService: JobsService,
+    private storageService: StorageService,
   ) {}
 
   async create(mascotId: string, dto: CreateLogoPackDto, userId: string) {
@@ -41,5 +43,30 @@ export class LogosService {
 
   async findOne(id: string) {
     return this.logoPackRepository.findOne({ where: { id } });
+  }
+
+  async remove(id: string, userId: string): Promise<void> {
+    const logoPack = await this.logoPackRepository.findOne({
+      where: { id, createdById: userId },
+    });
+
+    if (!logoPack) {
+      throw new NotFoundException(`Logo pack with ID ${id} not found`);
+    }
+
+    // Delete associated files from storage
+    const urlsToDelete: (string | null | undefined)[] = [logoPack.zipFileUrl];
+    
+    // Add all logo size URLs
+    if (logoPack.sizes && Array.isArray(logoPack.sizes)) {
+      logoPack.sizes.forEach((size) => {
+        if (size.url) {
+          urlsToDelete.push(size.url);
+        }
+      });
+    }
+
+    await this.storageService.deleteFilesByUrls(urlsToDelete);
+    await this.logoPackRepository.remove(logoPack);
   }
 }

@@ -1,10 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AnimationJob, AnimationStatus } from '../../entities/animation-job.entity';
 import { CreateAnimationDto } from './dto/create-animation.dto';
 import { CreditsService } from '../credits/credits.service';
 import { JobsService } from '../jobs/jobs.service';
+import { StorageService } from '../storage/storage.service';
 
 @Injectable()
 export class AnimationsService {
@@ -13,6 +14,7 @@ export class AnimationsService {
     private animationRepository: Repository<AnimationJob>,
     private creditsService: CreditsService,
     private jobsService: JobsService,
+    private storageService: StorageService,
   ) {}
 
   async create(mascotId: string, dto: CreateAnimationDto, userId: string) {
@@ -58,5 +60,25 @@ export class AnimationsService {
       status: animation.status,
       errorMessage: animation.errorMessage,
     };
+  }
+
+  async remove(id: string, userId: string): Promise<void> {
+    const animation = await this.animationRepository.findOne({
+      where: { id, createdById: userId },
+    });
+
+    if (!animation) {
+      throw new NotFoundException(`Animation with ID ${id} not found`);
+    }
+
+    // Delete associated files from storage
+    await this.storageService.deleteFilesByUrls([
+      animation.spriteSheetUrl,
+      animation.webmVideoUrl,
+      animation.movVideoUrl,
+      animation.lottieUrl,
+    ]);
+
+    await this.animationRepository.remove(animation);
   }
 }

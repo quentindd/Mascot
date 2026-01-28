@@ -159,6 +159,10 @@ export class GeminiFlashService implements OnModuleInit {
       negativePrompt?: string;
       aspectRatio?: '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
       seed?: number;
+      /** When true, prompt keeps exact same character (no new clothing/expression) – for poses */
+      isPose?: boolean;
+      /** Optional reference image to preserve character identity (image + text prompting). */
+      referenceImage?: { data: Buffer; mimeType: string };
     }
   ): Promise<Buffer> {
     // Wait for initialization if it's still in progress
@@ -186,15 +190,22 @@ export class GeminiFlashService implements OnModuleInit {
       });
       this.logger.log('Model instance retrieved, preparing request...');
 
+      const parts: any[] = [];
+      if (config.referenceImage?.data && config.referenceImage.mimeType) {
+        parts.push({
+          inlineData: {
+            mimeType: config.referenceImage.mimeType,
+            data: config.referenceImage.data.toString('base64'),
+          },
+        });
+      }
+      parts.push({ text: fullPrompt });
+
       const request = {
         contents: [
           {
             role: 'user',
-            parts: [
-              {
-                text: fullPrompt,
-              },
-            ],
+            parts,
           },
         ],
         generationConfig: {
@@ -357,8 +368,13 @@ export class GeminiFlashService implements OnModuleInit {
     brandName?: string;
     appDescription?: string;
     negativePrompt?: string;
+    isPose?: boolean;
+    referenceImage?: { data: Buffer; mimeType: string };
   }): string {
     let prompt = config.mascotDetails || '';
+    if (config.isPose && config.referenceImage) {
+      prompt = 'The image above is the reference character. Generate a new image of this EXACT same character only. Same design, same colors, same texture, same face. Do NOT add clothing (no suit, no tie, no shirt). Only change the pose or action. ' + prompt;
+    }
 
     // 1. Type
     if (config.type && config.type !== 'auto') {
@@ -382,26 +398,27 @@ export class GeminiFlashService implements OnModuleInit {
       prompt += `, ${styleMap[config.style]}`;
     }
 
-    // 3. Personality
-    const personalityMap: Record<string, string> = {
-      friendly: 'friendly expression, welcoming, approachable',
-      professional: 'professional appearance, business-appropriate, polished',
-      playful: 'playful expression, fun, energetic',
-      cool: 'cool appearance, modern, stylish',
-      energetic: 'energetic pose, dynamic, active',
-      calm: 'calm expression, peaceful, serene',
-    };
-
-    if (config.personality && personalityMap[config.personality]) {
-      prompt += `, ${personalityMap[config.personality]}`;
-    }
-
-    // 3.5. Default pose - character facing front
-    prompt += ', facing front, front view, full frontal pose, character looking at viewer';
-
-    // 4. Body parts (accessories) - exactement comme MascotAI
-    if (config.bodyParts && config.bodyParts.length > 0) {
-      prompt += `, wearing ${config.bodyParts.join(', ')}`;
+    if (config.isPose) {
+      // Pose mode: do NOT add personality or accessories – keep exact same character
+      prompt += '. SAME CHARACTER ONLY: Keep the exact same facial expression, same body surface (furry, feathered, smooth, etc.), same appearance. Do NOT add any clothing, suit, tie, shirt, dress, or accessories that are not in the original. Do NOT change the character design. ONLY the pose or action changes. Facing front, full frontal view.';
+    } else {
+      // 3. Personality
+      const personalityMap: Record<string, string> = {
+        friendly: 'friendly expression, welcoming, approachable',
+        professional: 'professional appearance, business-appropriate, polished',
+        playful: 'playful expression, fun, energetic',
+        cool: 'cool appearance, modern, stylish',
+        energetic: 'energetic pose, dynamic, active',
+        calm: 'calm expression, peaceful, serene',
+      };
+      if (config.personality && personalityMap[config.personality]) {
+        prompt += `, ${personalityMap[config.personality]}`;
+      }
+      prompt += ', facing front, front view, full frontal pose, character looking at viewer';
+      // 4. Body parts (accessories)
+      if (config.bodyParts && config.bodyParts.length > 0) {
+        prompt += `, wearing ${config.bodyParts.join(', ')}`;
+      }
     }
 
     // 5. Color
@@ -414,16 +431,14 @@ export class GeminiFlashService implements OnModuleInit {
       prompt += `, ${config.appDescription} app mascot`;
     }
 
-    // 7. Brand name - ONLY if explicitly mentioned in the original prompt
-    // We don't add brandName automatically to avoid text appearing on the image
-    // If user wants brand name, they should include it in their prompt
-
     // 8. Requirements standards - MUST have transparent background and NO text
-    // Very explicit instructions for transparency and no text - placed at the END for maximum weight
-    prompt += '. CRITICAL REQUIREMENTS: The character MUST be facing front, full frontal view, looking directly at the viewer. The image MUST have a COMPLETELY transparent background with NO background color, NO background texture, NO background pattern, NO shadows on background, NO checkerboard pattern, NO grid pattern. The character must be isolated on a 100% transparent background like a PNG cutout with perfect edges. ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO BRAND NAME, NO LABELS, NO WRITING, NO TEXT OVERLAY, NO TEXT ON CHARACTER, NO TEXT ON ACCESSORIES, NO TEXT ANYWHERE, NO TEXT ON CLOTHING, NO TEXT ON ITEMS. The character should be a clean cutout with no background visible. High quality professional illustration with clean edges.';
+    prompt += '. CRITICAL REQUIREMENTS: The character MUST be facing front, full frontal view, looking directly at the viewer. The image MUST have a COMPLETELY transparent background with NO background color, NO gray background, NO white background, NO background texture, NO background pattern, NO shadows on background, NO checkerboard pattern, NO grid pattern. The character must be isolated on a 100% transparent background like a PNG cutout with perfect edges. ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO BRAND NAME, NO LABELS, NO WRITING, NO TEXT OVERLAY, NO TEXT ON CHARACTER, NO TEXT ON ACCESSORIES, NO TEXT ANYWHERE, NO TEXT ON CLOTHING, NO TEXT ON ITEMS. The character should be a clean cutout with no background visible. High quality professional illustration with clean edges.';
 
-    // 9. Negative prompt - add default restrictions (very explicit)
-    let negativePromptText = 'background, solid background, white background, colored background, checkerboard background, grid background, pattern background, text, words, letters, brand name, labels, writing, text overlay, text on character, text on accessories, text on clothing, text on items, any text, any writing, any letters, any words';
+    // 9. Negative prompt
+    let negativePromptText = 'background, solid background, white background, gray background, grey background, colored background, checkerboard background, grid background, pattern background, text, words, letters, brand name, labels, writing, text overlay, text on character, text on accessories, text on clothing, text on items, any text, any writing, any letters, any words';
+    if (config.isPose) {
+      negativePromptText += ', clothing, suit, tie, shirt, dress, business suit, dressed, new accessories, different texture, different expression, different face, different character, different mascot';
+    }
     if (config.negativePrompt && config.negativePrompt.trim()) {
       negativePromptText += `, ${config.negativePrompt}`;
     }

@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Request, Logger } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Post, Delete, Body, Param, UseGuards, Request, Logger } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { PosesService } from './poses.service';
 import { CreatePoseDto } from './dto/create-pose.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -34,5 +34,12 @@ export class PosesController {
   @Get('poses/:id/status')
   getStatus(@Param('id') id: string) {
     return this.posesService.getStatus(id);
+  }
+
+  @Delete('poses/:id')
+  @ApiOperation({ summary: 'Delete a pose' })
+  async remove(@Param('id') id: string, @Request() req) {
+    await this.posesService.remove(id, req.user.id);
+    return { message: 'Pose deleted successfully' };
   }
 }

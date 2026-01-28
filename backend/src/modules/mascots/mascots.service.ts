@@ -6,6 +6,7 @@ import { CreateMascotDto, MascotResponseDto } from './dto/create-mascot.dto';
 import { PaginationDto, PaginatedResponse } from '../../common/dto/pagination.dto';
 import { CreditsService } from '../credits/credits.service';
 import { JobsService } from '../jobs/jobs.service';
+import { StorageService } from '../storage/storage.service';
 
 @Injectable()
 export class MascotsService {
@@ -14,6 +15,7 @@ export class MascotsService {
     private mascotRepository: Repository<Mascot>,
     private creditsService: CreditsService,
     private jobsService: JobsService,
+    private storageService: StorageService,
   ) {}
 
   async create(createMascotDto: CreateMascotDto, userId: string): Promise<MascotResponseDto[]> {
@@ -164,6 +166,14 @@ export class MascotsService {
     if (!mascot) {
       throw new NotFoundException(`Mascot with ID ${id} not found`);
     }
+
+    // Delete associated files from storage
+    await this.storageService.deleteFilesByUrls([
+      mascot.fullBodyImageUrl,
+      mascot.avatarImageUrl,
+      mascot.squareIconUrl,
+      mascot.referenceImageUrl,
+    ]);
 
     await this.mascotRepository.remove(mascot);
   }

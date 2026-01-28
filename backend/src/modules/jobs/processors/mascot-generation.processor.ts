@@ -8,6 +8,7 @@ import { StorageService } from '../../storage/storage.service';
 import { CreditsService } from '../../credits/credits.service';
 import { Logger } from '@nestjs/common';
 import * as sharp from 'sharp';
+import { removeBackground } from '../../../common/utils/background-removal.util';
 
 @Processor('mascot-generation', {
   concurrency: 3, // Process up to 3 jobs in parallel (one per variation)
@@ -23,120 +24,6 @@ export class MascotGenerationProcessor extends WorkerHost {
     private creditsService: CreditsService,
   ) {
     super();
-  }
-
-  /**
-   * Remove background from image by making white/light pixels transparent
-   * Uses Sharp's unflatten() method and aggressive edge-based background removal
-   */
-  private async removeBackground(imageBuffer: Buffer): Promise<Buffer> {
-    try {
-      this.logger.log('Removing background from image (aggressive mode)...');
-      
-      // First, ensure alpha channel exists
-      let processed = sharp(imageBuffer).ensureAlpha();
-      
-      // Use unflatten() to make white pixels transparent (experimental but works well)
-      // This makes all white pixel values fully transparent
-      processed = processed.unflatten();
-      
-      // Get raw pixel data for aggressive processing
-      const { data, info } = await processed
-        .raw()
-        .toBuffer({ resolveWithObject: true });
-
-      const pixels = new Uint8ClampedArray(data);
-      const width = info.width;
-      const height = info.height;
-      const channels = info.channels;
-      
-      // More aggressive thresholds
-      const lightThreshold = 230; // Lower threshold (230-255 = light/white)
-      const edgeSize = 20; // Larger edge area to process
-      
-      // Sample corners to detect background color
-      const cornerSamples: number[] = [];
-      const sampleSize = Math.min(15, Math.floor(width / 8), Math.floor(height / 8));
-      
-      for (let y = 0; y < sampleSize; y++) {
-        for (let x = 0; x < sampleSize; x++) {
-          // All four corners
-          const corners = [
-            (y * width + x) * channels, // top-left
-            (y * width + (width - 1 - x)) * channels, // top-right
-            ((height - 1 - y) * width + x) * channels, // bottom-left
-            ((height - 1 - y) * width + (width - 1 - x)) * channels, // bottom-right
-          ];
-          
-          corners.forEach(idx => {
-            const brightness = (pixels[idx] + pixels[idx + 1] + pixels[idx + 2]) / 3;
-            cornerSamples.push(brightness);
-          });
-        }
-      }
-      
-      const avgCornerBrightness = cornerSamples.reduce((a, b) => a + b, 0) / cornerSamples.length;
-      const isLikelyLightBackground = avgCornerBrightness > 200;
-      
-      // Process all pixels aggressively
-      for (let i = 0; i < pixels.length; i += channels) {
-        const r = pixels[i];
-        const g = pixels[i + 1];
-        const b = pixels[i + 2];
-        const alphaIdx = i + 3;
-        
-        // Calculate pixel position
-        const pixelIndex = i / channels;
-        const x = pixelIndex % width;
-        const y = Math.floor(pixelIndex / width);
-        
-        // Check if pixel is on the edge (larger area)
-        const isOnEdge = x < edgeSize || x > width - edgeSize || y < edgeSize || y > height - edgeSize;
-        
-        // Calculate brightness
-        const brightness = (r + g + b) / 3;
-        
-        // Check if pixel is very light (white/light background)
-        const isVeryLight = r > lightThreshold && g > lightThreshold && b > lightThreshold;
-        
-        // Check if pixel is similar to corner background (if background is light)
-        const isSimilarToBackground = isLikelyLightBackground && Math.abs(brightness - avgCornerBrightness) < 30;
-        
-        // Aggressive removal: make transparent if:
-        // 1. Very light AND on edge, OR
-        // 2. Similar to background color AND on edge, OR
-        // 3. Very light anywhere (not just edge) if background is light
-        if ((isVeryLight && isOnEdge) || 
-            (isSimilarToBackground && isOnEdge) ||
-            (isVeryLight && isLikelyLightBackground)) {
-          pixels[alphaIdx] = 0; // Fully transparent
-        } else if (isVeryLight && !isOnEdge) {
-          // For very light pixels in center, make semi-transparent
-          pixels[alphaIdx] = Math.min(pixels[alphaIdx] || 255, 150);
-        }
-      }
-      
-      // Convert back to PNG with transparency
-      const result = await sharp(Buffer.from(pixels), {
-        raw: {
-          width,
-          height,
-          channels: 4, // RGBA
-        },
-      })
-        .png({ compressionLevel: 9, quality: 100, force: true })
-        .toBuffer();
-      
-      this.logger.log('Background removal completed successfully');
-      return result;
-    } catch (error) {
-      this.logger.error('Failed to remove background, using original with alpha:', error);
-      // Fallback: ensure alpha channel exists
-      return await sharp(imageBuffer)
-        .ensureAlpha()
-        .png({ force: true })
-        .toBuffer();
-    }
   }
 
   async process(job: Job<any, any, string>): Promise<any> {
@@ -214,9 +101,9 @@ export class MascotGenerationProcessor extends WorkerHost {
       const generationTime = Date.now() - generationStartTime;
       this.logger.log(`[MascotGenerationProcessor] Gemini Flash API completed for variation ${variationIndex || 1} in ${generationTime}ms`);
 
-      // Remove background automatically to ensure transparency
+      // Remove background (same util as Create / Poses)
       this.logger.log('Removing background from generated image...');
-      imageBuffer = await this.removeBackground(imageBuffer);
+      imageBuffer = await removeBackground(imageBuffer);
       this.logger.log('Background removal completed');
 
       // Generate different sizes (full body, avatar, square icon)

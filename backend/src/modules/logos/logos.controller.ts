@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Param, Body, UseGuards, Request } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Post, Delete, Param, Body, UseGuards, Request } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { LogosService } from './logos.service';
 import { CreateLogoPackDto } from './dto/create-logo-pack.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -24,5 +24,12 @@ export class LogosController {
   @Get('logo-packs/:id')
   findOne(@Param('id') id: string) {
     return this.logosService.findOne(id);
+  }
+
+  @Delete('logo-packs/:id')
+  @ApiOperation({ summary: 'Delete a logo pack' })
+  async remove(@Param('id') id: string, @Request() req) {
+    await this.logosService.remove(id, req.user.id);
+    return { message: 'Logo pack deleted successfully' };
   }
 }

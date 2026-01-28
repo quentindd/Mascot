@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Request } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Post, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { AnimationsService } from './animations.service';
 import { CreateAnimationDto, GenerateDefaultAnimationsDto } from './dto/create-animation.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -35,5 +35,12 @@ export class AnimationsController {
   @Get('animations/:id/status')
   getStatus(@Param('id') id: string) {
     return this.animationsService.getStatus(id);
+  }
+
+  @Delete('animations/:id')
+  @ApiOperation({ summary: 'Delete an animation' })
+  async remove(@Param('id') id: string, @Request() req) {
+    await this.animationsService.remove(id, req.user.id);
+    return { message: 'Animation deleted successfully' };
   }
 }

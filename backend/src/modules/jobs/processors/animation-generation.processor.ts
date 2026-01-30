@@ -642,7 +642,7 @@ export class AnimationGenerationProcessor extends WorkerHost {
       actionDescription = actionMap[action] || 'animated movement';
     }
 
-    return `${mascotDetails}, ${actionDescription}, ${style} style, ${personality} personality, pure white background, character on white only, no other background colors, smooth animation, loopable`;
+    return `${mascotDetails}, ${actionDescription}, ${style} style, ${personality} personality, transparent background, smooth animation, loopable`;
   }
 
   /**

@@ -642,7 +642,7 @@ export class AnimationGenerationProcessor extends WorkerHost {
       actionDescription = actionMap[action] || 'animated movement';
     }
 
-    return `${mascotDetails}, ${actionDescription}, ${style} style, ${personality} personality, transparent background, smooth animation, loopable`;
+    return `Create a PERFECT LOOP video of mascot ${actionDescription}. First and last frame EXACTLY identical. Seamless cycle, isolated character clean edges no background.`;
   }
 
   /**

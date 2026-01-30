@@ -28,7 +28,8 @@ export class PoseGenerationProcessor extends WorkerHost {
   }
 
   /**
-   * Poses use only Replicate (default: prunaai/flux-kontext-fast): reference image + prompt.
+   * Poses use Nano Banana (Replicate): edit mascot image with pose prompt.
+   * Modification applies only to the mascot, no background, 1080p for optimal render.
    */
   async process(job: Job<any, any, string>): Promise<any> {
     const { poseId, mascotId, prompt } = job.data;
@@ -67,13 +68,21 @@ export class PoseGenerationProcessor extends WorkerHost {
         `Keep the EXACT same character: same ${styleHint} style, same colors, same design, same proportions. Same limbs only (wings stay wings, paws stay paws, NO hands). ` +
         `Only change the pose or action to: ${prompt}. Same stylized mascot as the reference. ` +
         `No glow, no aura, no halo, no outline. Flat colors only. Completely transparent background only—no dark background, no gradient.`;
-      // Use a different seed per pose so each generation varies (same mascot.seed would always give the same pose).
-      const poseSeed = Math.floor(Math.random() * 1e9);
-      this.logger.log('[PoseGenerationProcessor] Using Replicate (random seed per pose for variation)');
-      let imageBuffer = await this.replicateService.generatePoseFromReference(refImageUrl, posePromptText, {
-        negativePrompt: mascot.negativePrompt || undefined,
-        seed: poseSeed,
-      });
+
+      let imageBuffer: Buffer;
+      if (this.replicateService.useNanoBananaForPoses()) {
+        this.logger.log('[PoseGenerationProcessor] Using Replicate Nano Banana (mascot-only edit, no background, 1080p)');
+        imageBuffer = await this.replicateService.editImageNanoBanana(refImageUrl, posePromptText, {
+          resolution: '1080p',
+        });
+      } else {
+        this.logger.log(`[PoseGenerationProcessor] Using Replicate pose model: ${this.replicateService.getPoseModelId()}`);
+        const poseSeed = Math.floor(Math.random() * 1e9);
+        imageBuffer = await this.replicateService.generatePoseFromReference(refImageUrl, posePromptText, {
+          negativePrompt: mascot.negativePrompt || undefined,
+          seed: poseSeed,
+        });
+      }
 
       // Keep under ~1MB for rembg data URI (Replicate limit)
       if (imageBuffer.length > 900 * 1024) {

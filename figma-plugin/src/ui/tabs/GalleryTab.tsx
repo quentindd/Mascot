@@ -4,21 +4,25 @@ import { RPCClient } from '../rpc/client';
 interface GalleryTabProps {
   rpc: RPCClient;
   mascots: any[];
+  animations: any[];
+  logos: any[];
+  poses: any[];
   selectedMascot: any;
   onSelectMascot: (mascot: any) => void;
 }
 
-type GalleryFilter = 'all' | 'mascots' | 'animations' | 'logos';
+type GalleryFilter = 'all' | 'mascots' | 'animations' | 'logos' | 'poses';
 
 export const GalleryTab: React.FC<GalleryTabProps> = ({
   rpc,
   mascots,
+  animations,
+  logos,
+  poses,
   selectedMascot,
   onSelectMascot,
 }) => {
   const [filter, setFilter] = useState<GalleryFilter>('all');
-  const [animations, setAnimations] = useState<any[]>([]);
-  const [logos, setLogos] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [animationModal, setAnimationModal] = useState<any | null>(null);
   const [linksCopied, setLinksCopied] = useState<'mp4' | 'webm' | null>(null);
@@ -28,57 +32,19 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
   const [integrationTab, setIntegrationTab] = useState<'web' | 'ios' | 'android' | 'flutter' | 'react-native'>('web');
   const [codeCopied, setCodeCopied] = useState<string | null>(null);
 
-  // Animations/logos are requested by App when Gallery tab is active (once per mascot per session)
-
-  rpc.on('mascot-animations-loaded', (data: { mascotId: string; animations: any[] }) => {
-    setAnimations((prev) => {
-      const filtered = prev.filter(a => a.mascotId !== data.mascotId);
-      return [...filtered, ...data.animations];
-    });
-  });
-
-  rpc.on('mascot-logos-loaded', (data: { mascotId: string; logos: any[] }) => {
-    setLogos((prev) => {
-      const filtered = prev.filter(l => l.mascotId !== data.mascotId);
-      return [...filtered, ...data.logos];
-    });
-  });
-
-  rpc.on('animation-status-update', (data: { animationId: string; status: string; errorMessage?: string }) => {
-    setAnimations((prev) =>
-      prev.map((a) =>
-        a.id === data.animationId
-          ? { ...a, status: data.status, errorMessage: data.errorMessage }
-          : a
-      )
-    );
-  });
-
-  rpc.on('animation-completed', (data: { animation: any }) => {
-    const anim = data.animation;
-    if (!anim?.id) return;
-    setAnimations((prev) => {
-      const idx = prev.findIndex((a) => a.id === anim.id);
-      if (idx >= 0) {
-        const next = [...prev];
-        next[idx] = { ...next[idx], ...anim };
-        return next;
-      }
-      return [...prev, anim];
-    });
-  });
+  // Animations/logos are stored in App and updated via RPC; only UI-only events here
 
   rpc.on('animation-inserted', () => {
     setInsertError(null);
     setAnimationModal(null);
   });
 
-  rpc.on('animation-deleted', (data: { animationId: string }) => {
-    setAnimations((prev) => prev.filter((a) => a.id !== data.animationId));
+  rpc.on('animation-deleted', (data: { animationId?: string; id?: string }) => {
     setAnimationModal(null);
     setLinksCopied(null);
     setShowGetLinks(false);
     setShowIntegrationPanel(false);
+    console.log('[GalleryTab] Animation deleted:', data.animationId ?? data.id);
   });
 
   rpc.on('error', (data: { message?: string; context?: string }) => {
@@ -103,6 +69,13 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
     // Mascots will be reloaded automatically by App.tsx
     console.log('[GalleryTab] Mascot deleted:', data.id);
   });
+
+  const handleDeletePose = (e: React.MouseEvent, poseId: string) => {
+    e.stopPropagation();
+    if (confirm('Are you sure you want to delete this pose? This action cannot be undone.')) {
+      rpc.send('delete-pose', { id: poseId });
+    }
+  };
 
   const renderMascots = () => {
     if (mascots.length === 0) {
@@ -193,11 +166,6 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
       rpc.send('delete-animation', { id: animationId });
     }
   };
-
-  rpc.on('animation-deleted', (data: { id: string }) => {
-    setAnimations((prev) => prev.filter(a => a.id !== data.id));
-    console.log('[GalleryTab] Animation deleted:', data.id);
-  });
 
   const renderAnimations = () => {
     if (animations.length === 0) {
@@ -302,7 +270,6 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
   };
 
   rpc.on('logo-pack-deleted', (data: { id: string }) => {
-    setLogos((prev) => prev.filter(l => l.id !== data.id));
     console.log('[GalleryTab] Logo pack deleted:', data.id);
   });
 
@@ -372,6 +339,89 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
     );
   };
 
+  const renderPoses = () => {
+    if (poses.length === 0) {
+      return (
+        <div className="empty-state-content">
+          <div className="empty-state-icon">Poses</div>
+          <h3 className="empty-state-title">No poses yet</h3>
+          <p className="empty-state-text">
+            Create poses from the Poses tab.
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="gallery-grid">
+        {poses.map((pose) => (
+          <div
+            key={pose.id}
+            className="gallery-item"
+            onClick={() => {
+              if (pose.status === 'completed' && (pose.imageUrl || pose.imageDataUrl)) {
+                const imageUrl = pose.imageUrl || pose.imageDataUrl;
+                const mascotName = getMascotName(pose.mascotId);
+                rpc.send('insert-image', {
+                  url: imageUrl,
+                  name: `${mascotName} - ${pose.prompt || 'Pose'}`,
+                });
+              }
+            }}
+            style={{
+              cursor: pose.status === 'completed' && (pose.imageUrl || pose.imageDataUrl) ? 'pointer' : 'default',
+              position: 'relative',
+            }}
+          >
+            <button
+              className="delete-btn"
+              onClick={(e) => handleDeletePose(e, pose.id)}
+              title="Delete pose"
+              style={{
+                position: 'absolute',
+                top: '4px',
+                right: '4px',
+                width: '20px',
+                height: '20px',
+                borderRadius: '4px',
+                border: 'none',
+                background: 'rgba(0, 0, 0, 0.7)',
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 10,
+              }}
+            >
+              ×
+            </button>
+            <div className="gallery-item-image">
+              {(pose.imageUrl || pose.imageDataUrl) ? (
+                <img
+                  src={pose.imageUrl || pose.imageDataUrl}
+                  alt={pose.prompt || 'Pose'}
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                />
+              ) : (
+                <div className="gallery-placeholder">
+                  {pose.status === 'completed' ? 'POSE' : '...'}
+                </div>
+              )}
+            </div>
+            <div className="gallery-item-info">
+              <div className="gallery-item-title">{pose.prompt || 'Pose'}</div>
+              <div className="gallery-item-meta">
+                {getMascotName(pose.mascotId)} - {pose.status || 'pending'}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="gallery-tab">
       <div className="gallery-filters">
@@ -398,6 +448,12 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
           onClick={() => setFilter('logos')}
         >
           Logos ({logos.length})
+        </button>
+        <button
+          className={`filter-btn ${filter === 'poses' ? 'active' : ''}`}
+          onClick={() => setFilter('poses')}
+        >
+          Poses ({poses.length})
         </button>
       </div>
 
@@ -427,7 +483,13 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
                     {renderLogos()}
                   </div>
                 )}
-                {mascots.length === 0 && animations.length === 0 && logos.length === 0 && (
+                {poses.length > 0 && (
+                  <div className="gallery-section">
+                    <h3 className="gallery-section-title">Poses</h3>
+                    {renderPoses()}
+                  </div>
+                )}
+                {mascots.length === 0 && animations.length === 0 && logos.length === 0 && poses.length === 0 && (
                   <div className="empty-state-content">
                     <div className="empty-state-icon">Gallery</div>
                     <h3 className="empty-state-title">Your gallery is empty</h3>
@@ -441,6 +503,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
             {filter === 'mascots' && renderMascots()}
             {filter === 'animations' && renderAnimations()}
             {filter === 'logos' && renderLogos()}
+            {filter === 'poses' && renderPoses()}
           </>
         )}
       </div>

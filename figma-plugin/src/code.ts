@@ -153,6 +153,10 @@ figma.ui.onmessage = async (msg) => {
         await handleGetMascotLogos(msg.data);
         break;
 
+      case 'get-mascot-poses':
+        await handleGetMascotPoses(msg.data);
+        break;
+
       case 'delete-mascot':
         await handleDeleteMascot(msg.data);
         break;
@@ -791,6 +795,25 @@ async function handleGetMascotLogos(data: { mascotId: string }) {
     console.error('[Mascot Code] Error loading logos:', error);
     handleError(error, 'get-mascot-logos');
     rpc.send('mascot-logos-loaded', { mascotId: data.mascotId, logos: [] });
+  }
+}
+
+async function handleGetMascotPoses(data: { mascotId: string }) {
+  if (!apiClient) {
+    rpc.send('error', { message: 'Not authenticated' });
+    return;
+  }
+
+  try {
+    console.log('[Mascot Code] Fetching poses for mascot:', data.mascotId);
+    const poses = await apiClient.getMascotPoses(data.mascotId);
+    const posesArray = Array.isArray(poses) ? poses : [];
+    console.log('[Mascot Code] Received poses:', posesArray.length);
+    rpc.send('mascot-poses-loaded', { mascotId: data.mascotId, poses: posesArray });
+  } catch (error) {
+    console.error('[Mascot Code] Error loading poses:', error);
+    handleError(error, 'get-mascot-poses');
+    rpc.send('mascot-poses-loaded', { mascotId: data.mascotId, poses: [] });
   }
 }
 

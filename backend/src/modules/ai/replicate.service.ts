@@ -7,6 +7,8 @@ const REPLICATE_API = 'https://api.replicate.com/v1';
 const REMBG_MODEL = 'cjwbw/rembg';
 /** Video animation: image-to-video (Replicate), 4s, 16:9 720p, ~0.4¢/video. Model: https://replicate.com/google/veo-3.1-fast */
 const VEO_FAST_MODEL = 'google/veo-3.1-fast';
+/** Image editing (poses): mascot-only edits, no background, 1080p. Model: https://replicate.com/google/nano-banana */
+const NANO_BANANA_MODEL = 'google/nano-banana';
 
 /** Kontext (BFL): input_image + prompt. */
 const KONTEXT_BFL_MODELS = ['black-forest-labs/flux-kontext-pro', 'black-forest-labs/flux-kontext-dev'];
@@ -16,9 +18,9 @@ const KONTEXT_PRUNA_MODELS = ['prunaai/flux-kontext-fast', 'prunaai/flux-kontext
 const SEEDEDIT_MODELS = ['bytedance/seededit-3.0'];
 
 /**
- * Replicate API for pose generation (reference image + prompt).
- * Default: prunaai/flux-kontext-fast (ultra-fast Kontext, mascottes/cartoons).
- * Alternatives: black-forest-labs/flux-kontext-pro, bytedance/seededit-3.0, sdxl-based/consistent-character.
+ * Replicate API.
+ * Poses: Nano Banana only (editImageNanoBanana). Kontext/SeedEdit (generatePoseFromReference) is legacy/unused for poses.
+ * Animations: Veo 3.1 Fast. Background removal: rembg.
  */
 @Injectable()
 export class ReplicateService {
@@ -31,8 +33,20 @@ export class ReplicateService {
     this.poseModel =
       this.configService.get<string>('REPLICATE_POSE_MODEL')?.trim() || DEFAULT_POSE_MODEL;
     if (this.token?.trim()) {
-      this.logger.log(`Poses: Replicate configured (model: ${this.poseModel})`);
+      const poseProvider = this.useNanoBananaForPoses() ? 'Nano Banana' : this.poseModel;
+      this.logger.log(`Replicate configured (poses: ${poseProvider}; animations: Veo 3.1 Fast)`);
     }
+  }
+
+  /** True when REPLICATE_POSE_MODEL is nano-banana (or google/nano-banana). */
+  useNanoBananaForPoses(): boolean {
+    const m = (this.poseModel || '').toLowerCase();
+    return m === 'nano-banana' || m === 'google/nano-banana' || m.includes('nano-banana');
+  }
+
+  /** Current pose model id (for logging). */
+  getPoseModelId(): string {
+    return this.poseModel || DEFAULT_POSE_MODEL;
   }
 
   isAvailable(): boolean {
@@ -174,9 +188,87 @@ export class ReplicateService {
   }
 
   /**
-   * Generate a pose from a reference image (mascot) + text prompt.
-   * prunaai/flux-kontext-fast: ultra-fast Kontext (mascottes/cartoons).
-   * flux-kontext-pro, seededit-3.0, consistent-character: alternatives.
+   * Edit an image with Nano Banana (Google Gemini 2.5 image editing).
+   * Used for poses: modification applies only to the mascot, no background, 1080p.
+   * Model: https://replicate.com/google/nano-banana
+   */
+  async editImageNanoBanana(
+    imageUrl: string,
+    prompt: string,
+    options?: { resolution?: '1080p' | '1k' | '2k' },
+  ): Promise<Buffer> {
+    if (!this.token) {
+      throw new Error('REPLICATE_API_TOKEN is not set. Cannot use Replicate for Nano Banana.');
+    }
+
+    const resolution = options?.resolution ?? '1080p';
+    const nanoPrompt =
+      `${prompt.trim()} CRITICAL: The modification applies only to the mascot/character—do not change or add background. No background (transparent or remove background). Output in 1080p for optimal quality. Same character, same style, same design.`;
+
+    try {
+      this.logger.log(`[Replicate] Nano Banana: editing image (resolution: ${resolution})...`);
+      const version = await this.getModelVersion(NANO_BANANA_MODEL);
+
+      const input: Record<string, unknown> = {
+        prompt: nanoPrompt,
+        image_input: [imageUrl],
+        output_format: 'png',
+      };
+      if (resolution) {
+        input.resolution = resolution === '1080p' ? '1k' : resolution;
+      }
+
+      const createRes = await axios.post(
+        `${REPLICATE_API}/predictions`,
+        { version, input },
+        {
+          headers: {
+            Authorization: `Bearer ${this.token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 15000,
+        },
+      );
+
+      const predictionId = createRes.data?.id;
+      const predictionWebUrl = createRes.data?.urls?.web;
+      if (!predictionId) throw new Error('Replicate Nano Banana did not return prediction id');
+      if (predictionWebUrl) {
+        this.logger.log(`[Replicate] Nano Banana prediction: ${predictionWebUrl}`);
+      }
+
+      const output = await this.waitForPrediction(predictionId, 120000);
+      const imageUrlOut = this.extractOutputUrl(output);
+      if (!imageUrlOut) throw new Error('Replicate Nano Banana did not return an image URL');
+
+      this.logger.log('[Replicate] Downloading Nano Banana output');
+      const imageResponse = await axios.get<ArrayBuffer>(imageUrlOut, {
+        responseType: 'arraybuffer',
+        timeout: 30000,
+      });
+      return Buffer.from(imageResponse.data);
+    } catch (err: any) {
+      if (axios.isAxiosError(err)) {
+        const status = err.response?.status;
+        const msg = err.response?.data?.detail ?? err.message ?? 'Unknown error';
+        if (status === 401) {
+          throw new Error('Invalid REPLICATE_API_TOKEN. Get a token at replicate.com/account/api-tokens');
+        }
+        if (status === 403) {
+          throw new Error('Replicate API access denied (403). Check your REPLICATE_API_TOKEN.');
+        }
+        if (status === 404) {
+          throw new Error('Replicate Nano Banana model not found. Check REPLICATE_API_TOKEN.');
+        }
+        throw new Error(`Replicate Nano Banana API error (${String(status ?? 'network')}): ${msg}`);
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Legacy: generate pose from reference (Kontext/SeedEdit). Not used for poses; poses use editImageNanoBanana only.
+   * Kept for optional use via REPLICATE_POSE_MODEL if needed elsewhere.
    */
   async generatePoseFromReference(
     imageUrl: string,

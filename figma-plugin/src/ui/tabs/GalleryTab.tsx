@@ -245,17 +245,27 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
               <TrashIcon size={14} />
             </button>
             <div className="gallery-item-image gallery-item-image--animation">
-              {animation.spriteSheetUrl ? (
-                <img
-                  src={animation.spriteSheetUrl}
-                  alt={animation.action || 'Animation'}
-                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                />
-              ) : (
-                <div className="gallery-placeholder">
-                  {animation.status === 'completed' ? 'VID' : '...'}
-                </div>
-              )}
+              {(() => {
+                const mascot = mascots.find((m) => m.id === animation.mascotId);
+                const mascotImageUrl = mascot?.fullBodyImageUrl || mascot?.avatarImageUrl || mascot?.imageUrl;
+                return mascotImageUrl ? (
+                  <img
+                    src={mascotImageUrl}
+                    alt={getMascotName(animation.mascotId)}
+                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                  />
+                ) : animation.spriteSheetUrl ? (
+                  <img
+                    src={animation.spriteSheetUrl}
+                    alt={animation.action || 'Animation'}
+                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                  />
+                ) : (
+                  <div className="gallery-placeholder">
+                    {animation.status === 'completed' ? 'VID' : '...'}
+                  </div>
+                );
+              })()}
             </div>
             <div className="gallery-item-info">
               <div className="gallery-item-title">{animation.action || 'Animation'}</div>
@@ -620,62 +630,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
 
             {/* Content: light background, cards stacked like reference */}
             <div style={{ padding: '0 16px 16px', background: '#f9fafb' }}>
-              {/* 1. Source Image — first card (like reference) */}
-              {(() => {
-                const sourceMascot = mascots.find((m) => m.id === animationModal.mascotId);
-                const sourceImageUrl = sourceMascot?.fullBodyImageUrl || sourceMascot?.avatarImageUrl;
-                return (
-                  <div style={{
-                    marginBottom: '12px',
-                    padding: '16px',
-                    background: '#fff',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '12px',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px', fontSize: '12px', fontWeight: 600, color: '#111' }}>
-                      <span style={{ opacity: 0.7 }}>🖼</span> Source Image
-                    </div>
-                    {sourceImageUrl ? (
-                      <>
-                        <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                          <img
-                            src={sourceImageUrl}
-                            alt="Source"
-                            style={{ width: '72px', height: '72px', objectFit: 'cover', borderRadius: '8px', flexShrink: 0 }}
-                          />
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{ margin: 0, fontSize: '11px', color: '#555', lineHeight: 1.4 }}>
-                              This animation was generated from the image above.
-                            </p>
-                            <button
-                              type="button"
-                              onClick={() => rpc.send('open-url', { url: sourceImageUrl })}
-                              style={{
-                                marginTop: '8px',
-                                padding: 0,
-                                border: 'none',
-                                background: 'none',
-                                fontSize: '11px',
-                                color: '#ea580c',
-                                cursor: 'pointer',
-                                fontWeight: 500,
-                                textDecoration: 'none',
-                              }}
-                            >
-                              View source image →
-                            </button>
-                          </div>
-                        </div>
-                      </>
-                    ) : (
-                      <p style={{ margin: 0, fontSize: '11px', color: '#888' }}>Source image not available.</p>
-                    )}
-                  </div>
-                );
-              })()}
-
-              {/* 2. Available Formats — second card */}
+              {/* Available Formats */}
               <div style={{
                 marginBottom: '12px',
                 padding: '16px',

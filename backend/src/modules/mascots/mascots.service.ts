@@ -1,7 +1,10 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Mascot, MascotStatus } from '../../entities/mascot.entity';
+import { AnimationJob } from '../../entities/animation-job.entity';
+import { LogoPack } from '../../entities/logo-pack.entity';
+import { Pose } from '../../entities/pose.entity';
 import { CreateMascotDto, MascotResponseDto } from './dto/create-mascot.dto';
 import { PaginationDto, PaginatedResponse } from '../../common/dto/pagination.dto';
 import { CreditsService } from '../credits/credits.service';
@@ -13,6 +16,12 @@ export class MascotsService {
   constructor(
     @InjectRepository(Mascot)
     private mascotRepository: Repository<Mascot>,
+    @InjectRepository(AnimationJob)
+    private animationRepository: Repository<AnimationJob>,
+    @InjectRepository(LogoPack)
+    private logoPackRepository: Repository<LogoPack>,
+    @InjectRepository(Pose)
+    private poseRepository: Repository<Pose>,
     private creditsService: CreditsService,
     private jobsService: JobsService,
     private storageService: StorageService,
@@ -159,7 +168,39 @@ export class MascotsService {
       throw new NotFoundException(`Mascot with ID ${id} not found`);
     }
 
-    // Delete associated files from storage
+    // Delete related records and their storage first (avoids FK constraint violation)
+
+    const animations = await this.animationRepository.find({ where: { mascotId: id } });
+    const animationUrls: (string | null | undefined)[] = [];
+    for (const a of animations) {
+      animationUrls.push(a.spriteSheetUrl, a.webmVideoUrl, a.movVideoUrl, a.lottieUrl);
+    }
+    if (animationUrls.length > 0) {
+      await this.storageService.deleteFilesByUrls(animationUrls);
+    }
+    await this.animationRepository.delete({ mascotId: id });
+
+    const logoPacks = await this.logoPackRepository.find({ where: { mascotId: id } });
+    const logoUrls: (string | null | undefined)[] = [];
+    for (const lp of logoPacks) {
+      if (lp.zipFileUrl) logoUrls.push(lp.zipFileUrl);
+      if (lp.sizes && Array.isArray(lp.sizes)) {
+        lp.sizes.forEach((s) => s.url && logoUrls.push(s.url));
+      }
+    }
+    if (logoUrls.length > 0) {
+      await this.storageService.deleteFilesByUrls(logoUrls);
+    }
+    await this.logoPackRepository.delete({ mascotId: id });
+
+    const poses = await this.poseRepository.find({ where: { mascotId: id } });
+    const poseUrls = poses.map((p) => p.imageUrl).filter(Boolean);
+    if (poseUrls.length > 0) {
+      await this.storageService.deleteFilesByUrls(poseUrls);
+    }
+    await this.poseRepository.delete({ mascotId: id });
+
+    // Delete mascot images from storage
     await this.storageService.deleteFilesByUrls([
       mascot.fullBodyImageUrl,
       mascot.avatarImageUrl,

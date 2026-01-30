@@ -182,7 +182,12 @@ export class MascotAPI {
       throw new Error(message || `HTTP ${response.status}`);
     }
 
-    return response.json();
+    // 204 No Content or empty body: do not parse JSON
+    const contentLength = response.headers?.get?.('content-length');
+    if (response.status === 204 || contentLength === '0') {
+      return undefined as T;
+    }
+    return response.json().catch(() => undefined as T);
   }
 
   async createMascot(data: CreateMascotRequest): Promise<MascotResponse[]> {

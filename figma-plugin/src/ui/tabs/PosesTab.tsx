@@ -1,6 +1,17 @@
 import React, { useState } from 'react';
 import { RPCClient } from '../rpc/client';
 
+/** Quick pose options: emoji + label (label is used as prompt sent to API). */
+const QUICK_POSES = [
+  { emoji: '👋', label: 'Welcome' },
+  { emoji: '😄', label: 'Happy' },
+  { emoji: '🤔', label: 'Thinking' },
+  { emoji: '💤', label: 'Idle' },
+  { emoji: '🎉', label: 'Celebrate' },
+  { emoji: '❓', label: 'Help' },
+  { emoji: '👍', label: 'Thumbs Up' },
+] as const;
+
 interface PosesTabProps {
   rpc: RPCClient;
   selectedMascot: any;
@@ -183,6 +194,28 @@ export const PosesTab: React.FC<PosesTabProps> = ({
           {error}
         </div>
       )}
+
+      <div className="card" style={{ marginBottom: '16px' }}>
+        <label className="label">Quick poses</label>
+        <p style={{ fontSize: '10px', color: '#666', marginBottom: '10px' }}>
+          Choose a pose or type your own below.
+        </p>
+        <div className="quick-poses-grid">
+          {QUICK_POSES.map(({ emoji, label }) => (
+            <button
+              key={label}
+              type="button"
+              className={`quick-pose-btn ${customPrompt.trim() === label ? 'active' : ''}`}
+              onClick={() => setCustomPrompt(label)}
+              disabled={isGenerating}
+              title={label}
+            >
+              <span className="quick-pose-emoji">{emoji}</span>
+              <span className="quick-pose-label">{label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
 
       <div className="card" style={{ marginBottom: '16px' }}>
         <label className="label">Custom Prompt</label>

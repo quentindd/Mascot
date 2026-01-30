@@ -6,13 +6,16 @@ import { AutoFillService } from './auto-fill.service';
 import { CodeSnippetService } from './code-snippet.service';
 import { Mascot } from '../../entities/mascot.entity';
 import { GenerationJob } from '../../entities/generation-job.entity';
+import { AnimationJob } from '../../entities/animation-job.entity';
+import { LogoPack } from '../../entities/logo-pack.entity';
+import { Pose } from '../../entities/pose.entity';
 import { CreditsModule } from '../credits/credits.module';
 import { StorageModule } from '../storage/storage.module';
 import { JobsModule } from '../jobs/jobs.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Mascot, GenerationJob]),
+    TypeOrmModule.forFeature([Mascot, GenerationJob, AnimationJob, LogoPack, Pose]),
     CreditsModule,
     StorageModule,
     JobsModule,

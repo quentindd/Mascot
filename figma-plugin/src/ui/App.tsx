@@ -105,6 +105,10 @@ export const App: React.FC = () => {
       loadMascots();
     });
 
+    rpc.on('delete-failed', (_data: { id?: string; type?: string; message?: string }) => {
+      // Error already shown via figma.notify in code.ts; handler avoids "No handlers registered"
+    });
+
     // Logo-pack events: register at App level so messages are handled even when LogosTab is not mounted (avoids "No handlers registered")
     rpc.on('logo-pack-generation-started', () => {});
     rpc.on('logo-pack-generated', () => {});

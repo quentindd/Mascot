@@ -117,7 +117,8 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
           <div
             key={mascot.id}
             className={`gallery-item ${selectedMascot?.id === mascot.id ? 'selected' : ''}`}
-            onClick={() => {
+            onClick={(e) => {
+              if ((e.target as HTMLElement).closest('.delete-btn')) return;
               console.log('[GalleryTab] Mascot clicked, inserting into Figma:', mascot.id, mascot.name);
               // Insert mascot image directly into Figma
               const imageUrl = mascot.fullBodyImageUrl || mascot.avatarImageUrl || mascot.imageUrl;
@@ -133,7 +134,9 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
             style={{ cursor: 'pointer', position: 'relative' }}
           >
             <button
+              type="button"
               className="delete-btn"
+              onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => handleDeleteMascot(e, mascot.id)}
               title="Delete mascot"
               style={{
@@ -207,7 +210,8 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
           <div 
             key={animation.id} 
             className="gallery-item"
-            onClick={() => {
+            onClick={(e) => {
+              if ((e.target as HTMLElement).closest('.delete-btn')) return;
               if (animation.status === 'completed') {
                 setInsertError(null);
                 setLinksCopied(null);
@@ -221,7 +225,9 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
             style={{ cursor: animation.status === 'completed' ? 'pointer' : 'default', position: 'relative' }}
           >
             <button
+              type="button"
               className="delete-btn"
+              onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => handleDeleteAnimation(e, animation.id)}
               title="Delete animation"
               style={{
@@ -311,9 +317,18 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
     return (
       <div className="gallery-grid">
         {sortedLogos.map((logoPack) => (
-          <div key={logoPack.id} className="gallery-item" style={{ position: 'relative' }}>
+          <div
+            key={logoPack.id}
+            className="gallery-item"
+            style={{ position: 'relative' }}
+            onClick={(e) => {
+              if ((e.target as HTMLElement).closest('.delete-btn')) return;
+            }}
+          >
             <button
+              type="button"
               className="delete-btn"
+              onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => handleDeleteLogoPack(e, logoPack.id)}
               title="Delete logo pack"
               style={{
@@ -380,7 +395,8 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
           <div
             key={pose.id}
             className="gallery-item"
-            onClick={() => {
+            onClick={(e) => {
+              if ((e.target as HTMLElement).closest('.delete-btn')) return;
               if (pose.status === 'completed' && (pose.imageUrl || pose.imageDataUrl)) {
                 const imageUrl = pose.imageUrl || pose.imageDataUrl;
                 const mascotName = getMascotName(pose.mascotId);
@@ -396,7 +412,9 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
             }}
           >
             <button
+              type="button"
               className="delete-btn"
+              onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => handleDeletePose(e, pose.id)}
               title="Delete pose"
               style={{

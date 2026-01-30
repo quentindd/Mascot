@@ -9,15 +9,40 @@ const rpc = new RPC();
 // Initialize API client (will be set when user authenticates)
 let apiClient: MascotAPI | null = null;
 
-// Error handling wrapper
+// Error handling wrapper: extract a string message (avoid "[object Object]")
 function handleError(error: any, context: string) {
-  const errorMessage = error instanceof Error ? error.message : String(error);
+  let errorMessage: string;
+  if (error instanceof Error) {
+    errorMessage = error.message;
+  } else if (typeof error === 'string') {
+    errorMessage = error;
+  } else if (error?.response?.data?.message) {
+    const m = error.response.data.message;
+    errorMessage = typeof m === 'string' ? m : Array.isArray(m) ? m[0] : JSON.stringify(m);
+  } else if (error?.message) {
+    errorMessage = typeof error.message === 'string' ? error.message : String(error.message);
+  } else {
+    errorMessage = typeof error === 'object' ? (error.message || error.error || JSON.stringify(error)) : String(error);
+  }
+  if (!errorMessage || errorMessage === '[object Object]') {
+    errorMessage = 'Request failed';
+  }
   console.error(`[Mascot Error in ${context}]:`, errorMessage);
-  console.error('Full error:', error);
   rpc.send('error', {
     message: errorMessage,
     context,
   });
+}
+
+function getErrorMessage(error: any): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (error?.response?.data?.message) {
+    const m = error.response.data.message;
+    return typeof m === 'string' ? m : Array.isArray(m) ? m[0] : String(m);
+  }
+  if (error?.message) return typeof error.message === 'string' ? error.message : String(error.message);
+  return typeof error === 'object' ? (error.message || error.error || 'Request failed') : String(error);
 }
 
 // Load stored token on startup and send to UI
@@ -772,9 +797,10 @@ async function handleDeleteAnimation(data: { animationId: string; id?: string })
     figma.notify('Animation deleted successfully');
     rpc.send('animation-deleted', { animationId });
   } catch (error) {
-    console.error('[Mascot Code] Error deleting animation:', error);
+    const msg = getErrorMessage(error);
     handleError(error, 'delete-animation');
-    rpc.send('error', { message: error instanceof Error ? error.message : 'Failed to delete animation' });
+    figma.notify(`Delete failed: ${msg}`, { error: true });
+    rpc.send('delete-failed', { id: data.animationId ?? data.id, type: 'animation', message: msg });
   }
 }
 
@@ -831,8 +857,10 @@ async function handleDeleteMascot(data: { id: string }) {
     // Reload mascots list
     await handleGetMascots();
   } catch (error) {
+    const msg = getErrorMessage(error);
     handleError(error, 'delete-mascot');
-    rpc.send('delete-failed', { id: data.id, type: 'mascot' });
+    figma.notify(`Delete failed: ${msg}`, { error: true });
+    rpc.send('delete-failed', { id: data.id, type: 'mascot', message: msg });
   }
 }
 
@@ -848,8 +876,10 @@ async function handleDeleteLogoPack(data: { id: string }) {
     figma.notify('Logo pack deleted successfully');
     rpc.send('logo-pack-deleted', { id: data.id });
   } catch (error) {
+    const msg = getErrorMessage(error);
     handleError(error, 'delete-logo-pack');
-    rpc.send('delete-failed', { id: data.id, type: 'logo-pack' });
+    figma.notify(`Delete failed: ${msg}`, { error: true });
+    rpc.send('delete-failed', { id: data.id, type: 'logo-pack', message: msg });
   }
 }
 
@@ -865,8 +895,10 @@ async function handleDeletePose(data: { id: string }) {
     figma.notify('Pose deleted successfully');
     rpc.send('pose-deleted', { id: data.id });
   } catch (error) {
+    const msg = getErrorMessage(error);
     handleError(error, 'delete-pose');
-    rpc.send('delete-failed', { id: data.id, type: 'pose' });
+    figma.notify(`Delete failed: ${msg}`, { error: true });
+    rpc.send('delete-failed', { id: data.id, type: 'pose', message: msg });
   }
 }
 

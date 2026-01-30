@@ -36,6 +36,23 @@ export const App: React.FC = () => {
   }
   const rpc = rpcRef.current;
 
+  // Request animations/logos only once per mascot per session (persists across tab switches)
+  const requestedAnimationMascotIds = useRef<Set<string>>(new Set());
+  const requestedLogoMascotIds = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (activeTab !== 'gallery' || mascots.length === 0) return;
+    for (const mascot of mascots) {
+      if (mascot.id && !requestedAnimationMascotIds.current.has(mascot.id)) {
+        requestedAnimationMascotIds.current.add(mascot.id);
+        rpc.send('get-mascot-animations', { mascotId: mascot.id });
+      }
+      if (mascot.id && !requestedLogoMascotIds.current.has(mascot.id)) {
+        requestedLogoMascotIds.current.add(mascot.id);
+        rpc.send('get-mascot-logos', { mascotId: mascot.id });
+      }
+    }
+  }, [activeTab, mascots, rpc]);
+
   useEffect(() => {
     console.log('[Mascot] App component mounted');
     
@@ -89,6 +106,13 @@ export const App: React.FC = () => {
     rpc.on('pose-generated', () => {});
     rpc.on('pose-status-update', () => {});
 
+    // Animation created: refetch animations for that mascot so Gallery shows the new item (and no "No handlers registered")
+    rpc.on('animation-generated', (data: { animation: any }) => {
+      if (data?.animation?.mascotId) {
+        rpc.send('get-mascot-animations', { mascotId: data.animation.mascotId });
+      }
+    });
+
     rpc.on('mascots-loaded', (data: { mascots: any[] }) => {
       console.log('[App] ===== MASCOTS-LOADED EVENT RECEIVED =====');
       console.log('[App] Data received:', data);
@@ -125,7 +149,7 @@ export const App: React.FC = () => {
         // Also add all variations to mascots list immediately
         setMascots((prev) => {
           const newMascots = [...prev];
-          data.variations.forEach((variation) => {
+          (data.variations ?? []).forEach((variation) => {
             const exists = newMascots.some(m => m.id === variation.id);
             if (!exists) {
               newMascots.push(variation);

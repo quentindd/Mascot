@@ -104,9 +104,9 @@ export class MascotGenerationProcessor extends WorkerHost {
       // Remove background + white outline (same util as Poses, with outline erosion for create)
       this.logger.log('Removing background from generated image...');
       imageBuffer = await removeBackground(imageBuffer, {
-        aggressive: true,
+        aggressive: false, // preserve fur/hair edges
         eraseSemiTransparentBorder: true,
-        borderAlphaThreshold: 160,
+        borderAlphaThreshold: 100, // only clear halo, not semi-transparent fur
         eraseWhiteOutline: true,
       });
       this.logger.log('Background removal completed');

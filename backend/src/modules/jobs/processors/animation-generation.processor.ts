@@ -4,8 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AnimationJob, AnimationStatus, AnimationAction } from '../../../entities/animation-job.entity';
 import { Mascot } from '../../../entities/mascot.entity';
-import { GeminiFlashService } from '../../ai/gemini-flash.service';
-import { RunwayService } from '../../ai/runway.service';
+import { ReplicateService } from '../../ai/replicate.service';
 import { StorageService } from '../../storage/storage.service';
 import { Logger } from '@nestjs/common';
 import * as sharp from 'sharp';
@@ -24,15 +23,15 @@ export class AnimationGenerationProcessor extends WorkerHost {
     private animationRepository: Repository<AnimationJob>,
     @InjectRepository(Mascot)
     private mascotRepository: Repository<Mascot>,
-    private geminiFlashService: GeminiFlashService,
-    private runwayService: RunwayService,
+    private replicateService: ReplicateService,
     private storageService: StorageService,
   ) {
     super();
   }
 
   async process(job: Job<any, any, string>): Promise<any> {
-    const { animationId, mascotId, action, resolution, customAction } = job.data;
+    const { animationId, mascotId, action, customAction } = job.data;
+    const resolution = 720; // Fixed 720p 16:9 for all providers
 
     this.logger.log(`[AnimationGenerationProcessor] Starting animation generation: ${animationId} for mascot ${mascotId}, action: ${action}`);
 
@@ -58,128 +57,79 @@ export class AnimationGenerationProcessor extends WorkerHost {
       const timestamp = Date.now();
       const fps = 12;
       const frameCount = 12;
-      // Duration depends on method: Runway = 2s, Gemini Flash = 1s
-      let durationMs = 1000; // Will be updated based on actual generation
+      let durationMs = 4000; // Veo = 4s
 
-      // Try Runway first (better quality, faster, no FFmpeg needed)
       let webmVideoUrl: string | null = null;
       let movVideoUrl: string | null = null;
       let spriteSheetUrl: string | null = null;
       let lottieUrl: string | null = null;
       let frameUrls: string[] = [];
 
-      if (this.runwayService.isAvailable()) {
-        try {
-          this.logger.log(`[AnimationGenerationProcessor] Using Runway ML for video generation...`);
-          
-          // Build animation prompt
-          const animationPrompt = this.getAnimationPrompt(action, customAction, mascot);
-          
-          // Generate video directly with Runway
-          // Note: Runway minimum duration is 2 seconds (better for loops anyway)
-          const videoBuffer = await this.runwayService.generateVideo({
-            imageUrl: mascotImageUrl,
-            prompt: animationPrompt,
-            duration: 2, // Runway minimum is 2s, which is better for smooth loops
-            fps: fps,
-            resolution: resolution,
-            alpha: true,
-          });
-
-          this.logger.log(`[AnimationGenerationProcessor] Runway video generated: ${videoBuffer.length} bytes`);
-          
-          // Update duration (Runway generates 2 seconds)
-          durationMs = 2000;
-
-          // Upload video (Runway returns MOV with alpha by default)
-          const movKey = `animations/${animationId}/animation-${timestamp}.mov`;
-          movVideoUrl = await this.storageService.uploadVideo(movKey, videoBuffer, 'mov');
-          this.logger.log(`[AnimationGenerationProcessor] MOV video uploaded: ${movVideoUrl}`);
-
-          // Convert MOV to WebM with FFmpeg (if available)
-          try {
-            webmVideoUrl = await this.convertMOVToWebM(videoBuffer, animationId, timestamp);
-            this.logger.log(`[AnimationGenerationProcessor] WebM video converted: ${webmVideoUrl}`);
-          } catch (convertError) {
-            this.logger.warn(`[AnimationGenerationProcessor] WebM conversion failed (non-critical):`, convertError);
-            // Continue without WebM - MOV works on Safari/iOS
-          }
-
-          // Extract frames from video for sprite sheet and Lottie (optional)
-          try {
-            const frames = await this.extractFramesFromVideo(videoBuffer, frameCount);
-            if (frames.length > 0) {
-              // Generate sprite sheet
-              spriteSheetUrl = await this.generateSpriteSheetFromFrames(frames, resolution, animationId, timestamp);
-              
-              // Generate Lottie
-              for (let i = 0; i < frames.length; i++) {
-                const frameKey = `animations/${animationId}/frame-${i + 1}-${timestamp}.png`;
-                const frameUrl = await this.storageService.uploadImage(frameKey, frames[i]);
-                frameUrls.push(frameUrl);
-              }
-              
-              const lottieJson = this.generateLottieJson(frameUrls, resolution, frames.length);
-              const lottieJsonBuffer = Buffer.from(JSON.stringify(lottieJson, null, 2), 'utf-8');
-              const lottieKey = `animations/${animationId}/animation-${timestamp}.json`;
-              lottieUrl = await this.storageService.uploadFile(lottieKey, lottieJsonBuffer, 'application/json');
-            }
-          } catch (frameError) {
-            this.logger.warn(`[AnimationGenerationProcessor] Frame extraction failed (non-critical):`, frameError);
-            // Continue without sprite sheet/Lottie - videos are the main output
-          }
-
-        } catch (runwayError) {
-          this.logger.warn(`[AnimationGenerationProcessor] Runway generation failed, falling back to Gemini Flash:`, runwayError);
-          // Fall through to Gemini Flash fallback
-        }
+      if (!this.replicateService.isAvailable()) {
+        throw new Error(
+          'Animation requires Replicate (Veo). Set REPLICATE_API_TOKEN in your environment.',
+        );
       }
 
-      // Fallback to Gemini Flash (frame-by-frame generation)
-      if (!webmVideoUrl && !movVideoUrl) {
-        this.logger.log(`[AnimationGenerationProcessor] Using Gemini Flash fallback (frame-by-frame)...`);
-        
-        if (!this.geminiFlashService.isAvailable()) {
-          throw new Error('Neither Runway ML nor Gemini Flash is available. Please configure at least one service.');
+      this.logger.log(`[AnimationGenerationProcessor] Using Replicate Veo 3.1 Fast (only provider)...`);
+      const animationPrompt = this.getAnimationPrompt(action, customAction, mascot) + ' seamless infinite loop';
+      const { buffer: videoBuffer, predictionUrl: replicatePredictionUrl } =
+        await this.replicateService.generateVideoVeo({
+          imageUrl: mascotImageUrl,
+          prompt: animationPrompt,
+          duration: 4,
+          resolution: '720p',
+          aspectRatio: '16:9',
+          generateAudio: false,
+        });
+      if (replicatePredictionUrl) {
+        this.logger.log(`[AnimationGenerationProcessor] Replicate run: ${replicatePredictionUrl}`);
+      }
+      this.logger.log(`[AnimationGenerationProcessor] Veo video generated: ${videoBuffer.length} bytes`);
+
+      const ext = 'mp4';
+      const movKey = `animations/${animationId}/animation-${timestamp}.${ext}`;
+      movVideoUrl = await this.storageService.uploadVideo(movKey, videoBuffer, ext);
+      this.logger.log(`[AnimationGenerationProcessor] Primary video uploaded: ${movVideoUrl}`);
+
+      try {
+        webmVideoUrl = await this.convertMP4ToWebM(videoBuffer, animationId, timestamp);
+        this.logger.log(`[AnimationGenerationProcessor] WebM converted: ${webmVideoUrl}`);
+      } catch (convertError) {
+        this.logger.warn(`[AnimationGenerationProcessor] WebM conversion failed (non-critical):`, convertError);
+      }
+
+      try {
+        const frames = await this.extractFramesFromVideo(videoBuffer, frameCount);
+        if (frames.length > 0) {
+          spriteSheetUrl = await this.generateSpriteSheetFromFrames(frames, resolution, animationId, timestamp);
+          for (let i = 0; i < frames.length; i++) {
+            const frameKey = `animations/${animationId}/frame-${i + 1}-${timestamp}.png`;
+            frameUrls.push(await this.storageService.uploadImage(frameKey, frames[i]));
+          }
+          const lottieJson = this.generateLottieJson(frameUrls, resolution, frames.length);
+          const lottieKey = `animations/${animationId}/animation-${timestamp}.json`;
+          lottieUrl = await this.storageService.uploadFile(
+            lottieKey,
+            Buffer.from(JSON.stringify(lottieJson, null, 2), 'utf-8'),
+            'application/json',
+          );
         }
+      } catch (frameError) {
+        this.logger.warn(`[AnimationGenerationProcessor] Frame extraction failed (non-critical):`, frameError);
+      }
 
-        // Generate animation frames (12 frames for smooth animation)
-        const frames = await this.generateAnimationFrames(
-          mascot,
-          action,
-          customAction,
-          resolution,
-          frameCount,
-        );
-
-        this.logger.log(`[AnimationGenerationProcessor] Generated ${frames.length} frames, assembling sprite sheet and Lottie...`);
-
-        // Assemble sprite sheet
-        const spriteSheet = await this.assembleSpriteSheet(frames, resolution, frameCount);
-
-        // Upload sprite sheet
-        const spriteSheetKey = `animations/${animationId}/sprite-sheet-${timestamp}.png`;
-        spriteSheetUrl = await this.storageService.uploadImage(spriteSheetKey, spriteSheet);
-
-        // Upload individual frames for Lottie
-        for (let i = 0; i < frames.length; i++) {
-          const frameKey = `animations/${animationId}/frame-${i + 1}-${timestamp}.png`;
-          const frameUrl = await this.storageService.uploadImage(frameKey, frames[i]);
-          frameUrls.push(frameUrl);
-        }
-
-        // Generate Lottie JSON
-        const lottieJson = this.generateLottieJson(frameUrls, resolution, frames.length);
-        const lottieJsonBuffer = Buffer.from(JSON.stringify(lottieJson, null, 2), 'utf-8');
-        const lottieKey = `animations/${animationId}/animation-${timestamp}.json`;
-        lottieUrl = await this.storageService.uploadFile(lottieKey, lottieJsonBuffer, 'application/json');
-
-        // Generate transparent videos with FFmpeg
+      // Fallback: ensure at least one frame URL for Figma (avoids "Image is too large" when sprite sheet is huge)
+      if (frameUrls.length === 0) {
         try {
-          webmVideoUrl = await this.generateWebMVideo(frames, resolution, frameCount, animationId, timestamp);
-          movVideoUrl = await this.generateMOVVideo(frames, resolution, frameCount, animationId, timestamp);
-        } catch (videoError) {
-          this.logger.warn(`[AnimationGenerationProcessor] Video generation failed (non-critical):`, videoError);
+          const firstFrames = await this.extractFramesFromVideo(videoBuffer, 1);
+          if (firstFrames.length > 0) {
+            const firstFrameKey = `animations/${animationId}/frame-1-${timestamp}.png`;
+            frameUrls.push(await this.storageService.uploadImage(firstFrameKey, firstFrames[0]));
+            this.logger.log(`[AnimationGenerationProcessor] Uploaded fallback first frame for Figma`);
+          }
+        } catch (firstFrameError) {
+          this.logger.warn(`[AnimationGenerationProcessor] Fallback first-frame extraction failed:`, firstFrameError);
         }
       }
 
@@ -198,8 +148,10 @@ export class AnimationGenerationProcessor extends WorkerHost {
           customAction,
           resolution,
           fps,
-          model: 'gemini-2.5-flash-image',
-          frameUrls, // Store frame URLs in metadata for reference
+          model: 'google/veo-3.1-fast',
+          frameUrls,
+          replicatePredictionUrl, // Link to view run in your Replicate dashboard (same token = same account)
+          // Veo 3.1 Fast ~0.4¢/video; credit pricing in app TBD
         } as Record<string, any>,
       });
 
@@ -224,68 +176,18 @@ export class AnimationGenerationProcessor extends WorkerHost {
   }
 
   /**
-   * Generate animation frames with different poses based on action
+   * Legacy: frame-by-frame generation (Gemini). Not used; animation uses Replicate Veo 3.1 Fast only.
    */
   private async generateAnimationFrames(
-    mascot: Mascot,
-    action: AnimationAction,
-    customAction: string | null,
-    resolution: number,
-    frameCount: number,
+    _mascot: Mascot,
+    _action: AnimationAction,
+    _customAction: string | null,
+    _resolution: number,
+    _frameCount: number,
   ): Promise<Buffer[]> {
-    const actionPrompts = this.getActionPrompts(action, customAction, frameCount);
-    const mascotDetails = mascot.prompt || mascot.metadata?.mascotDetails || '';
-    const style = mascot.style || 'cartoon';
-    const personality = mascot.personality || 'friendly';
-    const bodyParts = mascot.accessories || [];
-    const brandColors = mascot.brandColors;
-
-    const frames: Buffer[] = [];
-
-    for (let i = 0; i < frameCount; i++) {
-      const posePrompt = actionPrompts[i];
-      const fullPrompt = `${mascotDetails}, ${posePrompt}`;
-
-      this.logger.log(`[AnimationGenerationProcessor] Generating frame ${i + 1}/${frameCount} with pose: ${posePrompt.substring(0, 50)}...`);
-
-      try {
-        const frameBuffer = await this.geminiFlashService.generateImage({
-          mascotDetails: fullPrompt,
-          type: mascot.type || 'auto',
-          style: style as string,
-          personality: personality as string,
-          bodyParts: bodyParts as string[],
-          color: brandColors?.primary,
-          negativePrompt: mascot.negativePrompt || '',
-          aspectRatio: '1:1',
-          seed: Date.now() + i, // Different seed for each frame
-        });
-
-        // Resize frame to resolution
-        const resizedFrame = await sharp(frameBuffer)
-          .ensureAlpha()
-          .resize(resolution, resolution, {
-            fit: 'contain',
-            background: { r: 0, g: 0, b: 0, alpha: 0 },
-            withoutEnlargement: true,
-          })
-          .png({ compressionLevel: 9, quality: 100, force: true })
-          .toBuffer();
-
-        frames.push(resizedFrame);
-        this.logger.log(`[AnimationGenerationProcessor] Frame ${i + 1}/${frameCount} generated successfully`);
-      } catch (error) {
-        this.logger.error(`[AnimationGenerationProcessor] Failed to generate frame ${i + 1}:`, error);
-        // Continue with other frames - we'll use what we have
-      }
-    }
-
-    if (frames.length === 0) {
-      throw new Error('Failed to generate any animation frames');
-    }
-
-    this.logger.log(`[AnimationGenerationProcessor] Successfully generated ${frames.length}/${frameCount} frames`);
-    return frames;
+    throw new Error(
+      'Animation uses Replicate Veo 3.1 Fast only (image-to-video). This legacy path is disabled.',
+    );
   }
 
   /**
@@ -710,7 +612,7 @@ export class AnimationGenerationProcessor extends WorkerHost {
   }
 
   /**
-   * Get animation prompt for Runway based on action
+   * Get animation prompt for Replicate Veo based on action
    */
   private getAnimationPrompt(action: AnimationAction, customAction: string | null, mascot: Mascot): string {
     const mascotDetails = mascot.prompt || mascot.metadata?.mascotDetails || '';
@@ -751,19 +653,38 @@ export class AnimationGenerationProcessor extends WorkerHost {
     animationId: string,
     timestamp: number,
   ): Promise<string> {
+    return this.convertVideoToWebM(movBuffer, animationId, timestamp, 'input.mov');
+  }
+
+  /**
+   * Convert MP4 (e.g. from Veo) to WebM VP9
+   */
+  private async convertMP4ToWebM(
+    mp4Buffer: Buffer,
+    animationId: string,
+    timestamp: number,
+  ): Promise<string> {
+    return this.convertVideoToWebM(mp4Buffer, animationId, timestamp, 'input.mp4');
+  }
+
+  private async convertVideoToWebM(
+    videoBuffer: Buffer,
+    animationId: string,
+    timestamp: number,
+    inputFileName: string,
+  ): Promise<string> {
     const tempDir = path.join(os.tmpdir(), `animation-${animationId}-${timestamp}`);
-    const movPath = path.join(tempDir, 'input.mov');
+    const inputPath = path.join(tempDir, inputFileName);
     const webmPath = path.join(tempDir, 'output.webm');
 
     try {
       if (!fs.existsSync(tempDir)) {
         fs.mkdirSync(tempDir, { recursive: true });
       }
-
-      fs.writeFileSync(movPath, movBuffer);
+      fs.writeFileSync(inputPath, videoBuffer);
 
       await new Promise<void>((resolve, reject) => {
-        ffmpeg(movPath)
+        ffmpeg(inputPath)
           .outputOptions([
             '-c:v libvpx-vp9',
             '-pix_fmt yuva420p',
@@ -780,7 +701,6 @@ export class AnimationGenerationProcessor extends WorkerHost {
       const webmBuffer = fs.readFileSync(webmPath);
       const webmKey = `animations/${animationId}/animation-${timestamp}.webm`;
       const webmUrl = await this.storageService.uploadVideo(webmKey, webmBuffer, 'webm');
-
       this.cleanupTempDirectory(tempDir);
       return webmUrl;
     } catch (error) {

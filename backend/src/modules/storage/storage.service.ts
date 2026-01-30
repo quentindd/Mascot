@@ -61,8 +61,9 @@ export class StorageService {
     return this.uploadFile(key, imageBuffer, 'image/png');
   }
 
-  async uploadVideo(key: string, videoBuffer: Buffer, format: 'webm' | 'mov'): Promise<string> {
-    const contentType = format === 'webm' ? 'video/webm' : 'video/quicktime';
+  async uploadVideo(key: string, videoBuffer: Buffer, format: 'webm' | 'mov' | 'mp4'): Promise<string> {
+    const contentType =
+      format === 'webm' ? 'video/webm' : format === 'mp4' ? 'video/mp4' : 'video/quicktime';
     return this.uploadFile(key, videoBuffer, contentType);
   }
 

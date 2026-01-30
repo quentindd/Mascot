@@ -30,7 +30,14 @@ export class JobsService {
   }
 
   async enqueueAnimationGeneration(animationId: string, mascotId: string, data: any) {
-    await this.animationQueue.add('generate', { animationId, mascotId, ...data });
+    try {
+      await this.animationQueue.add('generate', { animationId, mascotId, ...data });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `Animation queue unavailable. Check Redis (REDIS_URL or REDIS_HOST) on the server. ${msg}`,
+      );
+    }
   }
 
   async enqueueLogoPackGeneration(logoPackId: string, mascotId: string, data: any) {

@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AnimationJob, AnimationStatus } from '../../entities/animation-job.entity';
 import { CreateAnimationDto } from './dto/create-animation.dto';
+import { ReplicateService } from '../ai/replicate.service';
 import { CreditsService } from '../credits/credits.service';
 import { JobsService } from '../jobs/jobs.service';
 import { StorageService } from '../storage/storage.service';
@@ -12,12 +13,20 @@ export class AnimationsService {
   constructor(
     @InjectRepository(AnimationJob)
     private animationRepository: Repository<AnimationJob>,
+    private replicateService: ReplicateService,
     private creditsService: CreditsService,
     private jobsService: JobsService,
     private storageService: StorageService,
   ) {}
 
   async create(mascotId: string, dto: CreateAnimationDto, userId: string) {
+    // Animations use Replicate Veo 3.1 Fast only
+    if (!this.replicateService.isAvailable()) {
+      throw new BadRequestException(
+        'Animation generation requires Replicate (Veo 3.1 Fast). Set REPLICATE_API_TOKEN in your environment.',
+      );
+    }
+
     // Animations are free (no credit check). Re-enable: checkAndReserveCredits(userId, 25) then throw if !hasCredits
 
     const animation = this.animationRepository.create({
@@ -25,13 +34,21 @@ export class AnimationsService {
       createdById: userId,
       action: dto.action,
       customAction: dto.customAction,
-      resolution: dto.resolution || 360,
+      resolution: 720, // Fixed 720p 16:9 (Veo); column kept for DB compatibility
       status: AnimationStatus.PENDING,
     });
 
     const saved = await this.animationRepository.save(animation);
-    await this.jobsService.enqueueAnimationGeneration(saved.id, mascotId, dto);
-
+    try {
+      await this.jobsService.enqueueAnimationGeneration(saved.id, mascotId, dto);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new BadRequestException(
+        msg.includes('Redis') || msg.includes('queue')
+          ? msg
+          : `Failed to enqueue animation. ${msg}`,
+      );
+    }
     return saved;
   }
 

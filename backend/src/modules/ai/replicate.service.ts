@@ -5,6 +5,8 @@ import axios from 'axios';
 const DEFAULT_POSE_MODEL = 'prunaai/flux-kontext-fast';
 const REPLICATE_API = 'https://api.replicate.com/v1';
 const REMBG_MODEL = 'cjwbw/rembg';
+/** Video animation: image-to-video (Replicate), 4s, 16:9 720p, ~0.4¢/video. Model: https://replicate.com/google/veo-3.1-fast */
+const VEO_FAST_MODEL = 'google/veo-3.1-fast';
 
 /** Kontext (BFL): input_image + prompt. */
 const KONTEXT_BFL_MODELS = ['black-forest-labs/flux-kontext-pro', 'black-forest-labs/flux-kontext-dev'];
@@ -75,6 +77,97 @@ export class ReplicateService {
       if (axios.isAxiosError(err)) {
         const msg = err.response?.data?.detail ?? err.message ?? 'Unknown error';
         throw new Error(`Replicate rembg failed: ${msg}`);
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Generate a short video from a single image (first frame = same as input) via Veo 3.1 Fast.
+   * Used for mascot animations: 4s, 16:9 720p, no audio, prompt should include "seamless infinite loop".
+   * Cost ~0.4¢/video on Replicate.
+   * Returns buffer and predictionUrl so the run appears in your Replicate dashboard (same token = same account).
+   */
+  async generateVideoVeo(options: {
+    imageUrl: string;
+    prompt: string;
+    duration?: number;
+    resolution?: '720p' | '1080p';
+    aspectRatio?: '16:9' | '9:16';
+    generateAudio?: boolean;
+  }): Promise<{ buffer: Buffer; predictionUrl?: string }> {
+    if (!this.token) {
+      throw new Error('REPLICATE_API_TOKEN is not set. Cannot use Replicate for video (Veo).');
+    }
+
+    const {
+      imageUrl,
+      prompt,
+      duration = 4,
+      resolution = '720p',
+      aspectRatio = '16:9',
+      generateAudio = false,
+    } = options;
+
+    try {
+      this.logger.log(`[Replicate] Veo 3.1 Fast: generating video (${duration}s, ${resolution}, ${aspectRatio})...`);
+      const version = await this.getModelVersion(VEO_FAST_MODEL);
+
+      const input: Record<string, unknown> = {
+        image: imageUrl,
+        prompt,
+        duration: Math.min(Math.max(duration, 4), 8),
+        resolution,
+        generate_audio: generateAudio,
+      };
+      if (aspectRatio) {
+        input.aspect_ratio = aspectRatio;
+      }
+
+      const createRes = await axios.post(
+        `${REPLICATE_API}/predictions`,
+        { version, input },
+        {
+          headers: {
+            Authorization: `Bearer ${this.token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 15000,
+        },
+      );
+
+      const predictionId = createRes.data?.id;
+      const predictionWebUrl = createRes.data?.urls?.web as string | undefined;
+      if (!predictionId) throw new Error('Replicate API did not return prediction id for Veo');
+      if (predictionWebUrl) {
+        this.logger.log(`[Replicate] Veo prediction (view in your dashboard): ${predictionWebUrl}`);
+      }
+
+      const output = await this.waitForPrediction(predictionId, 300000);
+      const videoUrl = this.extractOutputUrl(output);
+      if (!videoUrl) throw new Error('Replicate Veo did not return a video URL');
+
+      this.logger.log('[Replicate] Downloading Veo video');
+      const videoResponse = await axios.get<ArrayBuffer>(videoUrl, {
+        responseType: 'arraybuffer',
+        timeout: 60000,
+      });
+      const buffer = Buffer.from(videoResponse.data);
+      return { buffer, predictionUrl: predictionWebUrl };
+    } catch (err: any) {
+      if (axios.isAxiosError(err)) {
+        const status = err.response?.status;
+        const msg = err.response?.data?.detail ?? err.message ?? 'Unknown error';
+        if (status === 401) {
+          throw new Error('Invalid REPLICATE_API_TOKEN. Get a token at replicate.com/account/api-tokens');
+        }
+        if (status === 403) {
+          throw new Error('Replicate API access denied (403). Check your REPLICATE_API_TOKEN.');
+        }
+        if (status === 404) {
+          throw new Error('Replicate Veo model not found. Check REPLICATE_API_TOKEN.');
+        }
+        throw new Error(`Replicate Veo API error (${String(status ?? 'network')}): ${msg}`);
       }
       throw err;
     }

@@ -94,11 +94,11 @@ export class PoseGenerationProcessor extends WorkerHost {
       try {
         imageBuffer = await this.replicateService.removeBackgroundReplicate(imageBuffer);
         this.logger.log('Background removal (rembg) completed');
-        // Cleanup: remove edge gray/dark + glow/halo + white outline (border-only)
+        // Cleanup: remove any remaining gray/dark bg (Replicate often leaves some) + halo; keep aggressive for poses so bg is fully removed
         imageBuffer = await removeBackground(imageBuffer, {
           aggressive: true,
           eraseSemiTransparentBorder: true,
-          borderAlphaThreshold: 160,
+          borderAlphaThreshold: 100,
           eraseWhiteOutline: true,
         });
       } catch (rembgErr) {
@@ -106,7 +106,7 @@ export class PoseGenerationProcessor extends WorkerHost {
         imageBuffer = await removeBackground(imageBuffer, {
           aggressive: true,
           eraseSemiTransparentBorder: true,
-          borderAlphaThreshold: 160,
+          borderAlphaThreshold: 100,
           eraseWhiteOutline: true,
         });
       }

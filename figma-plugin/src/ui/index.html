@@ -58,8 +58,17 @@
           return false;
         }
         
-        // Log other errors
-        console.error('[Mascot] Script error:', e.message, e.filename, e.lineno);
+        // Log other errors (message/filename/lineno may be undefined for cross-origin errors)
+        var msg = (e && (e.message || e.type)) ? String(e.message || e.type) : 'unknown';
+        var loc = (e && (e.filename || e.lineno != null)) ? [e.filename || '', e.lineno].filter(Boolean).join(':') : '';
+        console.error('[Mascot] Script error:', msg, loc || '');
+        if (e.error && typeof e.error === 'object') {
+          console.error('[Mascot] Error object:', e.error);
+          if (e.error.stack) console.error('[Mascot] Stack:', e.error.stack);
+        }
+        if (msg === 'Script error' || msg === 'error') {
+          console.warn('[Mascot] Possibly cross-origin; enable "Disable cross-origin restrictions" in Figma plugin devtools for details.');
+        }
       }, true); // Use capture phase to catch errors early
       
       window.addEventListener('unhandledrejection', function(e) {
@@ -69,6 +78,9 @@
           return;
         }
         console.error('[Mascot] Unhandled promise rejection:', e.reason);
+        if (e.reason && typeof e.reason === 'object' && e.reason.stack) {
+          console.error('[Mascot] Rejection stack:', e.reason.stack);
+        }
       });
       
       // Force script execution after a small delay to ensure DOM is ready

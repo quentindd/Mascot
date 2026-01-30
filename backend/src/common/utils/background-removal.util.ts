@@ -73,8 +73,8 @@ export async function removeBackground(
     const isBackgroundLike = (r: number, g: number, b: number, alpha?: number): boolean => {
       if (alpha !== undefined && alpha < 30) return true;
       if (eraseSemiTransparentBorder && alpha !== undefined && alpha < borderAlphaThreshold) return true;
-      // Always remove near-white at border (fixes white outline even when corners aren't white).
-      if (r >= 248 && g >= 248 && b >= 248) return true;
+      // Remove near-white at border only when background is actually light (avoids cropping white/cream fur).
+      if (isLightBg && r >= 248 && g >= 248 && b >= 248) return true;
       const brightness = (r + g + b) / 3;
       if (isLightBg && r > lightThreshold && g > lightThreshold && b > lightThreshold) return true;
       if (isLightBg && Math.abs(brightness - avgBrightness) < colorTolerance) return true;
@@ -124,32 +124,29 @@ export async function removeBackground(
       }
     }
 
-    // Optional: erode semi-transparent white pixels adjacent to transparent (removes white outline).
+    // Optional: erode only clear halo (very transparent + very white) next to transparent, to avoid cropping fur/hair.
     if (eraseWhiteOutline) {
-      const getA = (i: number) => (i >= 0 && i < pixels.length ? pixels[i + 3] : 255);
       const getBrightness = (i: number) =>
         i >= 0 && i < pixels.length ? (pixels[i] + pixels[i + 1] + pixels[i + 2]) / 3 : 0;
-      for (let pass = 0; pass < 2; pass++) {
-        const toErode = new Uint8Array(width * height);
-        for (let y = 1; y < height - 1; y++) {
-          for (let x = 1; x < width - 1; x++) {
-            const i = (y * width + x) * channels;
-            const a = pixels[i + 3];
-            if (a < 10 || a > 215) continue;
-            const brightness = getBrightness(i);
-            if (brightness < 230) continue;
-            const idx = y * width + x;
-            const hasTransparentNeighbor =
-              pixels[getIdx(x - 1, y) + 3] < 10 ||
-              pixels[getIdx(x + 1, y) + 3] < 10 ||
-              pixels[getIdx(x, y - 1) + 3] < 10 ||
-              pixels[getIdx(x, y + 1) + 3] < 10;
-            if (hasTransparentNeighbor) toErode[idx] = 1;
-          }
+      const toErode = new Uint8Array(width * height);
+      for (let y = 1; y < height - 1; y++) {
+        for (let x = 1; x < width - 1; x++) {
+          const i = (y * width + x) * channels;
+          const a = pixels[i + 3];
+          if (a >= 80) continue; // keep semi-transparent fur/hair (alpha 80+)
+          if (a < 10) continue; // already transparent
+          const brightness = getBrightness(i);
+          if (brightness < 248) continue; // only very white halo
+          const hasTransparentNeighbor =
+            pixels[getIdx(x - 1, y) + 3] < 10 ||
+            pixels[getIdx(x + 1, y) + 3] < 10 ||
+            pixels[getIdx(x, y - 1) + 3] < 10 ||
+            pixels[getIdx(x, y + 1) + 3] < 10;
+          if (hasTransparentNeighbor) toErode[(y * width + x)] = 1;
         }
-        for (let i = 0; i < pixels.length; i += channels) {
-          if (toErode[i / channels]) pixels[i + 3] = 0;
-        }
+      }
+      for (let i = 0; i < pixels.length; i += channels) {
+        if (toErode[i / channels]) pixels[i + 3] = 0;
       }
     }
 

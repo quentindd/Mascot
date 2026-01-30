@@ -87,6 +87,12 @@ figma.ui.onmessage = async (msg) => {
         }
         break;
 
+      case 'open-url':
+        if (msg.data && msg.data.url) {
+          figma.openExternal(msg.data.url);
+        }
+        break;
+
       case 'generate-mascot':
         await handleGenerateMascot(msg.data);
         break;
@@ -245,7 +251,6 @@ async function handleAutoFill(data: { url: string }) {
 async function handleGenerateAnimation(data: {
   mascotId: string;
   action: string;
-  resolution?: number;
 }) {
   // Demo mode: show message
   if (!apiClient) {
@@ -273,7 +278,6 @@ async function handleGenerateAnimation(data: {
   try {
     const animation = await apiClient.createAnimation(data.mascotId, {
       action: data.action,
-      resolution: data.resolution,
       figmaFileId,
     });
 
@@ -282,10 +286,10 @@ async function handleGenerateAnimation(data: {
     // Poll for completion
     pollAnimationStatus(animation.id);
   } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Unknown error';
     handleError(error, 'generate-animation');
-    rpc.send('animation-generation-failed', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
+    rpc.send('animation-generation-failed', { error: msg });
+    figma.notify(`Animation failed: ${msg}`, { error: true });
   }
 }
 
@@ -308,6 +312,7 @@ async function pollAnimationStatus(animationId: string) {
         animationId,
         status: status.status,
         progress: status.progress,
+        errorMessage: status.errorMessage,
       });
 
       if (status.status === 'completed') {
@@ -319,9 +324,9 @@ async function pollAnimationStatus(animationId: string) {
           // Could insert frames here if needed
         }
       } else if (status.status === 'failed') {
-        rpc.send('animation-generation-failed', {
-          error: status.errorMessage || 'Generation failed',
-        });
+        const errMsg = status.errorMessage || 'Generation failed';
+        rpc.send('animation-generation-failed', { error: errMsg });
+        figma.notify(`Animation failed: ${errMsg}`, { error: true });
       } else {
         // Still processing, poll again
         setTimeout(poll, 5000); // Poll every 5 seconds
@@ -394,7 +399,7 @@ async function pollPoseStatus(poseId: string) {
         const pose = await apiClient!.getPose(poseId);
         try {
           const imageDataUrl = await apiClient!.getPoseImageDataUrl(poseId);
-          rpc.send('pose-completed', { pose: { ...pose, imageDataUrl } });
+          rpc.send('pose-completed', { pose: Object.assign({}, pose, { imageDataUrl }) });
         } catch (imgErr) {
           rpc.send('pose-completed', { pose });
         }
@@ -522,38 +527,41 @@ async function handleInsertAnimation(data: { animationId: string; animation: any
     let imageUrl: string | null = null;
     let name = `Animation: ${animation.action || 'animation'}`;
 
-    // Priority: sprite sheet > first frame from metadata > placeholder
-    if (animation.spriteSheetUrl) {
-      imageUrl = animation.spriteSheetUrl;
-      name = `${animation.action || 'Animation'} - Sprite Sheet`;
-      console.log('[Mascot Code] Using sprite sheet for animation');
-    } else if (animation.metadata && animation.metadata.frameUrls && animation.metadata.frameUrls.length > 0) {
-      // Use first frame if sprite sheet not available
+    // Use only first frame (small). Do NOT use sprite sheet — it often exceeds Figma's image size limit.
+    const hasFrame = animation.metadata && animation.metadata.frameUrls && animation.metadata.frameUrls.length > 0;
+    if (hasFrame) {
       imageUrl = animation.metadata.frameUrls[0];
       name = `${animation.action || 'Animation'} - Frame 1`;
-      console.log('[Mascot Code] Using first frame for animation');
+      console.log('[Mascot Code] Using first frame for animation (fits Figma limit)');
     } else {
-      throw new Error('Animation has no sprite sheet or frames available');
+      throw new Error('NO_PREVIEW_FRAME');
     }
 
     if (!imageUrl) {
       throw new Error('No image URL available for animation');
     }
 
-    // Insert the sprite sheet or first frame
     await insertImageFromUrl(imageUrl, name);
-    
-    // Also store animation metadata for reference
-    figma.notify(`✅ Animation "${animation.action}" inserted! (Sprite sheet)`);
+    figma.notify(`✅ Animation "${animation.action}" inserted!`);
     rpc.send('animation-inserted', { animationId: animation.id });
     
   } catch (error) {
     console.error('[Mascot Code] Failed to insert animation:', error);
+    const msg = error instanceof Error ? error.message : 'Unknown error';
     handleError(error, 'insert-animation');
+    const isNoFrame = msg === 'NO_PREVIEW_FRAME';
+    const isTooLarge = msg && String(msg).toLowerCase().includes('too large');
+    const userMessage = isNoFrame
+      ? "No preview image for this animation. Use Download MP4 or WebM below."
+      : isTooLarge
+        ? "Animation image is too large for Figma. Use Download MP4 or WebM below."
+        : `Insert failed. Use Download MP4 or WebM below. (${msg})`;
     rpc.send('error', {
-      message: `Failed to insert animation: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      message: userMessage,
+      context: 'insert-animation',
+      isImageTooLarge: isTooLarge,
     });
-    figma.notify(`Failed to insert animation: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    figma.notify(userMessage);
   }
 }
 
@@ -686,7 +694,7 @@ async function handleGetMascots() {
     while (true) {
       const response = await apiClient.getMascots({ page, limit });
       const mascotsData = response.data || [];
-      allMascots.push(...mascotsData);
+      allMascots.push.apply(allMascots, mascotsData);
       
       console.log(`[Mascot Code] Fetched page ${page}:`, mascotsData.length, 'mascots');
       
@@ -748,6 +756,24 @@ async function handleGetMascotAnimations(data: { mascotId: string }) {
   }
 }
 
+async function handleDeleteAnimation(data: { animationId: string; id?: string }) {
+  if (!apiClient) {
+    rpc.send('error', { message: 'Not authenticated' });
+    return;
+  }
+  const animationId = data.animationId ?? data.id;
+  if (!animationId) return;
+  try {
+    await apiClient.deleteAnimation(animationId);
+    figma.notify('Animation deleted successfully');
+    rpc.send('animation-deleted', { animationId });
+  } catch (error) {
+    console.error('[Mascot Code] Error deleting animation:', error);
+    handleError(error, 'delete-animation');
+    rpc.send('error', { message: error instanceof Error ? error.message : 'Failed to delete animation' });
+  }
+}
+
 async function handleGetMascotLogos(data: { mascotId: string }) {
   if (!apiClient) {
     rpc.send('error', { message: 'Not authenticated' });
@@ -784,23 +810,6 @@ async function handleDeleteMascot(data: { id: string }) {
   } catch (error) {
     handleError(error, 'delete-mascot');
     rpc.send('delete-failed', { id: data.id, type: 'mascot' });
-  }
-}
-
-async function handleDeleteAnimation(data: { id: string }) {
-  if (!apiClient) {
-    rpc.send('error', { message: 'Not authenticated' });
-    return;
-  }
-
-  try {
-    console.log('[Mascot Code] Deleting animation:', data.id);
-    await apiClient.deleteAnimation(data.id);
-    figma.notify('Animation deleted successfully');
-    rpc.send('animation-deleted', { id: data.id });
-  } catch (error) {
-    handleError(error, 'delete-animation');
-    rpc.send('delete-failed', { id: data.id, type: 'animation' });
   }
 }
 

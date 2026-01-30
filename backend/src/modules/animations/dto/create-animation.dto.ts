@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsEnum, IsOptional, IsInt, Min, Max } from 'class-validator';
+import { IsString, IsEnum, IsOptional } from 'class-validator';
 import { AnimationAction } from '../../../entities/animation-job.entity';
 
 export class CreateAnimationDto {
@@ -17,17 +17,6 @@ export class CreateAnimationDto {
   @IsString()
   customAction?: string;
 
-  @ApiPropertyOptional({
-    description: 'Resolution in pixels',
-    enum: [128, 240, 360, 480, 720],
-    default: 360,
-  })
-  @IsOptional()
-  @IsInt()
-  @Min(128)
-  @Max(720)
-  resolution?: number = 360;
-
   @ApiPropertyOptional({ description: 'Figma file ID where this animation will be used' })
   @IsOptional()
   @IsString()
@@ -35,17 +24,6 @@ export class CreateAnimationDto {
 }
 
 export class GenerateDefaultAnimationsDto {
-  @ApiPropertyOptional({
-    description: 'Resolution in pixels',
-    enum: [128, 240, 360, 480, 720],
-    default: 360,
-  })
-  @IsOptional()
-  @IsInt()
-  @Min(128)
-  @Max(720)
-  resolution?: number = 360;
-
   @ApiPropertyOptional({ description: 'Figma file ID where animations will be used' })
   @IsOptional()
   @IsString()
@@ -58,7 +36,6 @@ export class AnimationJobResponseDto {
   action: AnimationAction;
   customAction: string | null;
   status: string;
-  resolution: number;
   spriteSheetUrl: string | null;
   webmVideoUrl: string | null;
   movVideoUrl: string | null;

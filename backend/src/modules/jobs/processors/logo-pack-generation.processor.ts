@@ -157,9 +157,9 @@ export class LogoPackGenerationProcessor extends WorkerHost {
     });
     this.logger.log('[LogoPack] Removing background from AI-generated logo...');
     generated = await removeBackground(generated, {
-      aggressive: true,
+      aggressive: false,
       eraseSemiTransparentBorder: true,
-      borderAlphaThreshold: 160,
+      borderAlphaThreshold: 100,
       eraseWhiteOutline: true,
     });
     return generated;

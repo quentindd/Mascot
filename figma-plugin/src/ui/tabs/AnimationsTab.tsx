@@ -28,7 +28,6 @@ export const AnimationsTab: React.FC<AnimationsTabProps> = ({
   mascots,
 }) => {
   const [action, setAction] = useState('wave');
-  const [resolution, setResolution] = useState(360);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -61,7 +60,6 @@ export const AnimationsTab: React.FC<AnimationsTabProps> = ({
     rpc.send('generate-animation', {
       mascotId: selectedMascot.id,
       action,
-      resolution,
     });
   };
 
@@ -104,12 +102,12 @@ export const AnimationsTab: React.FC<AnimationsTabProps> = ({
                   />
                 ) : (
                   <div className="mascot-selection-placeholder">
-                    {mascot.name.charAt(0).toUpperCase()}
+                    {(mascot.name && mascot.name.charAt(0)) ? mascot.name.charAt(0).toUpperCase() : '?'}
                   </div>
                 )}
               </div>
-              <div className="mascot-selection-info">
-                <div className="mascot-selection-name">{mascot.name}</div>
+                <div className="mascot-selection-info">
+                <div className="mascot-selection-name">{mascot.name ?? 'Unnamed'}</div>
                 <div className="mascot-selection-meta">{mascot.style || 'mascot'}</div>
               </div>
             </div>
@@ -170,20 +168,6 @@ export const AnimationsTab: React.FC<AnimationsTabProps> = ({
               {act.label}
             </option>
           ))}
-        </select>
-
-        <label className="label">Resolution</label>
-        <select
-          className="select"
-          value={resolution}
-          onChange={(e) => setResolution(Number(e.target.value))}
-          disabled={isGenerating}
-        >
-          <option value={128}>128px</option>
-          <option value={240}>240px</option>
-          <option value={360}>360px (Recommended)</option>
-          <option value={480}>480px</option>
-          <option value={720}>720px</option>
         </select>
 
         <button

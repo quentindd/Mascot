@@ -72,7 +72,6 @@ export interface AutoFillResponse {
 export interface CreateAnimationRequest {
   action: string;
   customAction?: string;
-  resolution?: number;
   figmaFileId?: string;
 }
 
@@ -81,7 +80,6 @@ export interface AnimationJobResponse {
   mascotId: string;
   action: string;
   status: string;
-  resolution: number;
   spriteSheetUrl: string | null;
   webmVideoUrl: string | null;
   movVideoUrl: string | null;
@@ -90,6 +88,7 @@ export interface AnimationJobResponse {
   durationMs: number | null;
   createdAt: string;
   updatedAt: string;
+  metadata?: { replicatePredictionUrl?: string; [key: string]: unknown };
 }
 
 export interface AnimationStatusResponse {
@@ -177,7 +176,10 @@ export class MascotAPI {
       const error = await response.json().catch(() => ({
         message: `HTTP ${response.status}: ${response.statusText}`,
       }));
-      throw new Error(error.message || 'API request failed');
+      const msg = error?.message;
+      const message =
+        typeof msg === 'string' ? msg : Array.isArray(msg) ? msg[0] : 'API request failed';
+      throw new Error(message || `HTTP ${response.status}`);
     }
 
     return response.json();

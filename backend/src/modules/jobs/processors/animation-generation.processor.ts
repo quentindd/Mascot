@@ -31,7 +31,7 @@ export class AnimationGenerationProcessor extends WorkerHost {
 
   async process(job: Job<any, any, string>): Promise<any> {
     const { animationId, mascotId, action, customAction } = job.data;
-    const resolution = 720; // Fixed 720p 16:9 for all providers
+    const resolution = 1080; // Fixed 1080p 16:9 for all providers
 
     this.logger.log(`[AnimationGenerationProcessor] Starting animation generation: ${animationId} for mascot ${mascotId}, action: ${action}`);
 
@@ -78,7 +78,7 @@ export class AnimationGenerationProcessor extends WorkerHost {
           imageUrl: mascotImageUrl,
           prompt: animationPrompt,
           duration: 4,
-          resolution: '720p',
+          resolution: '1080p',
           aspectRatio: '16:9',
           generateAudio: false,
         });
@@ -642,7 +642,7 @@ export class AnimationGenerationProcessor extends WorkerHost {
       actionDescription = actionMap[action] || 'animated movement';
     }
 
-    return `${mascotDetails}, ${actionDescription}, ${style} style, ${personality} personality, transparent background, smooth animation, loopable`;
+    return `${mascotDetails}, ${actionDescription}, ${style} style, ${personality} personality, pure white background, character on white only, no other background colors, smooth animation, loopable`;
   }
 
   /**

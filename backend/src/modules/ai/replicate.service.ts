@@ -6,7 +6,7 @@ const DEFAULT_POSE_MODEL = 'prunaai/flux-kontext-fast';
 const REPLICATE_API = 'https://api.replicate.com/v1';
 /** Background removal: smoretalk/rembg-enhance (pinned version for consistent cutout quality). */
 const REMBG_VERSION = '4067ee2a58f6c161d434a9c077cfa012820b8e076efa2772aa171e26557da919';
-/** Video animation: image-to-video (Replicate), 4s, 16:9 720p, ~0.4¢/video. Model: https://replicate.com/google/veo-3.1-fast */
+/** Video animation: image-to-video (Replicate), 4s, 16:9 1080p, ~0.4¢/video. Model: https://replicate.com/google/veo-3.1-fast */
 const VEO_FAST_MODEL = 'google/veo-3.1-fast';
 /** Image editing (poses): mascot-only edits, no background, 1080p. Model: https://replicate.com/google/nano-banana */
 const NANO_BANANA_MODEL = 'google/nano-banana';
@@ -102,7 +102,7 @@ export class ReplicateService {
 
   /**
    * Generate a short video from a single image (first frame = same as input) via Veo 3.1 Fast.
-   * Used for mascot animations: 4s, 16:9 720p, no audio, prompt should include "seamless infinite loop".
+   * Used for mascot animations: 4s, 16:9 1080p, no audio, prompt should include "seamless infinite loop".
    * Cost ~0.4¢/video on Replicate.
    * Returns buffer and predictionUrl so the run appears in your Replicate dashboard (same token = same account).
    */
@@ -122,7 +122,7 @@ export class ReplicateService {
       imageUrl,
       prompt,
       duration = 4,
-      resolution = '720p',
+      resolution = '1080p',
       aspectRatio = '16:9',
       generateAudio = false,
     } = options;

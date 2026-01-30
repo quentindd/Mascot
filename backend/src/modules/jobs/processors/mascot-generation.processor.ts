@@ -122,12 +122,10 @@ export class MascotGenerationProcessor extends WorkerHost {
       this.logger.log('Background removal completed');
 
       // Generate different sizes (full body, avatar, square icon)
-      // Ensure PNG with alpha channel for transparent background
-      // Use removeAlpha: false to preserve transparency, and ensureAlpha to add it if missing
       const transparentBackground = { r: 0, g: 0, b: 0, alpha: 0 };
       
       const fullBodyBuffer = await sharp(imageBuffer)
-        .ensureAlpha() // Ensure alpha channel exists
+        .ensureAlpha()
         .resize(1024, 1024, { 
           fit: 'contain', 
           background: transparentBackground,
@@ -136,14 +134,14 @@ export class MascotGenerationProcessor extends WorkerHost {
         .png({ 
           compressionLevel: 9, 
           quality: 100, 
-          palette: false, // Don't use palette mode to preserve full alpha channel
+          palette: false, 
           adaptiveFiltering: true,
-          force: true // Force PNG output
+          force: true 
         })
         .toBuffer();
 
       const avatarBuffer = await sharp(imageBuffer)
-        .ensureAlpha() // Ensure alpha channel exists
+        .ensureAlpha()
         .resize(512, 512, { 
           fit: 'cover', 
           background: transparentBackground,
@@ -152,14 +150,14 @@ export class MascotGenerationProcessor extends WorkerHost {
         .png({ 
           compressionLevel: 9, 
           quality: 100, 
-          palette: false, // Don't use palette mode to preserve full alpha channel
+          palette: false, 
           adaptiveFiltering: true,
-          force: true // Force PNG output
+          force: true 
         })
         .toBuffer();
 
       const squareIconBuffer = await sharp(imageBuffer)
-        .ensureAlpha() // Ensure alpha channel exists
+        .ensureAlpha()
         .resize(256, 256, { 
           fit: 'cover', 
           background: transparentBackground,
@@ -168,9 +166,9 @@ export class MascotGenerationProcessor extends WorkerHost {
         .png({ 
           compressionLevel: 9, 
           quality: 100, 
-          palette: false, // Don't use palette mode to preserve full alpha channel
+          palette: false, 
           adaptiveFiltering: true,
-          force: true // Force PNG output
+          force: true 
         })
         .toBuffer();
 

@@ -34,7 +34,7 @@ export class AnimationsService {
       createdById: userId,
       action: dto.action,
       customAction: dto.customAction,
-      resolution: 720, // Fixed 720p 16:9 (Veo); column kept for DB compatibility
+      resolution: 1080, // Fixed 1080p 16:9 (Veo); column kept for DB compatibility
       status: AnimationStatus.PENDING,
     });
 
@@ -60,7 +60,10 @@ export class AnimationsService {
   }
 
   async findByMascot(mascotId: string) {
-    return this.animationRepository.find({ where: { mascotId } });
+    return this.animationRepository.find({
+      where: { mascotId },
+      order: { createdAt: 'DESC' },
+    });
   }
 
   async findOne(id: string) {

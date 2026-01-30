@@ -35,7 +35,10 @@ export class LogosService {
   }
 
   async findByMascot(mascotId: string) {
-    return this.logoPackRepository.find({ where: { mascotId } });
+    return this.logoPackRepository.find({
+      where: { mascotId },
+      order: { createdAt: 'DESC' },
+    });
   }
 
   async findOne(id: string) {

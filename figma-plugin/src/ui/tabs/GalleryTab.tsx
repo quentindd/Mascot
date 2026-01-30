@@ -1,5 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { RPCClient } from '../rpc/client';
+
+function sortByCreatedAtDesc<T extends { createdAt?: string | Date | null; id?: string }>(items: T[]): T[] {
+  return [...items].sort((a, b) => {
+    const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return tb - ta; // newest first
+  });
+}
 
 interface GalleryTabProps {
   rpc: RPCClient;
@@ -32,6 +40,10 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
   onSelectMascot,
 }) => {
   const [filter, setFilter] = useState<GalleryFilter>('all');
+  const sortedMascots = useMemo(() => sortByCreatedAtDesc(mascots), [mascots]);
+  const sortedAnimations = useMemo(() => sortByCreatedAtDesc(animations), [animations]);
+  const sortedLogos = useMemo(() => sortByCreatedAtDesc(logos), [logos]);
+  const sortedPoses = useMemo(() => sortByCreatedAtDesc(poses), [poses]);
   const [loading, setLoading] = useState(false);
   const [animationModal, setAnimationModal] = useState<any | null>(null);
   const [linksCopied, setLinksCopied] = useState<'mp4' | 'webm' | null>(null);
@@ -87,7 +99,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
   };
 
   const renderMascots = () => {
-    if (mascots.length === 0) {
+    if (sortedMascots.length === 0) {
       return (
         <div className="empty-state-content">
           <div className="empty-state-icon">Gallery</div>
@@ -101,7 +113,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
 
     return (
       <div className="gallery-grid">
-        {mascots.map((mascot) => (
+        {sortedMascots.map((mascot) => (
           <div
             key={mascot.id}
             className={`gallery-item ${selectedMascot?.id === mascot.id ? 'selected' : ''}`}
@@ -177,7 +189,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
   };
 
   const renderAnimations = () => {
-    if (animations.length === 0) {
+    if (sortedAnimations.length === 0) {
       return (
         <div className="empty-state-content">
           <div className="empty-state-icon">Animate</div>
@@ -191,7 +203,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
 
     return (
       <div className="gallery-grid">
-        {animations.map((animation) => (
+        {sortedAnimations.map((animation) => (
           <div 
             key={animation.id} 
             className="gallery-item"
@@ -233,21 +245,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
               <TrashIcon size={14} />
             </button>
             <div className="gallery-item-image gallery-item-image--animation">
-              {(animation.webmVideoUrl || animation.movVideoUrl) && animation.status === 'completed' ? (
-                <video
-                  src={animation.webmVideoUrl || animation.movVideoUrl}
-                  poster={animation.spriteSheetUrl || undefined}
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                  onLoadedData={(e) => {
-                    const v = e.currentTarget;
-                    v.play().catch(() => {});
-                  }}
-                />
-              ) : animation.spriteSheetUrl ? (
+              {animation.spriteSheetUrl ? (
                 <img
                   src={animation.spriteSheetUrl}
                   alt={animation.action || 'Animation'}
@@ -265,7 +263,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
                 {getMascotName(animation.mascotId)} - {animation.status || 'pending'}
                 {animation.status === 'completed' && (
                   <div style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>
-                    Preview above · Click to view formats & insert
+                    Click to preview video & insert
                   </div>
                 )}
               </div>
@@ -288,7 +286,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
   });
 
   const renderLogos = () => {
-    if (logos.length === 0) {
+    if (sortedLogos.length === 0) {
       return (
         <div className="empty-state-content">
           <div className="empty-state-icon">Logos</div>
@@ -302,7 +300,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
 
     return (
       <div className="gallery-grid">
-        {logos.map((logoPack) => (
+        {sortedLogos.map((logoPack) => (
           <div key={logoPack.id} className="gallery-item" style={{ position: 'relative' }}>
             <button
               className="delete-btn"
@@ -354,7 +352,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
   };
 
   const renderPoses = () => {
-    if (poses.length === 0) {
+    if (sortedPoses.length === 0) {
       return (
         <div className="empty-state-content">
           <div className="empty-state-icon">Poses</div>
@@ -368,7 +366,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
 
     return (
       <div className="gallery-grid">
-        {poses.map((pose) => (
+        {sortedPoses.map((pose) => (
           <div
             key={pose.id}
             className="gallery-item"
@@ -587,6 +585,38 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
                 ×
               </button>
             </div>
+
+            {/* Video preview: tout en blanc (conteneur + zones autour de la vidéo) */}
+            {(animationModal.webmVideoUrl || animationModal.movVideoUrl) && (
+              <div
+                style={{
+                  background: '#ffffff',
+                  margin: '0 16px 16px',
+                  borderRadius: '12px',
+                  overflow: 'hidden',
+                  aspectRatio: '16/9',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <video
+                  src={animationModal.webmVideoUrl || animationModal.movVideoUrl}
+                  poster={animationModal.spriteSheetUrl || undefined}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain',
+                    backgroundColor: '#ffffff',
+                  }}
+                  onLoadedData={(e) => e.currentTarget.play().catch(() => {})}
+                />
+              </div>
+            )}
 
             {/* Content: light background, cards stacked like reference */}
             <div style={{ padding: '0 16px 16px', background: '#f9fafb' }}>

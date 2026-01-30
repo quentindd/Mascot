@@ -4,7 +4,8 @@ import axios from 'axios';
 
 const DEFAULT_POSE_MODEL = 'prunaai/flux-kontext-fast';
 const REPLICATE_API = 'https://api.replicate.com/v1';
-const REMBG_MODEL = 'cjwbw/rembg';
+/** Background removal: smoretalk/rembg-enhance (pinned version for consistent cutout quality). */
+const REMBG_VERSION = '4067ee2a58f6c161d434a9c077cfa012820b8e076efa2772aa171e26557da919';
 /** Video animation: image-to-video (Replicate), 4s, 16:9 720p, ~0.4¢/video. Model: https://replicate.com/google/veo-3.1-fast */
 const VEO_FAST_MODEL = 'google/veo-3.1-fast';
 /** Image editing (poses): mascot-only edits, no background, 1080p. Model: https://replicate.com/google/nano-banana */
@@ -20,7 +21,7 @@ const SEEDEDIT_MODELS = ['bytedance/seededit-3.0'];
 /**
  * Replicate API.
  * Poses: Nano Banana only (editImageNanoBanana). Kontext/SeedEdit (generatePoseFromReference) is legacy/unused for poses.
- * Animations: Veo 3.1 Fast. Background removal: rembg.
+ * Animations: Veo 3.1 Fast. Background removal: smoretalk/rembg-enhance.
  */
 @Injectable()
 export class ReplicateService {
@@ -54,8 +55,8 @@ export class ReplicateService {
   }
 
   /**
-   * Remove background from an image using Replicate rembg (real cutout, transparent).
-   * Use after pose generation to get a clean detouré without gray/white background.
+   * Remove background from an image using Replicate smoretalk/rembg-enhance (real cutout, transparent).
+   * Use after pose generation / mascot / logos to get a clean detouré without gray/white background.
    */
   async removeBackgroundReplicate(imageBuffer: Buffer): Promise<Buffer> {
     if (!this.token) {
@@ -63,11 +64,10 @@ export class ReplicateService {
     }
     const dataUri = `data:image/png;base64,${imageBuffer.toString('base64')}`;
     try {
-      this.logger.log('[Replicate] Running rembg for background removal...');
-      const version = await this.getModelVersion(REMBG_MODEL);
+      this.logger.log('[Replicate] Running rembg-enhance for background removal...');
       const createRes = await axios.post(
         `${REPLICATE_API}/predictions`,
-        { version, input: { image: dataUri } },
+        { version: REMBG_VERSION, input: { image: dataUri } },
         {
           headers: {
             Authorization: `Bearer ${this.token}`,
@@ -77,20 +77,24 @@ export class ReplicateService {
         },
       );
       const predictionId = createRes.data?.id;
-      if (!predictionId) throw new Error('Replicate rembg did not return prediction id');
+      const predictionWebUrl = createRes.data?.urls?.web as string | undefined;
+      if (!predictionId) throw new Error('Replicate rembg-enhance did not return prediction id');
+      if (predictionWebUrl) {
+        this.logger.log(`[Replicate] rembg-enhance prediction (view in dashboard): ${predictionWebUrl}`);
+      }
       const output = await this.waitForPrediction(predictionId, 60000);
       const imageUrlOut = this.extractOutputUrl(output);
-      if (!imageUrlOut) throw new Error('Replicate rembg did not return an image URL');
+      if (!imageUrlOut) throw new Error('Replicate rembg-enhance did not return an image URL');
       const imageResponse = await axios.get<ArrayBuffer>(imageUrlOut, {
         responseType: 'arraybuffer',
         timeout: 30000,
       });
-      this.logger.log('[Replicate] rembg completed');
+      this.logger.log('[Replicate] rembg-enhance completed');
       return Buffer.from(imageResponse.data);
     } catch (err: any) {
       if (axios.isAxiosError(err)) {
         const msg = err.response?.data?.detail ?? err.message ?? 'Unknown error';
-        throw new Error(`Replicate rembg failed: ${msg}`);
+        throw new Error(`Replicate rembg-enhance failed: ${msg}`);
       }
       throw err;
     }
@@ -189,34 +193,32 @@ export class ReplicateService {
 
   /**
    * Edit an image with Nano Banana (Google Gemini 2.5 image editing).
-   * Used for poses: modification applies only to the mascot, no background, 1080p.
+   * Used for poses: mascot action, no background, high definition, 1k, aspect 1:1, output PNG.
    * Model: https://replicate.com/google/nano-banana
    */
   async editImageNanoBanana(
     imageUrl: string,
     prompt: string,
-    options?: { resolution?: '1080p' | '1k' | '2k' },
+    options?: { resolution?: '1k' | '2k'; aspectRatio?: string },
   ): Promise<Buffer> {
     if (!this.token) {
       throw new Error('REPLICATE_API_TOKEN is not set. Cannot use Replicate for Nano Banana.');
     }
 
-    const resolution = options?.resolution ?? '1080p';
-    const nanoPrompt =
-      `${prompt.trim()} CRITICAL: The modification applies only to the mascot/character—do not change or add background. No background (transparent or remove background). Output in 1080p for optimal quality. Same character, same style, same design.`;
+    const resolution = options?.resolution ?? '1k';
+    const aspectRatio = options?.aspectRatio ?? '1:1';
 
     try {
-      this.logger.log(`[Replicate] Nano Banana: editing image (resolution: ${resolution})...`);
+      this.logger.log(`[Replicate] Nano Banana: editing image (resolution: ${resolution}, aspect: ${aspectRatio})...`);
       const version = await this.getModelVersion(NANO_BANANA_MODEL);
 
       const input: Record<string, unknown> = {
-        prompt: nanoPrompt,
+        prompt: prompt.trim(),
         image_input: [imageUrl],
         output_format: 'png',
+        resolution,
+        aspect_ratio: aspectRatio,
       };
-      if (resolution) {
-        input.resolution = resolution === '1080p' ? '1k' : resolution;
-      }
 
       const createRes = await axios.post(
         `${REPLICATE_API}/predictions`,

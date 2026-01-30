@@ -7,6 +7,7 @@ import { Mascot } from '../../../entities/mascot.entity';
 import { LogoPack, LogoPackStatus, LogoSize } from '../../../entities/logo-pack.entity';
 import { StorageService } from '../../storage/storage.service';
 import { GeminiFlashService } from '../../ai/gemini-flash.service';
+import { ReplicateService } from '../../ai/replicate.service';
 import { removeBackground } from '../../../common/utils/background-removal.util';
 import * as sharp from 'sharp';
 import axios from 'axios';
@@ -44,6 +45,7 @@ export class LogoPackGenerationProcessor extends WorkerHost {
     private logoPackRepository: Repository<LogoPack>,
     private storageService: StorageService,
     private geminiFlashService: GeminiFlashService,
+    private replicateService: ReplicateService,
   ) {
     super();
   }
@@ -156,6 +158,14 @@ export class LogoPackGenerationProcessor extends WorkerHost {
       mascotDetails: mascot.prompt || undefined,
     });
     this.logger.log('[LogoPack] Removing background from AI-generated logo...');
+    if (this.replicateService.isAvailable()) {
+      try {
+        generated = await this.replicateService.removeBackgroundReplicate(generated);
+        this.logger.log('[LogoPack] Background removal (rembg-enhance) completed');
+      } catch (rembgErr) {
+        this.logger.warn('[LogoPack] rembg-enhance failed, using local removal only:', rembgErr);
+      }
+    }
     generated = await removeBackground(generated, {
       aggressive: false,
       eraseSemiTransparentBorder: true,

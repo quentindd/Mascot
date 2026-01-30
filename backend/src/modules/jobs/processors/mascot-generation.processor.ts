@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Mascot, MascotStatus } from '../../../entities/mascot.entity';
 import { GeminiFlashService } from '../../ai/gemini-flash.service';
+import { ReplicateService } from '../../ai/replicate.service';
 import { StorageService } from '../../storage/storage.service';
 import { CreditsService } from '../../credits/credits.service';
 import { Logger } from '@nestjs/common';
@@ -20,6 +21,7 @@ export class MascotGenerationProcessor extends WorkerHost {
     @InjectRepository(Mascot)
     private mascotRepository: Repository<Mascot>,
     private geminiFlashService: GeminiFlashService,
+    private replicateService: ReplicateService,
     private storageService: StorageService,
     private creditsService: CreditsService,
   ) {
@@ -101,8 +103,16 @@ export class MascotGenerationProcessor extends WorkerHost {
       const generationTime = Date.now() - generationStartTime;
       this.logger.log(`[MascotGenerationProcessor] Gemini Flash API completed for variation ${variationIndex || 1} in ${generationTime}ms`);
 
-      // Remove background + white outline (same util as Poses, with outline erosion for create)
+      // Remove background: Replicate rembg-enhance (smoretalk/rembg-enhance) then local cleanup
       this.logger.log('Removing background from generated image...');
+      if (this.replicateService.isAvailable()) {
+        try {
+          imageBuffer = await this.replicateService.removeBackgroundReplicate(imageBuffer);
+          this.logger.log('Background removal (rembg-enhance) completed');
+        } catch (rembgErr) {
+          this.logger.warn('[MascotGenerationProcessor] rembg-enhance failed, using local removal only:', rembgErr);
+        }
+      }
       imageBuffer = await removeBackground(imageBuffer, {
         aggressive: false, // preserve fur/hair edges
         eraseSemiTransparentBorder: true,

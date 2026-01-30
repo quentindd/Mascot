@@ -478,6 +478,11 @@
   overflow: hidden;
 }
 
+.gallery-item-image--animation {
+  min-height: 120px;
+  background: #1a1a1a;
+}
+
 .gallery-item-image img,
 .gallery-item-image video {
   width: 100%;

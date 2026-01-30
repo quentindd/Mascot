@@ -50,35 +50,21 @@ export class PoseGenerationProcessor extends WorkerHost {
         throw new Error('Pose generation requires Replicate. Set REPLICATE_API_TOKEN in your environment.');
       }
 
-      const styleHint =
-        mascot.style === 'kawaii'
-          ? 'kawaii cartoon'
-          : mascot.style === '3d' || mascot.style === '3d_pixar'
-            ? '3D character'
-            : 'cartoon illustration';
-      const hasWings = mascot.accessories?.some((a) => String(a).toLowerCase().includes('wing')) ?? false;
-      const isAnimalOrCreature =
-        mascot.type === 'animal' || mascot.type === 'creature' || mascot.type === 'auto';
-      const noHandsRule =
-        hasWings || isAnimalOrCreature
-          ? 'FORBIDDEN: hands, fingers, human arms. The reference has NO human hands. Output MUST have NO hands, NO arms, NO fingers. Only wings/paws/feet as in the reference. Do not add any limb that is not in the reference.'
-          : 'Copy EXACTLY the body parts from the reference. Do not add hands or arms if the reference does not have them.';
-      const posePromptText =
-        `CRITICAL: Do not denature the character. ${noHandsRule} The output must have EXACTLY the same body parts as the reference—nothing more. ` +
-        `Keep the EXACT same character: same ${styleHint} style, same colors, same design, same proportions. Same limbs only (wings stay wings, paws stay paws, NO hands). ` +
-        `Only change the pose or action to: ${prompt}. Same stylized mascot as the reference. ` +
-        `No glow, no aura, no halo, no outline. Flat colors only. Completely transparent background only—no dark background, no gradient.`;
+      // Prompt: mascot action (user choice), no background, high definition, 1k
+      const posePromptText = `Mascot ${(prompt || '').trim()}, no background, high definition, 1k.`;
 
       let imageBuffer: Buffer;
       if (this.replicateService.useNanoBananaForPoses()) {
-        this.logger.log('[PoseGenerationProcessor] Using Replicate Nano Banana (mascot-only edit, no background, 1080p)');
+        this.logger.log('[PoseGenerationProcessor] Using Replicate Nano Banana (1:1, 1k, PNG, then background removal)');
         imageBuffer = await this.replicateService.editImageNanoBanana(refImageUrl, posePromptText, {
-          resolution: '1080p',
+          resolution: '1k',
+          aspectRatio: '1:1',
         });
       } else {
         this.logger.log(`[PoseGenerationProcessor] Using Replicate pose model: ${this.replicateService.getPoseModelId()}`);
         const poseSeed = Math.floor(Math.random() * 1e9);
-        imageBuffer = await this.replicateService.generatePoseFromReference(refImageUrl, posePromptText, {
+        const legacyPrompt = `Only change the pose or action to: ${prompt}. Same character, same style. No background, high definition.`;
+        imageBuffer = await this.replicateService.generatePoseFromReference(refImageUrl, legacyPrompt, {
           negativePrompt: mascot.negativePrompt || undefined,
           seed: poseSeed,
         });
@@ -98,27 +84,22 @@ export class PoseGenerationProcessor extends WorkerHost {
         }
       }
 
-      // Real cutout: Replicate rembg (transparent background, no gray)
-      this.logger.log('Removing background with Replicate rembg (cutout)...');
+      // Real cutout: Replicate rembg-enhance (smoretalk/rembg-enhance, transparent background)
+      this.logger.log('Removing background with Replicate rembg-enhance (cutout)...');
       try {
         imageBuffer = await this.replicateService.removeBackgroundReplicate(imageBuffer);
-        this.logger.log('Background removal (rembg) completed');
-        // Cleanup: remove any remaining gray/dark bg (Replicate often leaves some) + halo; keep aggressive for poses so bg is fully removed
-        imageBuffer = await removeBackground(imageBuffer, {
-          aggressive: true,
-          eraseSemiTransparentBorder: true,
-          borderAlphaThreshold: 100,
-          eraseWhiteOutline: true,
-        });
+        this.logger.log('Background removal (rembg-enhance) completed');
       } catch (rembgErr) {
-        this.logger.warn('[PoseGenerationProcessor] rembg failed, using local removal:', rembgErr);
-        imageBuffer = await removeBackground(imageBuffer, {
-          aggressive: true,
-          eraseSemiTransparentBorder: true,
-          borderAlphaThreshold: 100,
-          eraseWhiteOutline: true,
-        });
+        this.logger.warn('[PoseGenerationProcessor] rembg-enhance failed, using local removal only:', rembgErr);
       }
+      // Cleanup: remove remaining gray/dark bg, halo, thin strips (aggressive + second pass for better detouring)
+      imageBuffer = await removeBackground(imageBuffer, {
+        aggressive: true,
+        eraseSemiTransparentBorder: true,
+        borderAlphaThreshold: 160,
+        eraseWhiteOutline: true,
+        secondPass: true,
+      });
 
       // Same resize style as mascot avatar (512x512, contain, transparent)
       const transparentBackground = { r: 0, g: 0, b: 0, alpha: 0 };

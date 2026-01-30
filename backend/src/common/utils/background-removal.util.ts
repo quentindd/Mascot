@@ -7,24 +7,35 @@ import * as sharp from 'sharp';
  * Use aggressive: true for pose images (gray/dark bg, larger tolerance).
  * Use eraseSemiTransparentBorder: true to remove glow/halo at edges (alpha < threshold connected to border).
  * Use eraseWhiteOutline: true to erode semi-transparent white pixels adjacent to transparent (removes white outline).
+ * Use secondPass: true to remove thin strips left after first pass (better detouring).
+ * Uses 8-neighbor connectivity so diagonal border pixels are also removed.
  */
 const DEFAULT_BORDER_ALPHA_THRESHOLD = 120;
+
+/** 8-neighbor offsets (4 cardinal + 4 diagonal) for fuller border connectivity. */
+const NEIGHBOR_8 = [
+  [-1, 0], [1, 0], [0, -1], [0, 1],
+  [-1, -1], [-1, 1], [1, -1], [1, 1],
+];
 
 export async function removeBackground(
   imageBuffer: Buffer,
   options?: {
     aggressive?: boolean;
     eraseSemiTransparentBorder?: boolean;
-    /** Alpha below this at border is removed (default 120). Use 160–180 for stronger halo removal. */
+    /** Alpha below this at border is removed (default 120). Use 150–180 for stronger halo removal on poses. */
     borderAlphaThreshold?: number;
     /** Erode semi-transparent white pixels next to transparent (removes white outline). */
     eraseWhiteOutline?: boolean;
+    /** Second pass from transparent pixels to remove thin strips and leftover halo. */
+    secondPass?: boolean;
   },
 ): Promise<Buffer> {
   const aggressive = options?.aggressive ?? false;
   const eraseSemiTransparentBorder = options?.eraseSemiTransparentBorder ?? false;
   const borderAlphaThreshold = options?.borderAlphaThreshold ?? DEFAULT_BORDER_ALPHA_THRESHOLD;
   const eraseWhiteOutline = options?.eraseWhiteOutline ?? false;
+  const secondPass = options?.secondPass ?? false;
   try {
     let processed = sharp(imageBuffer).ensureAlpha();
     processed = processed.unflatten();
@@ -111,16 +122,55 @@ export async function removeBackground(
       const a = channels >= 4 ? pixels[idx + 3] : 255;
       if (!isBackgroundLike(r, g, b, a)) continue;
       toRemove[i] = 1;
-      stack.push([x - 1, y]);
-      stack.push([x + 1, y]);
-      stack.push([x, y - 1]);
-      stack.push([x, y + 1]);
+      for (const [dx, dy] of NEIGHBOR_8) {
+        stack.push([x + dx, y + dy]);
+      }
     }
 
     for (let i = 0; i < pixels.length; i += channels) {
       const pixelIndex = i / channels;
       if (toRemove[pixelIndex]) {
         pixels[i + 3] = 0;
+      }
+    }
+
+    // Second pass: from pixels adjacent to now-transparent, remove any remaining background-like (thin strips, leftover halo)
+    if (secondPass) {
+      const toRemove2 = new Uint8Array(width * height);
+      const visited2 = new Uint8Array(width * height);
+      const stack2: [number, number][] = [];
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const i = (y * width + x) * channels;
+          if (pixels[i + 3] >= 10) continue;
+          for (const [dx, dy] of NEIGHBOR_8) {
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+            stack2.push([nx, ny]);
+          }
+        }
+      }
+      while (stack2.length > 0) {
+        const [x, y] = stack2.pop()!;
+        if (x < 0 || x >= width || y < 0 || y >= height) continue;
+        const i = y * width + x;
+        if (visited2[i]) continue;
+        visited2[i] = 1;
+        const idx = getIdx(x, y);
+        const r = pixels[idx];
+        const g = pixels[idx + 1];
+        const b = pixels[idx + 2];
+        const a = channels >= 4 ? pixels[idx + 3] : 255;
+        if (a < 10) continue;
+        if (!isBackgroundLike(r, g, b, a)) continue;
+        toRemove2[i] = 1;
+        for (const [dx, dy] of NEIGHBOR_8) {
+          stack2.push([x + dx, y + dy]);
+        }
+      }
+      for (let i = 0; i < pixels.length; i += channels) {
+        if (toRemove2[i / channels]) pixels[i + 3] = 0;
       }
     }
 
@@ -137,12 +187,15 @@ export async function removeBackground(
           if (a < 10) continue; // already transparent
           const brightness = getBrightness(i);
           if (brightness < 248) continue; // only very white halo
-          const hasTransparentNeighbor =
-            pixels[getIdx(x - 1, y) + 3] < 10 ||
-            pixels[getIdx(x + 1, y) + 3] < 10 ||
-            pixels[getIdx(x, y - 1) + 3] < 10 ||
-            pixels[getIdx(x, y + 1) + 3] < 10;
-          if (hasTransparentNeighbor) toErode[(y * width + x)] = 1;
+          let hasTransparentNeighbor = false;
+          for (const [dx, dy] of NEIGHBOR_8) {
+            const na = pixels[getIdx(x + dx, y + dy) + 3];
+            if (na < 10) {
+              hasTransparentNeighbor = true;
+              break;
+            }
+          }
+          if (hasTransparentNeighbor) toErode[y * width + x] = 1;
         }
       }
       for (let i = 0; i < pixels.length; i += channels) {

@@ -44,17 +44,20 @@ export const App: React.FC = () => {
   const requestedLogoMascotIds = useRef<Set<string>>(new Set());
   const requestedPoseMascotIds = useRef<Set<string>>(new Set());
   useEffect(() => {
-    if (activeTab !== 'gallery' || mascots.length === 0) return;
+    if (mascots.length === 0) return;
+    const needAnimationsOrLogosOrPoses = activeTab === 'gallery';
+    const needPoses = activeTab === 'gallery' || activeTab === 'poses';
     for (const mascot of mascots) {
-      if (mascot.id && !requestedAnimationMascotIds.current.has(mascot.id)) {
+      if (!mascot.id) continue;
+      if (needAnimationsOrLogosOrPoses && !requestedAnimationMascotIds.current.has(mascot.id)) {
         requestedAnimationMascotIds.current.add(mascot.id);
         rpc.send('get-mascot-animations', { mascotId: mascot.id });
       }
-      if (mascot.id && !requestedLogoMascotIds.current.has(mascot.id)) {
+      if (needAnimationsOrLogosOrPoses && !requestedLogoMascotIds.current.has(mascot.id)) {
         requestedLogoMascotIds.current.add(mascot.id);
         rpc.send('get-mascot-logos', { mascotId: mascot.id });
       }
-      if (mascot.id && !requestedPoseMascotIds.current.has(mascot.id)) {
+      if (needPoses && !requestedPoseMascotIds.current.has(mascot.id)) {
         requestedPoseMascotIds.current.add(mascot.id);
         rpc.send('get-mascot-poses', { mascotId: mascot.id });
       }
@@ -185,6 +188,10 @@ export const App: React.FC = () => {
         }
         return [...prev, pose];
       });
+      // Refetch poses from API so Gallery and list stay in sync (imageUrl, status)
+      if (pose.mascotId) {
+        rpc.send('get-mascot-poses', { mascotId: pose.mascotId });
+      }
     });
     rpc.on('pose-deleted', (data: { id: string }) => {
       setPoses((prev) => prev.filter((p) => p.id !== data.id));
@@ -479,10 +486,10 @@ export const App: React.FC = () => {
 
       </div>
 
-      {/* Main Content Area */}
+      {/* Main Content Area - all tabs always mounted, hidden when inactive so state persists when switching tabs */}
       <div className="main-content-area">
         <div className="content-wrapper">
-          {activeTab === 'gallery' && (
+          <div style={{ display: activeTab === 'gallery' ? 'block' : 'none' }} className="tab-panel">
             <GalleryTab
               rpc={rpc}
               mascots={mascots}
@@ -492,8 +499,8 @@ export const App: React.FC = () => {
               selectedMascot={selectedMascot}
               onSelectMascot={setSelectedMascot}
             />
-          )}
-          {activeTab === 'character' && (
+          </div>
+          <div style={{ display: activeTab === 'character' ? 'block' : 'none' }} className="tab-panel">
             <CharacterTab
               rpc={rpc}
               mascots={mascots}
@@ -503,8 +510,8 @@ export const App: React.FC = () => {
               generatedVariations={generatedVariations}
               onVariationsChange={setGeneratedVariations}
             />
-          )}
-          {activeTab === 'animations' && (
+          </div>
+          <div style={{ display: activeTab === 'animations' ? 'block' : 'none' }} className="tab-panel">
             <AnimationsTab
               rpc={rpc}
               selectedMascot={selectedMascot}
@@ -514,26 +521,26 @@ export const App: React.FC = () => {
               }}
               mascots={mascots}
             />
-          )}
-          {activeTab === 'logos' && (
+          </div>
+          <div style={{ display: activeTab === 'logos' ? 'block' : 'none' }} className="tab-panel">
             <LogosTab
               rpc={rpc}
               selectedMascot={selectedMascot}
               onSelectMascot={setSelectedMascot}
               mascots={mascots}
             />
-          )}
-          {activeTab === 'poses' && (
+          </div>
+          <div style={{ display: activeTab === 'poses' ? 'block' : 'none' }} className="tab-panel">
             <PosesTab
               rpc={rpc}
               selectedMascot={selectedMascot}
               onSelectMascot={setSelectedMascot}
               mascots={mascots}
             />
-          )}
-          {activeTab === 'account' && (
+          </div>
+          <div style={{ display: activeTab === 'account' ? 'block' : 'none' }} className="tab-panel">
             <AccountTab rpc={rpc} credits={credits} />
-          )}
+          </div>
         </div>
       </div>
     </div>

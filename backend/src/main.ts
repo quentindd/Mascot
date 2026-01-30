@@ -47,14 +47,14 @@ async function bootstrap() {
   );
 
   // CORS configuration
-  // Allow requests from Figma plugins (origin: null) and web origins
+  // Allow requests from Figma plugins (origin: null) and web origins.
+  // Preflight (OPTIONS) must receive Access-Control-Allow-Origin and other CORS headers.
   app.enableCors({
     origin: (origin, callback) => {
-      // Allow requests with no origin OR origin === 'null' string (Figma plugins)
-      if (!origin || origin === 'null') {
+      // Allow requests with no origin OR origin === 'null' (Figma plugin iframe/sandbox)
+      if (origin === undefined || origin === null || origin === 'null' || origin === '') {
         return callback(null, true);
       }
-      
       // Allow specific origins
       const allowedOrigins = [
         configService.get('FRONTEND_URL'),
@@ -66,31 +66,29 @@ async function bootstrap() {
         /\.railway\.app$/, // All Railway subdomains
         /\.railway\.com$/, // All Railway.com subdomains
       ];
-      
       const isAllowed = allowedOrigins.some(allowed => {
         if (allowed instanceof RegExp) {
           return allowed.test(origin);
         }
         return allowed === origin;
       });
-      
       if (isAllowed) {
-        callback(null, true);
-      } else {
-        // For development or if ALLOW_ALL_ORIGINS is set, allow all origins
-        // In production, you should restrict this
-        const allowAllOrigins = process.env.ALLOW_ALL_ORIGINS === 'true' || 
-                                process.env.NODE_ENV === 'development' || 
-                                !process.env.NODE_ENV;
-        
-        if (allowAllOrigins) {
-          callback(null, true);
-        } else {
-          callback(new Error('Not allowed by CORS'));
-        }
+        return callback(null, true);
       }
+      const allowAllOrigins =
+        process.env.ALLOW_ALL_ORIGINS === 'true' ||
+        process.env.NODE_ENV === 'development' ||
+        !process.env.NODE_ENV;
+      if (allowAllOrigins) {
+        return callback(null, true);
+      }
+      return callback(new Error('Not allowed by CORS'));
     },
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Accept', 'Authorization', 'X-Requested-With'],
     credentials: true,
+    optionsSuccessStatus: 204,
+    preflightContinue: false,
   });
 
   // API prefix

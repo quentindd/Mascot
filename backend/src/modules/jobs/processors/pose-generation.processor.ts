@@ -32,12 +32,16 @@ export class PoseGenerationProcessor extends WorkerHost {
    * Modification applies only to the mascot, no background, 1080p for optimal render.
    */
   async process(job: Job<any, any, string>): Promise<any> {
-    const { poseId, mascotId, prompt } = job.data;
-
-    this.logger.log(`[PoseGenerationProcessor] Starting pose ${poseId} (mascot ${mascotId}), prompt: "${prompt}"`);
+    const { poseId, mascotId } = job.data;
 
     try {
       await this.poseRepository.update(poseId, { status: PoseStatus.GENERATING });
+
+      // Use prompt from DB (source of truth) so retries / stale job data never reuse an old prompt
+      const pose = await this.poseRepository.findOne({ where: { id: poseId } });
+      if (!pose) throw new Error(`Pose ${poseId} not found`);
+      const prompt = (pose.prompt ?? job.data.prompt ?? '').trim();
+      this.logger.log(`[PoseGenerationProcessor] Starting pose ${poseId} (mascot ${mascotId}), prompt: "${prompt}"`);
 
       const mascot = await this.mascotRepository.findOne({ where: { id: mascotId } });
       if (!mascot) throw new Error(`Mascot ${mascotId} not found`);
@@ -51,7 +55,7 @@ export class PoseGenerationProcessor extends WorkerHost {
       }
 
       // Prompt: mascot action (user choice), no background, high definition, 1k
-      const posePromptText = `Mascot ${(prompt || '').trim()}, no background, high definition, 1k.`;
+      const posePromptText = `Mascot ${prompt || 'pose'}, no background, high definition, 1k.`;
 
       let imageBuffer: Buffer;
       if (this.replicateService.useNanoBananaForPoses()) {
@@ -63,7 +67,7 @@ export class PoseGenerationProcessor extends WorkerHost {
       } else {
         this.logger.log(`[PoseGenerationProcessor] Using Replicate pose model: ${this.replicateService.getPoseModelId()}`);
         const poseSeed = Math.floor(Math.random() * 1e9);
-        const legacyPrompt = `Only change the pose or action to: ${prompt}. Same character, same style. No background, high definition.`;
+        const legacyPrompt = `Only change the pose or action to: ${prompt || 'pose'}. Same character, same style. No background, high definition.`;
         imageBuffer = await this.replicateService.generatePoseFromReference(refImageUrl, legacyPrompt, {
           negativePrompt: mascot.negativePrompt || undefined,
           seed: poseSeed,
@@ -89,8 +93,10 @@ export class PoseGenerationProcessor extends WorkerHost {
       try {
         imageBuffer = await this.replicateService.removeBackgroundReplicate(imageBuffer);
         this.logger.log('Background removal (rembg-enhance) completed');
-      } catch (rembgErr) {
-        this.logger.warn('[PoseGenerationProcessor] rembg-enhance failed, using local removal only:', rembgErr);
+      } catch (rembgErr: any) {
+        this.logger.warn(
+          `[PoseGenerationProcessor] rembg-enhance failed (${rembgErr?.message ?? rembgErr}), using local removal only`,
+        );
       }
       // Cleanup: remove remaining gray/dark bg, halo, thin strips (aggressive + second pass for better detouring)
       imageBuffer = await removeBackground(imageBuffer, {

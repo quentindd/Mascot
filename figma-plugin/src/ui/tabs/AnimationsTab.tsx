@@ -10,16 +10,16 @@ interface AnimationsTabProps {
 }
 
 const ANIMATION_ACTIONS = [
-  { value: 'wave', label: 'Wave' },
-  { value: 'celebrate', label: 'Celebrate' },
-  { value: 'think', label: 'Think' },
-  { value: 'sleep', label: 'Sleep' },
-  { value: 'sad', label: 'Sad' },
-  { value: 'exercise', label: 'Exercise' },
-  { value: 'backflip', label: 'Backflip' },
-  { value: 'dance', label: 'Dance' },
-  { value: 'jump', label: 'Jump' },
-  { value: 'idle', label: 'Idle' },
+  { value: 'wave', label: 'Wave', emoji: '👋' },
+  { value: 'celebrate', label: 'Celebrate', emoji: '🎉' },
+  { value: 'think', label: 'Think', emoji: '🤔' },
+  { value: 'sleep', label: 'Sleep', emoji: '💤' },
+  { value: 'sad', label: 'Sad', emoji: '😢' },
+  { value: 'exercise', label: 'Exercise', emoji: '💪' },
+  { value: 'backflip', label: 'Backflip', emoji: '🤸' },
+  { value: 'dance', label: 'Dance', emoji: '💃' },
+  { value: 'jump', label: 'Jump', emoji: '⬆️' },
+  { value: 'idle', label: 'Idle', emoji: '😌' },
 ];
 
 export const AnimationsTab: React.FC<AnimationsTabProps> = ({
@@ -168,7 +168,7 @@ export const AnimationsTab: React.FC<AnimationsTabProps> = ({
         >
           {ANIMATION_ACTIONS.map((act) => (
             <option key={act.value} value={act.value}>
-              {act.label}
+              {act.emoji} {act.label}
             </option>
           ))}
         </select>

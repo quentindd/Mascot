@@ -1467,108 +1467,21 @@
   margin-bottom: 6px;
 }
 
-/* Use your own image – upload section at top of Animate / Logo / Pose tabs */
+/* Upload your image – title like “Pick a mascot below”, one line + emoji */
 .upload-your-image {
-  background: #f7f9fc;
-  border: 1px solid #e5e9f0;
-  border-radius: 8px;
-  padding: 14px 16px;
-  margin-bottom: 16px;
+  margin-bottom: 0;
 }
 
 .upload-your-image-title {
   font-size: 13px;
-  font-weight: 600;
-  color: #000000;
-  margin: 0 0 4px 0;
-}
-
-.upload-your-image-desc {
-  font-size: 11px;
-  color: #666666;
-  margin: 0 0 12px 0;
-  line-height: 1.4;
-}
-
-.upload-your-image-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.upload-your-image-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 10px 14px;
-  font-size: 12px;
-  font-weight: 500;
-  border-radius: 6px;
-  border: 1px solid #e5e5e5;
-  background: #ffffff;
-  color: #000000;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
-}
-
-.upload-your-image-btn:hover:not(:disabled) {
-  background: #f0f0f0;
-  border-color: #d0d0d0;
-}
-
-.upload-your-image-btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.upload-your-image-btn--canvas {
-  width: 100%;
-}
-
-.upload-your-image-btn--primary {
-  background: #0d99ff;
-  border-color: #0d99ff;
-  color: #ffffff;
-}
-
-.upload-your-image-btn--primary:hover:not(:disabled) {
-  background: #0b85e0;
-  border-color: #0b85e0;
-}
-
-.upload-your-image-icon {
-  font-size: 14px;
-  opacity: 0.8;
-}
-
-.upload-your-image-spinner {
-  width: 18px;
-  height: 18px;
-  border-width: 2px;
-}
-
-.upload-your-image-url-row {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.upload-your-image-input,
-.upload-your-image-name {
-  width: 100%;
-  padding: 8px 10px;
-  font-size: 12px;
-  border: 1px solid #e5e5e5;
-  border-radius: 6px;
-  background: #ffffff;
-}
-
-.upload-your-image-input:focus,
-.upload-your-image-name:focus {
-  outline: none;
-  border-color: #0d99ff;
-  box-shadow: 0 0 0 2px rgba(13, 153, 255, 0.2);
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 10px 0;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .upload-your-image-error {
@@ -1579,6 +1492,17 @@
   background: #fff5f5;
   border: 1px solid #fcc;
   border-radius: 6px;
+}
+
+/* Separator "or" between upload section and mascot selection / form */
+.upload-your-image-or {
+  margin-top: 20px;
+  margin-bottom: 20px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 500;
+  color: #999999;
+  letter-spacing: 0.02em;
 }
 
 .card {

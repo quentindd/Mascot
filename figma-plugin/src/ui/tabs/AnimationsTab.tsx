@@ -79,17 +79,23 @@ export const AnimationsTab: React.FC<AnimationsTabProps> = ({
   // Show mascot selection if none selected
   if (!selectedMascot) {
     return (
-      <div>
-        <h3 className="section-title">Select a Mascot</h3>
-        <p className="section-description">
-          Choose a mascot to create animations:
+      <div className="select-mascot-step">
+        <div className="select-mascot-step-badge">1</div>
+        <h2 className="select-mascot-step-title">Choose a mascot to animate</h2>
+        <p className="select-mascot-step-desc">
+          Pick one mascot below. You’ll then choose an action (wave, celebrate, etc.) and generate an animation.
         </p>
+        <p className="select-mascot-step-hint">Click a mascot to select it</p>
         <div className="mascots-selection-grid">
           {mascots.map((mascot) => (
             <div
               key={mascot.id}
               className="mascot-selection-card"
               onClick={() => onSelectMascot(mascot)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === 'Enter' && onSelectMascot(mascot)}
+              aria-label={`Select ${mascot.name ?? 'Unnamed'}`}
             >
               <div className="mascot-selection-image">
                 {(mascot.avatarImageUrl || mascot.imageUrl || mascot.fullBodyImageUrl) ? (
@@ -106,7 +112,7 @@ export const AnimationsTab: React.FC<AnimationsTabProps> = ({
                   </div>
                 )}
               </div>
-                <div className="mascot-selection-info">
+              <div className="mascot-selection-info">
                 <div className="mascot-selection-name">{mascot.name ?? 'Unnamed'}</div>
                 <div className="mascot-selection-meta">{mascot.style || 'mascot'}</div>
               </div>
@@ -176,7 +182,7 @@ export const AnimationsTab: React.FC<AnimationsTabProps> = ({
           disabled={isGenerating || !selectedMascot}
           style={{ width: '100%', marginTop: '8px' }}
         >
-          {isGenerating ? 'Generating...' : 'Generate Animation'}
+          {isGenerating ? <span className="spinner" /> : 'Generate Animation'}
         </button>
       </div>
     </div>

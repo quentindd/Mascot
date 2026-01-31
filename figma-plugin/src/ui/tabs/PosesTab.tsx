@@ -119,17 +119,23 @@ export const PosesTab: React.FC<PosesTabProps> = ({
   // Show mascot selection if none selected
   if (!selectedMascot) {
     return (
-      <div>
-        <h3 className="section-title">Select a Mascot</h3>
-        <p className="section-description">
-          Choose a mascot to create poses:
+      <div className="select-mascot-step">
+        <div className="select-mascot-step-badge">1</div>
+        <h2 className="select-mascot-step-title">Choose a mascot to pose</h2>
+        <p className="select-mascot-step-desc">
+          Pick one mascot below. You’ll then choose or describe a pose (e.g. waving, happy) and generate an image.
         </p>
+        <p className="select-mascot-step-hint">Click a mascot to select it</p>
         <div className="mascots-selection-grid">
           {mascots.map((mascot) => (
             <div
               key={mascot.id}
               className="mascot-selection-card"
               onClick={() => onSelectMascot(mascot)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === 'Enter' && onSelectMascot(mascot)}
+              aria-label={`Select ${mascot.name}`}
             >
               <div className="mascot-selection-image">
                 {(mascot.avatarImageUrl || mascot.imageUrl || mascot.fullBodyImageUrl) ? (
@@ -246,9 +252,7 @@ export const PosesTab: React.FC<PosesTabProps> = ({
           disabled={isGenerating || !selectedMascot}
           style={{ width: '100%' }}
         >
-          {isGenerating 
-            ? 'Generating...' 
-            : 'Generate Pose (1 credit)'}
+          {isGenerating ? <span className="spinner" /> : 'Generate Pose (1 credit)'}
         </button>
       </div>
 
@@ -288,8 +292,8 @@ export const PosesTab: React.FC<PosesTabProps> = ({
                     crossOrigin="anonymous"
                   />
                 ) : (
-                  <div className="gallery-placeholder">
-                    {isGenerating ? 'Generating…' : (generatedPose.prompt || 'Pose')}
+                  <div className="gallery-placeholder" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                    {isGenerating ? <span className="spinner" /> : (generatedPose.prompt || 'Pose')}
                   </div>
                 )}
               </div>

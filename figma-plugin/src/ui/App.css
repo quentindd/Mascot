@@ -13,7 +13,7 @@
   background: #ffffff;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
     'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
-  font-size: 12px;
+  font-size: 13px;
   color: #000000;
   -webkit-font-smoothing: antialiased;
 }
@@ -35,7 +35,7 @@
 }
 
 .plugin-title {
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 600;
   color: #000000;
   margin: 0 0 8px 0;
@@ -46,7 +46,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .credits-label {
@@ -57,7 +57,7 @@
 .credits-value {
   font-weight: 700;
   color: #000000;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 /* Navigation Menu */
@@ -92,7 +92,7 @@
   cursor: pointer;
   transition: all 0.15s;
   text-align: left;
-  font-size: 13px;
+  font-size: 14px;
   color: #000000;
   font-weight: 600;
   display: flex;
@@ -161,7 +161,7 @@
 }
 
 .sidebar-section-title {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   color: #666666;
   text-transform: uppercase;
@@ -228,7 +228,7 @@
 
 .mascot-sidebar-name {
   flex: 1;
-  font-size: 11px;
+  font-size: 12px;
   color: #000000;
   font-weight: 600;
   white-space: nowrap;
@@ -238,7 +238,7 @@
 }
 
 .sidebar-more {
-  font-size: 11px;
+  font-size: 12px;
   color: #666666;
   padding: 8px 12px;
   text-align: center;
@@ -329,12 +329,16 @@
 
 /* Buttons */
 .btn-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   background: #000000;
   color: #ffffff;
   border: none;
   padding: 10px 16px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s;
@@ -360,7 +364,7 @@
   border: 1px solid #e5e5e5;
   padding: 10px 16px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s;
@@ -389,7 +393,7 @@
   border: 1px solid #e5e5e5;
   background: #ffffff;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   color: #000000;
   cursor: pointer;
@@ -416,7 +420,7 @@
 }
 
 .gallery-section-title {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: #000000;
   margin-bottom: 12px;
@@ -521,7 +525,7 @@
 }
 
 .gallery-item-title {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: #000000;
   margin-bottom: 2px;
@@ -531,7 +535,7 @@
 }
 
 .gallery-item-meta {
-  font-size: 11px;
+  font-size: 12px;
   color: #666666;
   white-space: nowrap;
   overflow: hidden;
@@ -567,14 +571,14 @@
 }
 
 .empty-state-title {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
   color: #000000;
   margin-bottom: 8px;
 }
 
 .empty-state-text {
-  font-size: 12px;
+  font-size: 13px;
   color: #666666;
   max-width: 280px;
   line-height: 1.5;
@@ -582,7 +586,7 @@
 
 /* Section Titles */
 .section-title {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
   color: #000000;
   margin-bottom: 6px;
@@ -590,13 +594,66 @@
 }
 
 .section-description {
-  font-size: 12px;
+  font-size: 13px;
   color: #666666;
   margin-bottom: 16px;
   line-height: 1.4;
 }
 
 /* Mascot Selection Grid */
+/* Step block: "Select a mascot" — très visible pour que l’utilisateur sache quoi faire */
+.select-mascot-step {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.select-mascot-step-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: #000000;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.select-mascot-step-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 6px 0;
+  letter-spacing: -0.02em;
+}
+
+.select-mascot-step-desc {
+  font-size: 14px;
+  color: #475569;
+  margin: 0 0 16px 0;
+  line-height: 1.4;
+}
+
+.select-mascot-step-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 14px;
+  font-weight: 500;
+}
+
+.select-mascot-step-hint::before {
+  content: '👆';
+  font-size: 14px;
+}
+
 .mascots-selection-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -619,7 +676,7 @@
   border-radius: 6px;
   background: #ffffff;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   color: #000000;
   text-align: left;
@@ -659,16 +716,22 @@
 
 .mascot-selection-card {
   background: #ffffff;
-  border: 1px solid #e5e5e5;
-  border-radius: 8px;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
   overflow: hidden;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .mascot-selection-card:hover {
   border-color: #000000;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+.mascot-selection-card:active {
+  transform: translateY(0);
 }
 
 .mascot-selection-image {
@@ -706,7 +769,7 @@
 }
 
 .mascot-selection-name {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: #000000;
   margin-bottom: 2px;
@@ -716,7 +779,7 @@
 }
 
 .mascot-selection-meta {
-  font-size: 11px;
+  font-size: 12px;
   color: #666666;
   white-space: nowrap;
   overflow: hidden;
@@ -861,17 +924,24 @@
   border: 2px dashed #cccccc;
 }
 
-.variation-loading-text {
-  font-size: 10px;
-  color: #666666;
-  font-weight: 500;
-  margin-bottom: 4px;
+.variation-loading-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.variation-loading-wrap .spinner {
+  width: 24px;
+  height: 24px;
+  border-width: 2px;
 }
 
 .variation-loading-subtext {
-  font-size: 9px;
-  color: #999999;
-  font-weight: 400;
+  font-size: 12px;
+  color: #666666;
+  font-weight: 500;
 }
 
 .variation-number {
@@ -1120,7 +1190,7 @@
   padding: 10px 12px;
   border: 1px solid #e5e5e5;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 13px;
   margin-bottom: 12px;
   background: #ffffff;
   color: #000000;
@@ -1140,7 +1210,7 @@
   padding: 10px 12px;
   border: 1px solid #e5e5e5;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 13px;
   margin-bottom: 12px;
   background: #ffffff;
   color: #000000;
@@ -1162,7 +1232,7 @@
   padding: 10px 12px;
   border: 1px solid #e5e5e5;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 13px;
   background: #ffffff;
   color: #000000;
   font-family: inherit;
@@ -1183,7 +1253,7 @@
 
 .label {
   display: block;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: #000000;
   margin-bottom: 6px;
@@ -1204,11 +1274,41 @@
   margin-bottom: 8px;
 }
 
+/* Spinner: roue qui tourne (remplace texte de chargement) */
+.spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e5e5e5;
+  border-top-color: #000000;
+  border-radius: 50%;
+  animation: spinner-rotate 0.7s linear infinite;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.spinner--lg {
+  width: 28px;
+  height: 28px;
+  border-width: 3px;
+}
+
+@keyframes spinner-rotate {
+  to { transform: rotate(360deg); }
+}
+
 .loading {
-  text-align: center;
-  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px;
   color: #666666;
-  font-size: 12px;
+  font-size: 13px;
+}
+
+.loading .spinner {
+  flex-shrink: 0;
 }
 
 .error {
@@ -1217,7 +1317,7 @@
   color: #c33;
   padding: 10px 12px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 13px;
   margin-bottom: 12px;
 }
 
@@ -1227,6 +1327,6 @@
   color: #3c3;
   padding: 10px 12px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 13px;
   margin-bottom: 12px;
 }

@@ -365,7 +365,7 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
             disabled={isGenerating || isAutoFilling}
             style={{ padding: '0 16px' }}
           >
-            {isAutoFilling ? '...' : 'Fill'}
+            {isAutoFilling ? <span className="spinner" /> : 'Fill'}
           </button>
         </div>
       </div>
@@ -575,7 +575,7 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
         disabled={isGenerating}
         style={{ width: '100%', marginTop: '12px' }}
       >
-        {isGenerating ? 'Creating...' : 'Create (1 credit for 3 variations)'}
+        {isGenerating ? <span className="spinner" /> : 'Create (1 credit for 3 variations)'}
       </button>
 
       {/* Created Variations */}
@@ -613,8 +613,8 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
                       }}
                     />
                   ) : (
-                    <div className="variation-placeholder">
-                      <div className="variation-loading-text">Generating...</div>
+                    <div className="variation-placeholder variation-loading-wrap">
+                      <div className="spinner" />
                       <div className="variation-loading-subtext">Variation {index + 1}</div>
                     </div>
                   )}

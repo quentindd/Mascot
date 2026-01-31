@@ -499,7 +499,9 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
 
       <div className="gallery-content">
         {loading && (
-          <div className="loading">Loading gallery...</div>
+          <div className="loading">
+            <div className="spinner spinner--lg" />
+          </div>
         )}
         {!loading && (
           <>

@@ -423,6 +423,17 @@ export const App: React.FC = () => {
             ✨ New mascot
           </button>
           <button
+            className={`nav-item ${activeTab === 'poses' ? 'active' : ''}`}
+            onClick={() => {
+              if (isAuthenticated) {
+                loadMascots();
+              }
+              setActiveTab('poses');
+            }}
+          >
+            🙂 Add style
+          </button>
+          <button
             className={`nav-item ${activeTab === 'animations' ? 'active' : ''}`}
             onClick={() => {
               if (isAuthenticated) {
@@ -443,17 +454,6 @@ export const App: React.FC = () => {
             }}
           >
             🎨 Logo
-          </button>
-          <button
-            className={`nav-item ${activeTab === 'poses' ? 'active' : ''}`}
-            onClick={() => {
-              if (isAuthenticated) {
-                loadMascots();
-              }
-              setActiveTab('poses');
-            }}
-          >
-            ➕ Add pose
           </button>
           <button
             className={`nav-item ${activeTab === 'gallery' ? 'active' : ''}`}

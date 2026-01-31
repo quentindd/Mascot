@@ -137,6 +137,11 @@ export const LogosTab: React.FC<LogosTabProps> = ({
 
       {mascots.length > 0 && selectedMascot && (
         <>
+      <h2 className="select-mascot-step-title">Logo 🎨</h2>
+      <p className="section-description">
+        Turn your mascot into app and web logos. Pick a platform for the right dimensions, then generate your pack.
+      </p>
+
       {/* Selected Mascot Preview */}
       <div className="selected-mascot-preview">
         <div className="selected-mascot-image">

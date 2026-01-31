@@ -920,6 +920,13 @@
   color: #ffffff;
 }
 
+/* Keep active styling on hover so selected button stays readable */
+.quick-pose-btn.active:hover:not(:disabled) {
+  background: #000000;
+  color: #ffffff;
+  border-color: #000000;
+}
+
 .quick-pose-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;

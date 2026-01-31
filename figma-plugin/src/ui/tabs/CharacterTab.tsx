@@ -418,7 +418,7 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
               <div className="color-picker-wrapper">
                 <input
                   type="color"
-                  value={primaryColor || '#000000'}
+                  value={primaryColor || '#888888'}
                   onChange={(e) => setPrimaryColor(e.target.value)}
                   disabled={isGenerating}
                   className="color-picker-input"
@@ -456,7 +456,7 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
               <div className="color-picker-wrapper">
                 <input
                   type="color"
-                  value={secondaryColor || '#000000'}
+                  value={secondaryColor || '#888888'}
                   onChange={(e) => setSecondaryColor(e.target.value)}
                   disabled={isGenerating}
                   className="color-picker-input"
@@ -494,7 +494,7 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
               <div className="color-picker-wrapper">
                 <input
                   type="color"
-                  value={tertiaryColor || '#000000'}
+                  value={tertiaryColor || '#888888'}
                   onChange={(e) => setTertiaryColor(e.target.value)}
                   disabled={isGenerating}
                   className="color-picker-input"

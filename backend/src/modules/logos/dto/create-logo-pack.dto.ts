@@ -24,11 +24,11 @@ export class CreateLogoPackDto {
   imageSource?: LogoImageSource;
 
   @ApiPropertyOptional({
-    description: 'Style of a known app (e.g. "App Store", "Google Play", "web"). AI will adapt the logo to this style. Optional.',
+    description: 'Platform for logo dimensions: "App Store" (iOS), "Google Play" (Android), or "Web" (PWA). Outputs only the sizes required for that platform.',
   })
   @IsOptional()
   @IsString()
-  stylePrompt?: string;
+  platform?: string;
 
   @ApiPropertyOptional({
     description: 'URL of a reference app logo image. AI will adapt the mascot logo to match this style. Must be a direct image URL (PNG/JPEG/WebP).',

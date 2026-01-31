@@ -9,11 +9,11 @@ interface LogosTabProps {
   mascots: any[];
 }
 
-/** Quick app style options for logo — one line, no parentheses. */
-const APP_STYLE_OPTIONS = [
-  { label: 'App Store', value: 'App Store' },
-  { label: 'Google Play', value: 'Google Play' },
-  { label: 'Web', value: 'Web' },
+/** Platform selection for logo dimensions (App Store / Google Play / Web). */
+const PLATFORM_OPTIONS = [
+  { label: 'App Store', value: 'App Store', hint: '1024×1024 px' },
+  { label: 'Google Play', value: 'Google Play', hint: '512×512 px' },
+  { label: 'Web', value: 'Web', hint: '512×512, 192×192 px' },
 ] as const;
 
 export const LogosTab: React.FC<LogosTabProps> = ({
@@ -23,7 +23,7 @@ export const LogosTab: React.FC<LogosTabProps> = ({
   mascots,
 }) => {
   const [imageSource, setImageSource] = useState<'fullBody' | 'avatar' | 'squareIcon'>('avatar');
-  const [stylePrompt, setStylePrompt] = useState('');
+  const [platform, setPlatform] = useState<string>('');
   const [referenceLogoUrl, setReferenceLogoUrl] = useState('');
   const [primaryColor, setPrimaryColor] = useState('');
   const [secondaryColor, setSecondaryColor] = useState('');
@@ -76,7 +76,7 @@ export const LogosTab: React.FC<LogosTabProps> = ({
       mascotId: selectedMascot.id,
       brandColors: brandColors.length > 0 ? brandColors : undefined,
       imageSource,
-      stylePrompt: stylePrompt.trim() || undefined,
+      platform: platform.trim() || undefined,
       referenceLogoUrl: referenceLogoUrl.trim() || undefined,
     });
   };
@@ -173,6 +173,37 @@ export const LogosTab: React.FC<LogosTabProps> = ({
       )}
 
       <div className="card" style={{ marginBottom: '16px' }}>
+        <label className="label">Platform (logo dimensions)</label>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '4px' }}>
+          {PLATFORM_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              className={platform.trim() === opt.value ? 'quick-pose-btn active' : 'quick-pose-btn'}
+              style={{ fontSize: '11px', padding: '8px 12px' }}
+              onClick={() => setPlatform(opt.value)}
+              disabled={isGenerating}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        {platform.trim() && (
+          <p className="field-hint" style={{ marginTop: '4px', marginBottom: '12px' }}>
+            Output: {PLATFORM_OPTIONS.find((o) => o.value === platform.trim())?.hint ?? ''}
+          </p>
+        )}
+        <label className="label">Paste a logo image URL to copy its style (optional)</label>
+        <input
+          className="input"
+          type="url"
+          placeholder="https://…"
+          value={referenceLogoUrl}
+          onChange={(e) => setReferenceLogoUrl(e.target.value)}
+          disabled={isGenerating}
+          style={{ marginBottom: '12px' }}
+        />
+
         <label className="label">Image source</label>
         <p className="field-hint">Which mascot image to use for the logo</p>
         <select
@@ -186,42 +217,6 @@ export const LogosTab: React.FC<LogosTabProps> = ({
           <option value="avatar">Avatar (portrait)</option>
           <option value="squareIcon">Square icon</option>
         </select>
-
-        <label className="label">Copy the style of an existing app (optional)</label>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '10px' }}>
-          {APP_STYLE_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              className={stylePrompt.trim() === opt.value ? 'quick-pose-btn active' : 'quick-pose-btn'}
-              style={{ fontSize: '11px', padding: '8px 12px' }}
-              onClick={() => setStylePrompt(opt.value)}
-              disabled={isGenerating}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-        <input
-          className="input"
-          type="text"
-          placeholder="Or type a style (e.g. minimal web app)"
-          value={stylePrompt}
-          onChange={(e) => setStylePrompt(e.target.value)}
-          disabled={isGenerating}
-          style={{ marginBottom: '12px' }}
-        />
-
-        <label className="label">Or paste a logo image URL to copy its style</label>
-        <input
-          className="input"
-          type="url"
-          placeholder="https://…"
-          value={referenceLogoUrl}
-          onChange={(e) => setReferenceLogoUrl(e.target.value)}
-          disabled={isGenerating}
-          style={{ marginBottom: '12px' }}
-        />
 
         <label className="label" style={{ marginTop: '12px' }}>Brand Colors (Optional)</label>
         <p className="field-hint">Same as mascot creation — Primary, Secondary, Tertiary.</p>
@@ -244,7 +239,7 @@ export const LogosTab: React.FC<LogosTabProps> = ({
             <div className="color-picker-wrapper">
               <input
                 type="color"
-                value={primaryColor || '#000000'}
+                value={primaryColor || '#888888'}
                 onChange={(e) => setPrimaryColor(e.target.value)}
                 disabled={isGenerating}
                 className="color-picker-input"
@@ -280,7 +275,7 @@ export const LogosTab: React.FC<LogosTabProps> = ({
             <div className="color-picker-wrapper">
               <input
                 type="color"
-                value={secondaryColor || '#000000'}
+                value={secondaryColor || '#888888'}
                 onChange={(e) => setSecondaryColor(e.target.value)}
                 disabled={isGenerating}
                 className="color-picker-input"
@@ -316,7 +311,7 @@ export const LogosTab: React.FC<LogosTabProps> = ({
             <div className="color-picker-wrapper">
               <input
                 type="color"
-                value={tertiaryColor || '#000000'}
+                value={tertiaryColor || '#888888'}
                 onChange={(e) => setTertiaryColor(e.target.value)}
                 disabled={isGenerating}
                 className="color-picker-input"

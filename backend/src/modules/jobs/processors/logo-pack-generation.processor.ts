@@ -12,27 +12,51 @@ import { removeBackground } from '../../../common/utils/background-removal.util'
 import * as sharp from 'sharp';
 import axios from 'axios';
 
-/** Tailles standard pour apps mobiles (iOS App Store, Google Play, PWA). */
-const MOBILE_LOGO_SIZES: { name: string; width: number; height: number }[] = [
-  { name: 'ios-1024', width: 1024, height: 1024 },   // App Store (obligatoire)
-  { name: 'android-512', width: 512, height: 512 },   // Play Store + PWA
+type SizeSpec = { name: string; width: number; height: number };
+
+/** App Store (iOS): 1024 required + standard icon sizes for iPhone/iPad. */
+const APP_STORE_SIZES: SizeSpec[] = [
+  { name: 'ios-1024', width: 1024, height: 1024 },
   { name: 'ios-180', width: 180, height: 180 },
   { name: 'ios-167', width: 167, height: 167 },
   { name: 'ios-152', width: 152, height: 152 },
   { name: 'ios-120', width: 120, height: 120 },
-  { name: 'web-192', width: 192, height: 192 },      // PWA
-  { name: 'android-192', width: 192, height: 192 },
   { name: 'ios-87', width: 87, height: 87 },
   { name: 'ios-80', width: 80, height: 80 },
   { name: 'ios-76', width: 76, height: 76 },
   { name: 'ios-60', width: 60, height: 60 },
   { name: 'ios-58', width: 58, height: 58 },
-  { name: 'android-96', width: 96, height: 96 },
   { name: 'ios-40', width: 40, height: 40 },
   { name: 'ios-29', width: 29, height: 29 },
-  { name: 'android-48', width: 48, height: 48 },
   { name: 'ios-20', width: 20, height: 20 },
 ];
+
+/** Google Play (Android): 512 required + common densities. */
+const GOOGLE_PLAY_SIZES: SizeSpec[] = [
+  { name: 'android-512', width: 512, height: 512 },
+  { name: 'android-192', width: 192, height: 192 },
+  { name: 'android-96', width: 96, height: 96 },
+  { name: 'android-48', width: 48, height: 48 },
+];
+
+/** Web (PWA): 512 + 192 required, plus common sizes. */
+const WEB_SIZES: SizeSpec[] = [
+  { name: 'web-512', width: 512, height: 512 },
+  { name: 'web-192', width: 192, height: 192 },
+  { name: 'web-152', width: 152, height: 152 },
+  { name: 'web-144', width: 144, height: 144 },
+  { name: 'web-96', width: 96, height: 96 },
+  { name: 'web-72', width: 72, height: 72 },
+  { name: 'web-48', width: 48, height: 48 },
+];
+
+function getSizesForPlatform(platform?: string): SizeSpec[] {
+  const p = (platform || '').trim().toLowerCase();
+  if (p === 'app store') return APP_STORE_SIZES;
+  if (p === 'google play') return GOOGLE_PLAY_SIZES;
+  if (p === 'web') return WEB_SIZES;
+  return [...APP_STORE_SIZES, ...GOOGLE_PLAY_SIZES.filter((s) => s.name !== 'android-512'), ...WEB_SIZES.filter((s) => s.width !== 512 && s.width !== 192)];
+}
 
 @Processor('logo-pack-generation')
 export class LogoPackGenerationProcessor extends WorkerHost {
@@ -51,9 +75,9 @@ export class LogoPackGenerationProcessor extends WorkerHost {
   }
 
   async process(job: Job<any, any, string>): Promise<any> {
-    const { logoPackId, mascotId, imageSource, brandColors, referenceLogoUrl, stylePrompt } = job.data;
+    const { logoPackId, mascotId, imageSource, brandColors, referenceLogoUrl, platform } = job.data;
 
-    this.logger.log(`[LogoPack] Starting logo pack ${logoPackId} for mascot ${mascotId} (source: ${imageSource ?? 'auto'}, refLogo: ${referenceLogoUrl ? 'yes' : 'no'}, stylePrompt: ${stylePrompt ? 'yes' : 'no'})`);
+    this.logger.log(`[LogoPack] Starting logo pack ${logoPackId} for mascot ${mascotId} (platform: ${platform ?? 'all'}, refLogo: ${referenceLogoUrl ? 'yes' : 'no'})`);
 
     try {
       await this.logoPackRepository.update(logoPackId, { status: LogoPackStatus.GENERATING });
@@ -64,7 +88,7 @@ export class LogoPackGenerationProcessor extends WorkerHost {
       let imageBuffer: Buffer;
 
       if (referenceLogoUrl && referenceLogoUrl.trim()) {
-        imageBuffer = await this.generateLogoWithStyleReference(mascot, imageSource, referenceLogoUrl, stylePrompt);
+        imageBuffer = await this.generateLogoWithStyleReference(mascot, imageSource, referenceLogoUrl, platform);
       } else {
         const sourceUrl = this.getSourceUrl(mascot, imageSource);
         if (!sourceUrl) throw new Error('Mascot has no image for selected source (fullBody, avatar or squareIcon)');
@@ -77,12 +101,12 @@ export class LogoPackGenerationProcessor extends WorkerHost {
         .png({ compressionLevel: 9, force: true })
         .toBuffer();
 
-      // Always transparent: logos are App Store / Google Play / web sizes, no background
+      const sizeSpecs = getSizesForPlatform(platform);
       const transparentBg = { r: 0, g: 0, b: 0, alpha: 0 };
       const sizes: LogoSize[] = [];
       const timestamp = Date.now();
 
-      for (const spec of MOBILE_LOGO_SIZES) {
+      for (const spec of sizeSpecs) {
         const resized = await sharp(imageBuffer)
           .ensureAlpha()
           .resize(spec.width, spec.height, {
@@ -105,7 +129,7 @@ export class LogoPackGenerationProcessor extends WorkerHost {
           generatedAt: new Date().toISOString(),
           imageSource: imageSource ?? 'auto',
           referenceLogoUrl: referenceLogoUrl || null,
-          stylePrompt: stylePrompt || null,
+          platform: platform || null,
         } as Record<string, any>,
         errorMessage: null,
       });
@@ -126,7 +150,7 @@ export class LogoPackGenerationProcessor extends WorkerHost {
     mascot: Mascot,
     imageSource: string | undefined,
     referenceLogoUrl: string,
-    stylePrompt?: string,
+    platform?: string,
   ): Promise<Buffer> {
     if (!this.geminiFlashService.isAvailable()) {
       throw new Error('AI service is not configured. Reference logo style requires Gemini Flash. Set GOOGLE_CLOUD_PROJECT_ID and credentials.');
@@ -158,7 +182,7 @@ export class LogoPackGenerationProcessor extends WorkerHost {
       mascotImage: { data: mascotPng, mimeType: 'image/png' },
       referenceLogoImage: { data: refPng, mimeType: 'image/png' },
       mascotDetails: mascot.prompt || undefined,
-      stylePrompt: stylePrompt?.trim() || undefined,
+      stylePrompt: platform?.trim() ? `Platform: ${platform.trim()}` : undefined,
     });
     this.logger.log('[LogoPack] Removing background from AI-generated logo...');
     if (this.replicateService.isAvailable()) {

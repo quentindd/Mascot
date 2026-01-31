@@ -2,15 +2,15 @@ import React, { useState } from 'react';
 import { RPCClient } from '../rpc/client';
 import { UploadYourImage } from '../components/UploadYourImage';
 
-/** Quick pose options: emoji + label (label is used as prompt sent to API). */
+/** Quick pose options: buttonLabel = text on button, label = prompt sent to API. */
 const QUICK_POSES = [
-  { emoji: '👋', label: 'Welcome, waving to greet' },
-  { emoji: '😄', label: 'Happy' },
-  { emoji: '🤔', label: 'Thinking' },
-  { emoji: '💤', label: 'Idle' },
-  { emoji: '🎉', label: 'Celebrate' },
-  { emoji: '❓', label: 'Ask for help' },
-  { emoji: '👍', label: 'Thumbs Up' },
+  { emoji: '👋', label: 'Welcome, waving to greet', buttonLabel: 'Welcome' },
+  { emoji: '😄', label: 'Happy', buttonLabel: 'Happy' },
+  { emoji: '🤔', label: 'Thinking', buttonLabel: 'Thinking' },
+  { emoji: '💤', label: 'Idle', buttonLabel: 'Idle' },
+  { emoji: '🎉', label: 'Celebrate', buttonLabel: 'Celebrate' },
+  { emoji: '❓', label: 'Ask for help', buttonLabel: 'Help' },
+  { emoji: '👍', label: 'Thumbs Up', buttonLabel: 'Thumbs Up' },
 ] as const;
 
 interface PosesTabProps {
@@ -201,7 +201,7 @@ export const PosesTab: React.FC<PosesTabProps> = ({
           Choose a pose or type your own below.
         </p>
         <div className="quick-poses-grid">
-          {QUICK_POSES.map(({ emoji, label }) => (
+          {QUICK_POSES.map(({ emoji, label, buttonLabel }) => (
             <button
               key={label}
               type="button"
@@ -211,7 +211,7 @@ export const PosesTab: React.FC<PosesTabProps> = ({
               title={label}
             >
               <span className="quick-pose-emoji">{emoji}</span>
-              <span className="quick-pose-label">{label}</span>
+              <span className="quick-pose-label">{buttonLabel}</span>
             </button>
           ))}
         </div>

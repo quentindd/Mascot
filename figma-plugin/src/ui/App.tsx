@@ -420,7 +420,7 @@ export const App: React.FC = () => {
               setActiveTab('character');
             }}
           >
-            Create
+            ✨ New mascot
           </button>
           <button
             className={`nav-item ${activeTab === 'animations' ? 'active' : ''}`}
@@ -431,7 +431,7 @@ export const App: React.FC = () => {
               setActiveTab('animations');
             }}
           >
-            Animate
+            📸 Animation
           </button>
           <button
             className={`nav-item ${activeTab === 'logos' ? 'active' : ''}`}
@@ -442,7 +442,7 @@ export const App: React.FC = () => {
               setActiveTab('logos');
             }}
           >
-            Logos
+            🎨 Logo
           </button>
           <button
             className={`nav-item ${activeTab === 'poses' ? 'active' : ''}`}
@@ -453,7 +453,7 @@ export const App: React.FC = () => {
               setActiveTab('poses');
             }}
           >
-            Poses
+            ➕ Add pose
           </button>
           <button
             className={`nav-item ${activeTab === 'gallery' ? 'active' : ''}`}
@@ -464,7 +464,7 @@ export const App: React.FC = () => {
               setActiveTab('gallery');
             }}
           >
-            Gallery
+            🗂️ Gallery
           </button>
         </nav>
         
@@ -475,7 +475,7 @@ export const App: React.FC = () => {
             className={`nav-item nav-item-account ${activeTab === 'account' ? 'active' : ''}`}
             onClick={() => setActiveTab('account')}
           >
-            Account
+            👤 Account
           </button>
         </div>
 

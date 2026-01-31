@@ -99,60 +99,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             <p>Signing you in...</p>
           </div>
         ) : view === 'main' ? (
-          <div className="auth-split">
-            <div className="auth-split-left">
-              <h2 className="auth-title">Enter one-time code</h2>
-              <form
-                onSubmit={handleGoogleCodeSubmitForm}
-                className="auth-form auth-form--code"
-              >
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  className="input auth-input auth-code-input auth-code-input--main"
-                  value={googleCode}
-                  onChange={(e) => setGoogleCode(e.target.value.replace(/\D/g, ''))}
-                  placeholder="000000"
-                  autoComplete="one-time-code"
-                  disabled={authLoading}
-                  aria-label="One-time code"
-                />
-                <p className="auth-code-hint">
-                  Enter the 6-digit code shown in the browser after signing in with Figma
-                </p>
-                {authError && (
-                  <p className="auth-error" role="alert">
-                    {authError}
-                  </p>
-                )}
-                <button
-                  type="submit"
-                  className="btn-primary btn-primary--full"
-                  disabled={authLoading || googleCode.length < 6}
-                >
-                  {authLoading ? (
-                    <>
-                      <span className="spinner" aria-hidden />
-                      Submitting...
-                    </>
-                  ) : (
-                    'Submit'
-                  )}
-                </button>
-              </form>
-              <p className="auth-legal">
-                By authenticating and using Mascot you agree to our{' '}
-                <button type="button" className="auth-link" onClick={() => {}}>
-                  terms and conditions
-                </button>
-              </p>
-            </div>
-            <div className="auth-split-divider">Or</div>
-            <div className="auth-split-right">
+          <>
+            <div className="auth-buttons">
               <button
                 type="button"
-                className="btn-figma-continue"
+                className="btn-primary btn-figma-continue btn-figma-continue--standalone"
                 onClick={handleGoogleClick}
                 disabled={authLoading}
               >
@@ -161,30 +112,39 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 </span>
                 Continue with Figma
               </button>
-              <p className="auth-split-email-hint">
-                Or{' '}
-                <button
-                  type="button"
-                  className="auth-link auth-link--light"
-                  onClick={() => setView('email')}
-                >
-                  sign in with email
-                </button>
-              </p>
-              <p className="auth-footer-link auth-footer-link--right">
-                <button
-                  type="button"
-                  className="auth-link auth-link--light"
-                  onClick={() => {
-                    setView('api-token');
-                    onUseToken();
-                  }}
-                >
-                  Using an API token?
-                </button>
-              </p>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setView('email')}
+                disabled={authLoading}
+              >
+                Sign in with Email
+              </button>
             </div>
-          </div>
+            {authError && (
+              <p className="auth-error" role="alert">
+                {authError}
+              </p>
+            )}
+            <p className="auth-footer-link">
+              <button
+                type="button"
+                className="auth-link"
+                onClick={() => {
+                  setView('api-token');
+                  onUseToken();
+                }}
+              >
+                Developer? Use an API token
+              </button>
+            </p>
+            <p className="auth-legal">
+              By authenticating and using Mascot you agree to our{' '}
+              <button type="button" className="auth-link" onClick={() => {}}>
+                terms and conditions
+              </button>
+            </p>
+          </>
         ) : view === 'google-code' ? (
           <form onSubmit={handleGoogleCodeSubmitForm} className="auth-form">
             <p className="auth-subtitle" style={{ textAlign: 'left', marginBottom: 12 }}>
@@ -395,7 +355,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               id="auth-token-input"
               value={tokenInput}
               onChange={(e) => setTokenInput(e.target.value)}
-              placeholder="Paste your API token here..."
+              placeholder="Paste your API token (for developers)..."
               className="token-input"
               autoFocus
               disabled={authLoading}
@@ -414,7 +374,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                   className="auth-link"
                   onClick={onOpenGetTokenUrl}
                 >
-                  Get your API token
+                  Get your API token (developer)
                 </button>
               </p>
             )}

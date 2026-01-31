@@ -273,13 +273,10 @@
   background: #ffffff;
   border: 1px solid #e5e5e5;
   border-radius: 8px;
-  padding: 0;
-  max-width: 520px;
+  padding: 32px;
+  max-width: 360px;
   width: 100%;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  min-height: 400px;
+  text-align: center;
 }
 
 /* Figmotion-style split: code left, "Continue with Figma" right */
@@ -387,6 +384,11 @@
 .btn-figma-continue:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+}
+
+/* Standalone on main auth screen (white background) */
+.btn-figma-continue--standalone {
+  width: 100%;
 }
 
 .btn-figma-continue-icon {

@@ -66,7 +66,7 @@ export const AnimationsTab: React.FC<AnimationsTabProps> = ({
 
   return (
     <div>
-      <h2 className="select-mascot-step-title">Animation 📸</h2>
+      <h2 className="select-mascot-step-title">Create an animation 📸</h2>
       <p className="section-description">
         Animate your mascot with a single action. Choose an action below and generate a short video.
       </p>

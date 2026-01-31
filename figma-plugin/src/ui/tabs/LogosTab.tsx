@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { RPCClient } from '../rpc/client';
+import { UploadYourImage } from '../components/UploadYourImage';
 
 interface LogosTabProps {
   rpc: RPCClient;
@@ -60,64 +61,61 @@ export const LogosTab: React.FC<LogosTabProps> = ({
     });
   };
 
-  // Show empty state if no mascots
-  if (mascots.length === 0) {
-    return (
-      <div className="empty-state-content">
-        <div className="empty-state-icon">Logos</div>
-        <h3 className="empty-state-title">No mascots available</h3>
-        <p className="empty-state-text">
-          Create a mascot first to generate logo packs.
-        </p>
-      </div>
-    );
-  }
-
-  // Show mascot selection if none selected
-  if (!selectedMascot) {
-    return (
-      <div className="select-mascot-step">
-        <h2 className="select-mascot-step-title">Pick a mascot below 👇</h2>
-        <div className="mascots-selection-grid">
-          {mascots.map((mascot) => (
-            <div
-              key={mascot.id}
-              className="mascot-selection-card"
-              onClick={() => onSelectMascot(mascot)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => e.key === 'Enter' && onSelectMascot(mascot)}
-              aria-label={`Select ${mascot.name}`}
-            >
-              <div className="mascot-selection-image">
-                {(mascot.avatarImageUrl || mascot.imageUrl || mascot.fullBodyImageUrl) ? (
-                  <img
-                    src={mascot.fullBodyImageUrl || mascot.avatarImageUrl || mascot.imageUrl}
-                    alt={mascot.name}
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
-                ) : (
-                  <div className="mascot-selection-placeholder">
-                    {mascot.name.charAt(0).toUpperCase()}
-                  </div>
-                )}
-              </div>
-              <div className="mascot-selection-info">
-                <div className="mascot-selection-name">{mascot.name}</div>
-                <div className="mascot-selection-meta">{mascot.style || 'mascot'}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  // Show logo generation form
   return (
     <div>
+      <UploadYourImage rpc={rpc} />
+
+      {mascots.length === 0 && (
+        <div className="empty-state-content">
+          <div className="empty-state-icon">Logos</div>
+          <h3 className="empty-state-title">No mascots yet</h3>
+          <p className="empty-state-text">
+            Use your image above or create a mascot in the Character tab to generate logo packs.
+          </p>
+        </div>
+      )}
+
+      {mascots.length > 0 && !selectedMascot && (
+        <div className="select-mascot-step">
+          <h2 className="select-mascot-step-title">Pick a mascot below 👇</h2>
+          <div className="mascots-selection-grid">
+            {mascots.map((mascot) => (
+              <div
+                key={mascot.id}
+                className="mascot-selection-card"
+                onClick={() => onSelectMascot(mascot)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && onSelectMascot(mascot)}
+                aria-label={`Select ${mascot.name}`}
+              >
+                <div className="mascot-selection-image">
+                  {(mascot.avatarImageUrl || mascot.imageUrl || mascot.fullBodyImageUrl) ? (
+                    <img
+                      src={mascot.fullBodyImageUrl || mascot.avatarImageUrl || mascot.imageUrl}
+                      alt={mascot.name}
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <div className="mascot-selection-placeholder">
+                      {mascot.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                <div className="mascot-selection-info">
+                  <div className="mascot-selection-name">{mascot.name}</div>
+                  <div className="mascot-selection-meta">{mascot.style || 'mascot'}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {mascots.length > 0 && selectedMascot && (
+        <>
       {/* Selected Mascot Preview */}
       <div className="selected-mascot-preview">
         <div className="selected-mascot-image">
@@ -224,6 +222,8 @@ export const LogosTab: React.FC<LogosTabProps> = ({
           {isGenerating ? <span className="spinner" /> : 'Generate Logo Pack'}
         </button>
       </div>
+        </>
+      )}
     </div>
   );
 };

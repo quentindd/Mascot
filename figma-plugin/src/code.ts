@@ -202,6 +202,14 @@ figma.ui.onmessage = async (msg) => {
         await handleGetMascotPoses(msg.data);
         break;
 
+      case 'export-selection-and-upload':
+        await handleExportSelectionAndUpload();
+        break;
+
+      case 'create-mascot-from-image-url':
+        await handleCreateMascotFromImageUrl(msg.data);
+        break;
+
       case 'delete-mascot':
         await handleDeleteMascot(msg.data);
         break;
@@ -797,6 +805,83 @@ async function handleGetBatchVariations(data: { batchId: string }) {
     rpc.send('error', {
       message: error instanceof Error ? error.message : 'Failed to load variations',
     });
+  }
+}
+
+/** Convert Uint8Array to base64 for image upload (Figma plugin has btoa). */
+function uint8ArrayToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+async function handleExportSelectionAndUpload() {
+  if (!apiClient) {
+    rpc.send('error', { message: 'Please sign in to upload an image.', context: 'create-from-image' });
+    figma.notify('Please sign in first');
+    return;
+  }
+
+  const selection = figma.currentPage.selection;
+  if (!selection || selection.length === 0) {
+    rpc.send('error', { message: 'Select a frame or image on the canvas first.', context: 'create-from-image' });
+    figma.notify('Select something on the canvas');
+    return;
+  }
+  if (selection.length > 1) {
+    rpc.send('error', { message: 'Select only one frame or image.', context: 'create-from-image' });
+    figma.notify('Select only one element');
+    return;
+  }
+
+  const node = selection[0];
+  if (!('exportAsync' in node)) {
+    rpc.send('error', { message: 'Selected node cannot be exported as image.', context: 'create-from-image' });
+    figma.notify('Select a frame or image');
+    return;
+  }
+
+  rpc.send('create-from-image-started', {});
+
+  try {
+    const bytes = await (node as any).exportAsync({ format: 'PNG', constraint: { type: 'SCALE', value: 2 } });
+    const base64 = uint8ArrayToBase64(bytes);
+    const { url } = await apiClient.uploadImage(base64);
+    const mascot = await apiClient.createMascotFromImage(url, node.name || 'Uploaded visual');
+    rpc.send('create-from-image-complete', { mascot });
+    rpc.send('add-mascot-to-list', { mascot });
+    figma.notify('Image uploaded and added as mascot');
+  } catch (error) {
+    handleError(error, 'create-from-image');
+  }
+}
+
+async function handleCreateMascotFromImageUrl(data: { imageUrl?: string; name?: string }) {
+  if (!apiClient) {
+    rpc.send('error', { message: 'Please sign in to use an image URL.', context: 'create-from-image' });
+    figma.notify('Please sign in first');
+    return;
+  }
+
+  const imageUrl = (data && data.imageUrl && typeof data.imageUrl === 'string') ? data.imageUrl.trim() : '';
+  if (!imageUrl) {
+    rpc.send('error', { message: 'Please enter an image URL.', context: 'create-from-image' });
+    return;
+  }
+
+  const name = (data && data.name && typeof data.name === 'string') ? data.name.trim() : undefined;
+
+  rpc.send('create-from-image-started', {});
+
+  try {
+    const mascot = await apiClient.createMascotFromImage(imageUrl, name || undefined);
+    rpc.send('create-from-image-complete', { mascot });
+    rpc.send('add-mascot-to-list', { mascot });
+    figma.notify('Image added as mascot');
+  } catch (error) {
+    handleError(error, 'create-from-image');
   }
 }
 

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { RPCClient } from '../rpc/client';
+import { UploadYourImage } from '../components/UploadYourImage';
 
 interface AnimationsTabProps {
   rpc: RPCClient;
@@ -63,64 +64,64 @@ export const AnimationsTab: React.FC<AnimationsTabProps> = ({
     });
   };
 
-  // Show empty state if no mascots
-  if (mascots.length === 0) {
-    return (
-      <div className="empty-state-content">
-        <div className="empty-state-icon">Animate</div>
-        <h3 className="empty-state-title">No mascots available</h3>
-        <p className="empty-state-text">
-          Create a mascot first to generate animations.
-        </p>
-      </div>
-    );
-  }
-
-  // Show mascot selection if none selected
-  if (!selectedMascot) {
-    return (
-      <div className="select-mascot-step">
-        <h2 className="select-mascot-step-title">Pick a mascot below 👇</h2>
-        <div className="mascots-selection-grid">
-          {mascots.map((mascot) => (
-            <div
-              key={mascot.id}
-              className="mascot-selection-card"
-              onClick={() => onSelectMascot(mascot)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => e.key === 'Enter' && onSelectMascot(mascot)}
-              aria-label={`Select ${mascot.name ?? 'Unnamed'}`}
-            >
-              <div className="mascot-selection-image">
-                {(mascot.avatarImageUrl || mascot.imageUrl || mascot.fullBodyImageUrl) ? (
-                  <img
-                    src={mascot.fullBodyImageUrl || mascot.avatarImageUrl || mascot.imageUrl}
-                    alt={mascot.name}
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
-                ) : (
-                  <div className="mascot-selection-placeholder">
-                    {(mascot.name && mascot.name.charAt(0)) ? mascot.name.charAt(0).toUpperCase() : '?'}
-                  </div>
-                )}
-              </div>
-              <div className="mascot-selection-info">
-                <div className="mascot-selection-name">{mascot.name ?? 'Unnamed'}</div>
-                <div className="mascot-selection-meta">{mascot.style || 'mascot'}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  // Show animation generation form
   return (
     <div>
+      <UploadYourImage rpc={rpc} />
+
+      {/* Empty state if no mascots */}
+      {mascots.length === 0 && (
+        <div className="empty-state-content">
+          <div className="empty-state-icon">Animate</div>
+          <h3 className="empty-state-title">No mascots yet</h3>
+          <p className="empty-state-text">
+            Use your image above or create a mascot in the Character tab to generate animations.
+          </p>
+        </div>
+      )}
+
+      {/* Mascot selection if mascots exist but none selected */}
+      {mascots.length > 0 && !selectedMascot && (
+        <div className="select-mascot-step">
+          <h2 className="select-mascot-step-title">Pick a mascot below 👇</h2>
+          <div className="mascots-selection-grid">
+            {mascots.map((mascot) => (
+              <div
+                key={mascot.id}
+                className="mascot-selection-card"
+                onClick={() => onSelectMascot(mascot)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && onSelectMascot(mascot)}
+                aria-label={`Select ${mascot.name ?? 'Unnamed'}`}
+              >
+                <div className="mascot-selection-image">
+                  {(mascot.avatarImageUrl || mascot.imageUrl || mascot.fullBodyImageUrl) ? (
+                    <img
+                      src={mascot.fullBodyImageUrl || mascot.avatarImageUrl || mascot.imageUrl}
+                      alt={mascot.name}
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <div className="mascot-selection-placeholder">
+                      {(mascot.name && mascot.name.charAt(0)) ? mascot.name.charAt(0).toUpperCase() : '?'}
+                    </div>
+                  )}
+                </div>
+                <div className="mascot-selection-info">
+                  <div className="mascot-selection-name">{mascot.name ?? 'Unnamed'}</div>
+                  <div className="mascot-selection-meta">{mascot.style || 'mascot'}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Animation generation form when mascot selected */}
+      {mascots.length > 0 && selectedMascot && (
+        <>
       {/* Selected Mascot Preview */}
       <div className="selected-mascot-preview">
         <div className="selected-mascot-image">
@@ -180,6 +181,8 @@ export const AnimationsTab: React.FC<AnimationsTabProps> = ({
           {isGenerating ? <span className="spinner" /> : 'Generate Animation'}
         </button>
       </div>
+        </>
+      )}
     </div>
   );
 };

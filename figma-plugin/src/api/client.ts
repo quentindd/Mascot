@@ -48,6 +48,8 @@ export interface MascotResponse {
   fullBodyImageUrl: string | null;
   avatarImageUrl: string | null;
   squareIconUrl: string | null;
+  /** Some API responses (e.g. batch variations) include imageUrl. */
+  imageUrl?: string | null;
   referenceImageUrl: string | null;
   createdAt: string;
   updatedAt: string;
@@ -265,6 +267,27 @@ export class MascotAPI {
     return this.request<MascotResponse[]>('/mascots', {
       method: 'POST',
       body: JSON.stringify(data),
+    });
+  }
+
+  /** Upload image (base64) and get public URL. */
+  async uploadImage(base64: string): Promise<{ url: string }> {
+    return this.request<{ url: string }>('/storage/upload-image', {
+      method: 'POST',
+      body: JSON.stringify({ image: base64 }),
+    });
+  }
+
+  /** Create a mascot from an uploaded image URL (no AI generation). */
+  async createMascotFromImage(
+    imageUrl: string,
+    name?: string
+  ): Promise<MascotResponse> {
+    const body: { imageUrl: string; name?: string } = { imageUrl: imageUrl.trim() };
+    if (name && name.trim()) body.name = name.trim();
+    return this.request<MascotResponse>('/mascots/from-image', {
+      method: 'POST',
+      body: JSON.stringify(body),
     });
   }
 

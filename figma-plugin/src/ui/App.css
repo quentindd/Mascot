@@ -727,12 +727,33 @@
   z-index: 0;
 }
 
-.gallery-item .delete-btn {
-  position: absolute;
-  top: 4px;
-  right: 4px;
+.gallery-item .delete-btn,
+.gallery-item .download-btn {
   z-index: 10;
   pointer-events: auto;
+  cursor: pointer;
+}
+
+/* Gallery: delete = pastel red (not flashy) */
+.gallery-delete-btn {
+  background: #f8d7da !important;
+  color: #b02a37 !important;
+}
+
+.gallery-delete-btn:hover {
+  background: #f5c2c7 !important;
+  color: #842029 !important;
+}
+
+/* Gallery: download = blue */
+.gallery-download-btn {
+  background: #cfe2ff !important;
+  color: #084298 !important;
+}
+
+.gallery-download-btn:hover {
+  background: #b6d4fe !important;
+  color: #052c65 !important;
 }
 
 .gallery-item-image--animation {

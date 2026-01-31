@@ -30,6 +30,18 @@ const TrashIcon: React.FC<{ size?: number; className?: string }> = ({ size = 14,
   </svg>
 );
 
+const DownloadIcon: React.FC<{ size?: number; className?: string }> = ({ size = 14, className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="7 10 12 15 17 10" />
+    <line x1="12" y1="15" x2="12" y2="3" />
+  </svg>
+);
+
+const openDownload = (url: string) => {
+  if (url) window.open(url, '_blank', 'noopener,noreferrer');
+};
+
 export const GalleryTab: React.FC<GalleryTabProps> = ({
   rpc,
   mascots,
@@ -118,9 +130,8 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
             key={mascot.id}
             className={`gallery-item ${selectedMascot?.id === mascot.id ? 'selected' : ''}`}
             onClick={(e) => {
-              if ((e.target as HTMLElement).closest('.delete-btn')) return;
+              if ((e.target as HTMLElement).closest('.delete-btn') || (e.target as HTMLElement).closest('.download-btn')) return;
               console.log('[GalleryTab] Mascot clicked, inserting into Figma:', mascot.id, mascot.name);
-              // Insert mascot image directly into Figma
               const imageUrl = mascot.fullBodyImageUrl || mascot.avatarImageUrl || mascot.imageUrl;
               if (imageUrl) {
                 rpc.send('insert-image', {
@@ -135,7 +146,33 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
           >
             <button
               type="button"
-              className="delete-btn"
+              className="download-btn gallery-download-btn"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                const url = mascot.fullBodyImageUrl || mascot.avatarImageUrl || mascot.imageUrl;
+                if (url) openDownload(url);
+              }}
+              title="Download mascot"
+              style={{
+                position: 'absolute',
+                top: '4px',
+                right: '28px',
+                width: '20px',
+                height: '20px',
+                borderRadius: '4px',
+                border: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 10,
+              }}
+            >
+              <DownloadIcon size={14} />
+            </button>
+            <button
+              type="button"
+              className="delete-btn gallery-delete-btn"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => handleDeleteMascot(e, mascot.id)}
               title="Delete mascot"
@@ -147,10 +184,6 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
                 height: '20px',
                 borderRadius: '4px',
                 border: 'none',
-                background: 'rgba(0, 0, 0, 0.7)',
-                color: '#fff',
-                cursor: 'pointer',
-                fontSize: '12px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -211,7 +244,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
             key={animation.id} 
             className="gallery-item"
             onClick={(e) => {
-              if ((e.target as HTMLElement).closest('.delete-btn')) return;
+              if ((e.target as HTMLElement).closest('.delete-btn') || (e.target as HTMLElement).closest('.download-btn')) return;
               if (animation.status === 'completed') {
                 setInsertError(null);
                 setLinksCopied(null);
@@ -226,7 +259,33 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
           >
             <button
               type="button"
-              className="delete-btn"
+              className="download-btn gallery-download-btn"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                const url = animation.movVideoUrl || animation.webmVideoUrl || animation.metadata?.movVideoUrl;
+                if (url) openDownload(url);
+              }}
+              title="Download animation"
+              style={{
+                position: 'absolute',
+                top: '4px',
+                right: '28px',
+                width: '20px',
+                height: '20px',
+                borderRadius: '4px',
+                border: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 10,
+              }}
+            >
+              <DownloadIcon size={14} />
+            </button>
+            <button
+              type="button"
+              className="delete-btn gallery-delete-btn"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => handleDeleteAnimation(e, animation.id)}
               title="Delete animation"
@@ -238,10 +297,6 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
                 height: '20px',
                 borderRadius: '4px',
                 border: 'none',
-                background: 'rgba(0, 0, 0, 0.7)',
-                color: '#fff',
-                cursor: 'pointer',
-                fontSize: '12px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -322,12 +377,38 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
             className="gallery-item"
             style={{ position: 'relative' }}
             onClick={(e) => {
-              if ((e.target as HTMLElement).closest('.delete-btn')) return;
+              if ((e.target as HTMLElement).closest('.delete-btn') || (e.target as HTMLElement).closest('.download-btn')) return;
             }}
           >
             <button
               type="button"
-              className="delete-btn"
+              className="download-btn gallery-download-btn"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                const url = logoPack.zipFileUrl || (logoPack.sizes?.[0]?.url);
+                if (url) openDownload(url);
+              }}
+              title="Download logo pack"
+              style={{
+                position: 'absolute',
+                top: '4px',
+                right: '28px',
+                width: '20px',
+                height: '20px',
+                borderRadius: '4px',
+                border: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 10,
+              }}
+            >
+              <DownloadIcon size={14} />
+            </button>
+            <button
+              type="button"
+              className="delete-btn gallery-delete-btn"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => handleDeleteLogoPack(e, logoPack.id)}
               title="Delete logo pack"
@@ -339,10 +420,6 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
                 height: '20px',
                 borderRadius: '4px',
                 border: 'none',
-                background: 'rgba(0, 0, 0, 0.7)',
-                color: '#fff',
-                cursor: 'pointer',
-                fontSize: '12px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -396,7 +473,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
             key={pose.id}
             className="gallery-item"
             onClick={(e) => {
-              if ((e.target as HTMLElement).closest('.delete-btn')) return;
+              if ((e.target as HTMLElement).closest('.delete-btn') || (e.target as HTMLElement).closest('.download-btn')) return;
               if (pose.status === 'completed' && (pose.imageUrl || pose.imageDataUrl)) {
                 const imageUrl = pose.imageUrl || pose.imageDataUrl;
                 const mascotName = getMascotName(pose.mascotId);
@@ -413,7 +490,33 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
           >
             <button
               type="button"
-              className="delete-btn"
+              className="download-btn gallery-download-btn"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                const url = pose.imageUrl || pose.imageDataUrl;
+                if (url) openDownload(url);
+              }}
+              title="Download pose"
+              style={{
+                position: 'absolute',
+                top: '4px',
+                right: '28px',
+                width: '20px',
+                height: '20px',
+                borderRadius: '4px',
+                border: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 10,
+              }}
+            >
+              <DownloadIcon size={14} />
+            </button>
+            <button
+              type="button"
+              className="delete-btn gallery-delete-btn"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => handleDeletePose(e, pose.id)}
               title="Delete pose"
@@ -425,10 +528,6 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
                 height: '20px',
                 borderRadius: '4px',
                 border: 'none',
-                background: 'rgba(0, 0, 0, 0.7)',
-                color: '#fff',
-                cursor: 'pointer',
-                fontSize: '12px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -812,7 +911,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
                   </button>
                   <button
                     type="button"
-                    onClick={() => rpc.send('delete-animation', { animationId: animationModal.id })}
+                    className="gallery-download-btn"
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -820,16 +919,44 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
                       justifyContent: 'center',
                       fontSize: '11px',
                       padding: '10px 14px',
-                      background: '#fff',
-                      border: '1px solid #e5e7eb',
-                      color: '#dc2626',
                       borderRadius: '8px',
                       cursor: 'pointer',
                       flex: '1 1 auto',
                       minWidth: 0,
+                      border: 'none',
+                    }}
+                    onClick={() => {
+                      const url = animationModal.movVideoUrl || animationModal.webmVideoUrl || animationModal.metadata?.movVideoUrl;
+                      if (url) openDownload(url);
                     }}
                   >
-                    <span>🗑</span> Delete
+                    <DownloadIcon size={12} />
+                    Download
+                  </button>
+                  <button
+                    type="button"
+                    className="gallery-delete-btn"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      justifyContent: 'center',
+                      fontSize: '11px',
+                      padding: '10px 14px',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      flex: '1 1 auto',
+                      minWidth: 0,
+                      border: 'none',
+                    }}
+                    onClick={() => {
+                      if (confirm('Are you sure you want to delete this animation?')) {
+                        rpc.send('delete-animation', { animationId: animationModal.id });
+                      }
+                    }}
+                  >
+                    <TrashIcon size={12} />
+                    Delete
                   </button>
                 </div>
                 {insertError && (

@@ -172,6 +172,22 @@ export class MascotAPI {
     return response.json();
   }
 
+  /** Exchange one-time code (from Google OAuth success page) for access token. No auth header. */
+  static async exchangeCode(code: string): Promise<AuthResponse> {
+    const url = `${API_BASE_URL}/auth/exchange-code`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: code.trim() }),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ message: response.statusText }));
+      const msg = err?.message;
+      throw new Error(typeof msg === 'string' ? msg : Array.isArray(msg) ? msg[0] : 'Invalid or expired code');
+    }
+    return response.json();
+  }
+
   /** Register with email/password (no token required). Returns accessToken for use with plugin. */
   static async register(
     email: string,
@@ -179,14 +195,17 @@ export class MascotAPI {
     name?: string
   ): Promise<AuthResponse> {
     const url = `${API_BASE_URL}/auth/register`;
+    const body: any = {
+      email: email.trim(),
+      password,
+    };
+    if (name && name.trim()) {
+      body.name = name.trim();
+    }
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: email.trim(),
-        password,
-        ...(name?.trim() ? { name: name.trim() } : {}),
-      }),
+      body: JSON.stringify(body),
     });
     if (!response.ok) {
       const err = await response.json().catch(() => ({ message: response.statusText }));

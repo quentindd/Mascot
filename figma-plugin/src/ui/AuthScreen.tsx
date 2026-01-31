@@ -1,6 +1,19 @@
 import React, { useState } from 'react';
 
-type AuthView = 'main' | 'email' | 'register' | 'api-token';
+/** Simple Figma-style "F" icon (multicolor dots). */
+function FigmaIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="6" r="4" fill="#F24E1E" />
+      <circle cx="12" cy="18" r="4" fill="#0ACF83" />
+      <circle cx="6" cy="12" r="4" fill="#A259FF" />
+      <circle cx="18" cy="12" r="4" fill="#1ABCFE" />
+      <circle cx="12" cy="12" r="4" fill="#FF7262" />
+    </svg>
+  );
+}
+
+type AuthView = 'main' | 'email' | 'register' | 'api-token' | 'google-code';
 
 export interface AuthScreenProps {
   tokenInput: string;
@@ -8,6 +21,7 @@ export interface AuthScreenProps {
   onUseToken: () => void;
   onBack: () => void;
   onGoogleLogin: () => void;
+  onGoogleCodeSubmit: (code: string) => void;
   onTokenSubmit: (e: React.FormEvent) => void;
   onEmailLogin: (email: string, password: string) => void;
   onRegister: (email: string, password: string, name?: string) => void;
@@ -26,6 +40,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   onUseToken,
   onBack,
   onGoogleLogin,
+  onGoogleCodeSubmit,
   onTokenSubmit,
   onEmailLogin,
   onRegister,
@@ -38,12 +53,25 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [googleCode, setGoogleCode] = useState('');
 
   const goMain = () => {
     setView('main');
     setEmail('');
     setPassword('');
     setName('');
+    setGoogleCode('');
+  };
+
+  const handleGoogleClick = () => {
+    onGoogleLogin();
+    setView('google-code');
+  };
+
+  const handleGoogleCodeSubmitForm = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!googleCode.trim()) return;
+    onGoogleCodeSubmit(googleCode.trim());
   };
 
   const handleEmailLoginSubmit = (e: React.FormEvent) => {
@@ -71,43 +99,141 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             <p>Signing you in...</p>
           </div>
         ) : view === 'main' ? (
-          <>
-            <div className="auth-buttons">
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={onGoogleLogin}
-                disabled={authLoading}
+          <div className="auth-split">
+            <div className="auth-split-left">
+              <h2 className="auth-title">Enter one-time code</h2>
+              <form
+                onSubmit={handleGoogleCodeSubmitForm}
+                className="auth-form auth-form--code"
               >
-                Sign in with Google
-              </button>
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => setView('email')}
-                disabled={authLoading}
-              >
-                Sign in with Email
-              </button>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  className="input auth-input auth-code-input auth-code-input--main"
+                  value={googleCode}
+                  onChange={(e) => setGoogleCode(e.target.value.replace(/\D/g, ''))}
+                  placeholder="000000"
+                  autoComplete="one-time-code"
+                  disabled={authLoading}
+                  aria-label="One-time code"
+                />
+                <p className="auth-code-hint">
+                  Enter the 6-digit code shown in the browser after signing in with Figma
+                </p>
+                {authError && (
+                  <p className="auth-error" role="alert">
+                    {authError}
+                  </p>
+                )}
+                <button
+                  type="submit"
+                  className="btn-primary btn-primary--full"
+                  disabled={authLoading || googleCode.length < 6}
+                >
+                  {authLoading ? (
+                    <>
+                      <span className="spinner" aria-hidden />
+                      Submitting...
+                    </>
+                  ) : (
+                    'Submit'
+                  )}
+                </button>
+              </form>
+              <p className="auth-legal">
+                By authenticating and using Mascot you agree to our{' '}
+                <button type="button" className="auth-link" onClick={() => {}}>
+                  terms and conditions
+                </button>
+              </p>
             </div>
+            <div className="auth-split-divider">Or</div>
+            <div className="auth-split-right">
+              <button
+                type="button"
+                className="btn-figma-continue"
+                onClick={handleGoogleClick}
+                disabled={authLoading}
+              >
+                <span className="btn-figma-continue-icon" aria-hidden>
+                  <FigmaIcon />
+                </span>
+                Continue with Figma
+              </button>
+              <p className="auth-split-email-hint">
+                Or{' '}
+                <button
+                  type="button"
+                  className="auth-link auth-link--light"
+                  onClick={() => setView('email')}
+                >
+                  sign in with email
+                </button>
+              </p>
+              <p className="auth-footer-link auth-footer-link--right">
+                <button
+                  type="button"
+                  className="auth-link auth-link--light"
+                  onClick={() => {
+                    setView('api-token');
+                    onUseToken();
+                  }}
+                >
+                  Using an API token?
+                </button>
+              </p>
+            </div>
+          </div>
+        ) : view === 'google-code' ? (
+          <form onSubmit={handleGoogleCodeSubmitForm} className="auth-form">
+            <p className="auth-subtitle" style={{ textAlign: 'left', marginBottom: 12 }}>
+              A browser window opened. Sign in with Google there, then enter the 6-digit code shown on the success page.
+            </p>
+            <label className="auth-form-label" htmlFor="auth-google-code">
+              Code
+            </label>
+            <input
+              id="auth-google-code"
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              className="input auth-input auth-code-input"
+              value={googleCode}
+              onChange={(e) => setGoogleCode(e.target.value.replace(/\D/g, ''))}
+              placeholder="000000"
+              autoComplete="one-time-code"
+              disabled={authLoading}
+              autoFocus
+            />
             {authError && (
               <p className="auth-error" role="alert">
                 {authError}
               </p>
             )}
-            <p className="auth-footer-link">
-              <button
-                type="button"
-                className="auth-link"
-                onClick={() => {
-                  setView('api-token');
-                  onUseToken();
-                }}
-              >
-                Using an API token?
-              </button>
-            </p>
-          </>
+            <button
+              type="submit"
+              className="btn-primary"
+              disabled={authLoading || googleCode.length < 6}
+            >
+              {authLoading ? (
+                <>
+                  <span className="spinner" aria-hidden />
+                  Signing in...
+                </>
+              ) : (
+                'Continue'
+              )}
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={goMain}
+              disabled={authLoading}
+            >
+              Back
+            </button>
+          </form>
         ) : view === 'email' ? (
           <form onSubmit={handleEmailLoginSubmit} className="auth-form">
             <label className="auth-form-label" htmlFor="auth-email">

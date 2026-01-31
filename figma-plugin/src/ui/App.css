@@ -273,10 +273,154 @@
   background: #ffffff;
   border: 1px solid #e5e5e5;
   border-radius: 8px;
-  padding: 32px;
-  max-width: 360px;
+  padding: 0;
+  max-width: 520px;
   width: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 400px;
+}
+
+/* Figmotion-style split: code left, "Continue with Figma" right */
+.auth-split {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.auth-split-left {
+  flex: 1;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.auth-split-left .auth-title {
+  margin-bottom: 16px;
+  font-size: 18px;
+}
+
+.auth-form--code {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.auth-code-hint {
+  font-size: 12px;
+  color: #666666;
+  margin: 0 0 8px;
+}
+
+.auth-code-input--main {
+  font-size: 18px;
+  letter-spacing: 6px;
+  padding: 12px 16px;
+}
+
+.btn-primary--full {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.auth-legal {
+  font-size: 11px;
+  color: #888888;
+  margin: 16px 0 0;
+}
+
+.auth-split-divider {
+  width: 1px;
+  background: #e5e5e5;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.auth-split-divider::after {
+  content: 'Or';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #ffffff;
+  padding: 0 8px;
+  font-size: 12px;
+  color: #999999;
+  white-space: nowrap;
+}
+
+.auth-split-right {
+  width: 180px;
+  flex-shrink: 0;
+  background: #18a0fb;
+  padding: 28px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.btn-figma-continue {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 16px;
+  background: #000000;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-figma-continue:hover:not(:disabled) {
+  background: #333333;
+}
+
+.btn-figma-continue:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.btn-figma-continue-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-split-email-hint {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0;
   text-align: center;
+}
+
+.auth-link--light {
+  color: rgba(255, 255, 255, 1);
+  text-decoration: underline;
+}
+
+.auth-link--light:hover {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.auth-footer-link--right {
+  margin: 0;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Non-split views (email, register, code step, api-token) keep card padding */
+.auth-card > .auth-checking,
+.auth-card > form.auth-form {
+  padding: 32px;
 }
 
 .auth-card h2,
@@ -405,6 +549,12 @@
 .auth-optional {
   font-weight: 400;
   color: #999999;
+}
+
+.auth-code-input {
+  font-size: 20px;
+  letter-spacing: 6px;
+  text-align: center;
 }
 
 /* Buttons */

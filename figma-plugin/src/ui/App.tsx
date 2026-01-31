@@ -343,31 +343,16 @@ export const App: React.FC = () => {
     rpc.send('get-credits');
   };
 
-  const handleGoogleLogin = async () => {
-    console.log('[Mascot] Google Sign In button clicked');
-    // Open Google OAuth URL in browser
+  const handleGoogleLogin = () => {
     const apiBaseUrl = 'https://mascot-production.up.railway.app';
     const googleAuthUrl = `${apiBaseUrl}/api/v1/auth/google`;
-    
-    // Send message to plugin code to open browser
     rpc.send('open-google-auth', { url: googleAuthUrl });
-    
-    // Listen for OAuth success message from browser
-    window.addEventListener('message', handleOAuthMessage, false);
   };
 
-  const handleOAuthMessage = (event: MessageEvent) => {
-    if (event.origin !== 'https://mascot-production.up.railway.app') {
-      return;
-    }
-    if (event.data.type === 'oauth-success' && event.data.token) {
-      console.log('[Mascot] OAuth success, validating token...');
-      setToken(event.data.token);
-      setAuthError('');
-      setAuthLoading(true);
-      rpc.send('init', { token: event.data.token });
-      window.removeEventListener('message', handleOAuthMessage, false);
-    }
+  const handleGoogleCodeSubmit = (code: string) => {
+    setAuthError('');
+    setAuthLoading(true);
+    rpc.send('auth-exchange-code', { code });
   };
 
   const handleLogout = () => {
@@ -414,6 +399,7 @@ export const App: React.FC = () => {
           setAuthError('');
         }}
         onGoogleLogin={handleGoogleLogin}
+        onGoogleCodeSubmit={handleGoogleCodeSubmit}
         onTokenSubmit={handleTokenSubmit}
         onEmailLogin={handleEmailLogin}
         onRegister={handleRegister}

@@ -130,6 +130,10 @@ figma.ui.onmessage = async (msg) => {
         await handleAuthRegister(msg.data);
         break;
 
+      case 'auth-exchange-code':
+        await handleAuthExchangeCode(msg.data);
+        break;
+
       case 'generate-mascot':
         await handleGenerateMascot(msg.data);
         break;
@@ -272,6 +276,28 @@ async function handleAuthRegister(data: {
     rpc.send('init-complete', { success: true });
   } catch (err) {
     const message = getErrorMessage(err) || 'Registration failed. Try another email.';
+    rpc.send('init-failed', { message });
+  }
+}
+
+async function handleAuthExchangeCode(data: { code: string }) {
+  const code = data?.code?.trim();
+  if (!code) {
+    rpc.send('init-failed', { message: 'Please enter the 6-digit code.' });
+    return;
+  }
+  try {
+    const auth = await MascotAPI.exchangeCode(code);
+    const token = auth?.accessToken;
+    if (!token) {
+      rpc.send('init-failed', { message: 'Invalid code. Please try again.' });
+      return;
+    }
+    apiClient = new MascotAPI(token);
+    await figma.clientStorage.setAsync('mascot_token', token);
+    rpc.send('init-complete', { success: true });
+  } catch (err) {
+    const message = getErrorMessage(err) || 'Invalid or expired code. Please sign in again.';
     rpc.send('init-failed', { message });
   }
 }

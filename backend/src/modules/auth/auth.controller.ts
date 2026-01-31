@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, Request, Get, Res, Req, Logger } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Request, Get, Res, Req, Logger, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto, AuthResponseDto } from './dto/auth.dto';
@@ -78,13 +78,14 @@ export class AuthController {
     console.log('[AuthController] googleAuthCallback called');
     const user = req.user;
     const authResponse = await this.authService.login(user);
+    const code = this.authService.generateOneTimeCode(authResponse.accessToken);
 
-    // Return HTML page that sends token to Figma plugin
+    // Page shows only a 6-digit code; user enters it in the Figma plugin (no token visible)
     const html = `
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Mascot - Authentication Success</title>
+  <title>Mascot - Sign in successful</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -101,35 +102,45 @@ export class AuthController {
       padding: 40px;
       border-radius: 8px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      max-width: 360px;
     }
-    h1 { color: #18a0fb; margin-bottom: 20px; }
-    p { color: #666; margin-bottom: 30px; }
-    .success { color: #4caf50; font-weight: 600; }
+    h1 { color: #18a0fb; margin-bottom: 16px; font-size: 22px; }
+    p { color: #666; margin-bottom: 24px; font-size: 15px; line-height: 1.5; }
+    .code {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: 8px;
+      padding: 16px 24px;
+      background: #f0f7ff;
+      border-radius: 8px;
+      margin: 24px 0;
+      color: #18a0fb;
+    }
+    .hint { font-size: 13px; color: #888; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>✅ Authentication Successful!</h1>
-    <p class="success">You can close this window and return to Figma.</p>
-    <p>The plugin will automatically receive your authentication token.</p>
-    <script>
-      // Send token to Figma plugin via postMessage
-      if (window.opener) {
-        window.opener.postMessage({
-          type: 'mascot-oauth-success',
-          token: '${authResponse.accessToken}'
-        }, '*');
-        setTimeout(() => window.close(), 2000);
-      } else {
-        // Fallback: show token for manual copy
-        document.body.innerHTML += '<p style="margin-top: 20px; padding: 10px; background: #f0f0f0; border-radius: 4px; word-break: break-all; font-size: 12px;">Token: ${authResponse.accessToken}</p>';
-      }
-    </script>
+    <h1>✅ You're signed in</h1>
+    <p>Close this window and return to Figma. In the plugin, enter this code:</p>
+    <div class="code">${code}</div>
+    <p class="hint">The code is valid for 5 minutes.</p>
   </div>
 </body>
 </html>
     `;
 
     res.send(html);
+  }
+
+  @Post('exchange-code')
+  @ApiOperation({ summary: 'Exchange one-time code for access token (Figma plugin)' })
+  async exchangeCode(@Body() body: { code: string }) {
+    const code = typeof body?.code === 'string' ? body.code.trim() : '';
+    if (!code) {
+      throw new BadRequestException('Code is required');
+    }
+    const token = this.authService.exchangeCodeForToken(code);
+    return { accessToken: token };
   }
 }

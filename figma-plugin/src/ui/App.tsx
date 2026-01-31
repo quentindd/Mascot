@@ -420,7 +420,7 @@ export const App: React.FC = () => {
               setActiveTab('character');
             }}
           >
-            ✨ New mascot
+            ✨ Mascot
           </button>
           <button
             className={`nav-item ${activeTab === 'poses' ? 'active' : ''}`}
@@ -431,7 +431,7 @@ export const App: React.FC = () => {
               setActiveTab('poses');
             }}
           >
-            🙂 Add style
+            🙂 Style
           </button>
           <button
             className={`nav-item ${activeTab === 'animations' ? 'active' : ''}`}

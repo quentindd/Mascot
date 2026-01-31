@@ -66,6 +66,11 @@ export const AnimationsTab: React.FC<AnimationsTabProps> = ({
 
   return (
     <div>
+      <h2 className="select-mascot-step-title">Animation 📸</h2>
+      <p className="section-description">
+        Animate your mascot with a single action. Choose an action below and generate a short video.
+      </p>
+
       {/* Upload only on selection page (no mascot chosen yet) */}
       {!selectedMascot && <UploadYourImage rpc={rpc} />}
 
@@ -123,11 +128,6 @@ export const AnimationsTab: React.FC<AnimationsTabProps> = ({
       {/* Animation generation form when mascot selected */}
       {mascots.length > 0 && selectedMascot && (
         <>
-      <h2 className="select-mascot-step-title">Animation 📸</h2>
-      <p className="section-description">
-        Animate your mascot with a single action. Choose an action below and generate a short video.
-      </p>
-
       {/* Selected Mascot Preview */}
       <div className="selected-mascot-preview">
         <div className="selected-mascot-image">

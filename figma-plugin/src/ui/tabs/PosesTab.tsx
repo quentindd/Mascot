@@ -106,6 +106,11 @@ export const PosesTab: React.FC<PosesTabProps> = ({
 
   return (
     <div>
+      <h2 className="select-mascot-step-title">Add style 🙂</h2>
+      <p className="section-description">
+        Give your mascot a pose or expression. Pick a quick style below or describe your own in the prompt.
+      </p>
+
       {/* Upload only on selection page (no mascot chosen yet) */}
       {!selectedMascot && <UploadYourImage rpc={rpc} />}
 
@@ -160,11 +165,6 @@ export const PosesTab: React.FC<PosesTabProps> = ({
 
       {mascots.length > 0 && selectedMascot && (
         <>
-      <h2 className="select-mascot-step-title">Add style 🙂</h2>
-      <p className="section-description">
-        Give your mascot a pose or expression. Pick a quick style below or describe your own in the prompt.
-      </p>
-
       {/* Selected Mascot Preview */}
       <div className="selected-mascot-preview">
         <div className="selected-mascot-image">

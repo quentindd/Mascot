@@ -210,6 +210,10 @@ figma.ui.onmessage = async (msg) => {
         await handleCreateMascotFromImageUrl(msg.data);
         break;
 
+      case 'upload-image-and-create-mascot':
+        await handleUploadImageAndCreateMascot(msg.data);
+        break;
+
       case 'delete-mascot':
         await handleDeleteMascot(msg.data);
         break;
@@ -880,6 +884,32 @@ async function handleCreateMascotFromImageUrl(data: { imageUrl?: string; name?: 
     rpc.send('create-from-image-complete', { mascot });
     rpc.send('add-mascot-to-list', { mascot });
     figma.notify('Image added as mascot');
+  } catch (error) {
+    handleError(error, 'create-from-image');
+  }
+}
+
+async function handleUploadImageAndCreateMascot(data: { base64?: string }) {
+  if (!apiClient) {
+    rpc.send('error', { message: 'Please sign in to upload an image.', context: 'create-from-image' });
+    figma.notify('Please sign in first');
+    return;
+  }
+
+  const base64 = (data && data.base64 && typeof data.base64 === 'string') ? data.base64.trim() : '';
+  if (!base64) {
+    rpc.send('error', { message: 'No image data.', context: 'create-from-image' });
+    return;
+  }
+
+  rpc.send('create-from-image-started', {});
+
+  try {
+    const { url } = await apiClient.uploadImage(base64);
+    const mascot = await apiClient.createMascotFromImage(url, 'Uploaded visual');
+    rpc.send('create-from-image-complete', { mascot });
+    rpc.send('add-mascot-to-list', { mascot });
+    figma.notify('Image uploaded and added as mascot');
   } catch (error) {
     handleError(error, 'create-from-image');
   }

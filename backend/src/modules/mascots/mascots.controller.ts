@@ -8,6 +8,7 @@ import {
   Query,
   UseGuards,
   Request,
+  BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { MascotsService } from './mascots.service';
@@ -30,6 +31,19 @@ export class MascotsController {
     private readonly autoFillService: AutoFillService,
     private readonly codeSnippetService: CodeSnippetService,
   ) {}
+
+  @Post('from-image')
+  @ApiOperation({ summary: 'Create a mascot from an uploaded image URL (no AI generation)' })
+  async createFromImage(
+    @Body() body: { imageUrl: string; name?: string },
+    @Request() req,
+  ): Promise<MascotResponseDto> {
+    const imageUrl = body?.imageUrl?.trim();
+    if (!imageUrl) {
+      throw new BadRequestException('Body must include "imageUrl"');
+    }
+    return this.mascotsService.createFromImage(req.user.id, imageUrl, body.name);
+  }
 
   @Post()
   @ApiOperation({ summary: 'Generate a new mascot (returns 1-3 variations)' })

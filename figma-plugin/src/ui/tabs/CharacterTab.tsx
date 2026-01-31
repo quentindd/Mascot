@@ -11,7 +11,16 @@ const ART_STYLES = [
   { value: 'flat', emoji: '🟦', label: 'Flat' },
   { value: 'pixel', emoji: '👾', label: 'Pixel' },
   { value: 'hand_drawn', emoji: '✏️', label: 'Hand Drawn' },
-  { value: 'match_brand', emoji: '🎯', label: 'Match Brand' },
+] as const;
+
+/** Personality options with emoji (value = backend enum). */
+const PERSONALITY_OPTIONS = [
+  { value: 'friendly', emoji: '😊', label: 'Friendly' },
+  { value: 'professional', emoji: '💼', label: 'Professional' },
+  { value: 'playful', emoji: '😜', label: 'Playful' },
+  { value: 'cool', emoji: '😎', label: 'Cool' },
+  { value: 'energetic', emoji: '⚡', label: 'Energetic' },
+  { value: 'calm', emoji: '😌', label: 'Calm' },
 ] as const;
 
 /** Mascot type options with emoji (value = backend enum). */
@@ -366,17 +375,16 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
           {/* Personality */}
           <label className="label">Personality</label>
           <select
-            className="select"
+            className="select select-with-emoji"
             value={personality}
             onChange={(e) => setPersonality(e.target.value)}
             disabled={isGenerating}
           >
-            <option value="friendly">Friendly</option>
-            <option value="professional">Professional</option>
-            <option value="playful">Playful</option>
-            <option value="cool">Cool</option>
-            <option value="energetic">Energetic</option>
-            <option value="calm">Calm</option>
+            {PERSONALITY_OPTIONS.map((p) => (
+              <option key={p.value} value={p.value}>
+                {p.emoji} {p.label}
+              </option>
+            ))}
           </select>
 
           {/* Negative Prompt */}

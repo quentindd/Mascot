@@ -370,18 +370,6 @@ export const App: React.FC = () => {
     rpc.send('init', { token: tokenInput.trim() });
   };
 
-  const handleEmailLogin = (email: string, password: string) => {
-    setAuthError('');
-    setAuthLoading(true);
-    rpc.send('auth-login', { email, password });
-  };
-
-  const handleRegister = (email: string, password: string, name?: string) => {
-    setAuthError('');
-    setAuthLoading(true);
-    rpc.send('auth-register', { email, password, name });
-  };
-
   const openGetTokenUrl = () => {
     rpc.send('open-url', {
       url: 'https://mascot-production.up.railway.app/api/v1/auth/google',
@@ -401,8 +389,6 @@ export const App: React.FC = () => {
         onGoogleLogin={handleGoogleLogin}
         onGoogleCodeSubmit={handleGoogleCodeSubmit}
         onTokenSubmit={handleTokenSubmit}
-        onEmailLogin={handleEmailLogin}
-        onRegister={handleRegister}
         onOpenGetTokenUrl={openGetTokenUrl}
         authError={authError}
         authLoading={authLoading}

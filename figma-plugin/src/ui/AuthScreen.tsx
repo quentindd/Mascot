@@ -13,7 +13,7 @@ function FigmaIcon() {
   );
 }
 
-type AuthView = 'main' | 'email' | 'register' | 'api-token' | 'google-code';
+type AuthView = 'main' | 'api-token' | 'google-code';
 
 export interface AuthScreenProps {
   tokenInput: string;
@@ -23,8 +23,6 @@ export interface AuthScreenProps {
   onGoogleLogin: () => void;
   onGoogleCodeSubmit: (code: string) => void;
   onTokenSubmit: (e: React.FormEvent) => void;
-  onEmailLogin: (email: string, password: string) => void;
-  onRegister: (email: string, password: string, name?: string) => void;
   onOpenGetTokenUrl?: () => void;
   authError?: string;
   authLoading?: boolean;
@@ -32,7 +30,7 @@ export interface AuthScreenProps {
 }
 
 /**
- * Page de connexion : Google et email pour les utilisateurs, token API en option secondaire.
+ * Page de connexion : uniquement Continue with Figma (Google) + option API token pour les devs.
  */
 export const AuthScreen: React.FC<AuthScreenProps> = ({
   tokenInput,
@@ -42,24 +40,16 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   onGoogleLogin,
   onGoogleCodeSubmit,
   onTokenSubmit,
-  onEmailLogin,
-  onRegister,
   onOpenGetTokenUrl,
   authError = '',
   authLoading = false,
   checkingStoredToken = false,
 }) => {
   const [view, setView] = useState<AuthView>('main');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
   const [googleCode, setGoogleCode] = useState('');
 
   const goMain = () => {
     setView('main');
-    setEmail('');
-    setPassword('');
-    setName('');
     setGoogleCode('');
   };
 
@@ -72,19 +62,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     e.preventDefault();
     if (!googleCode.trim()) return;
     onGoogleCodeSubmit(googleCode.trim());
-  };
-
-  const handleEmailLoginSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim() || !password) return;
-    onEmailLogin(email.trim(), password);
-  };
-
-  const handleRegisterSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim() || !password) return;
-    if (password.length < 8) return;
-    onRegister(email.trim(), password, name.trim() || undefined);
   };
 
   return (
@@ -111,14 +88,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                   <FigmaIcon />
                 </span>
                 Continue with Figma
-              </button>
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => setView('email')}
-                disabled={authLoading}
-              >
-                Sign in with Email
               </button>
             </div>
             {authError && (
@@ -193,158 +162,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             >
               Back
             </button>
-          </form>
-        ) : view === 'email' ? (
-          <form onSubmit={handleEmailLoginSubmit} className="auth-form">
-            <label className="auth-form-label" htmlFor="auth-email">
-              Email
-            </label>
-            <input
-              id="auth-email"
-              type="email"
-              className="input auth-input"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              autoComplete="email"
-              disabled={authLoading}
-              autoFocus
-            />
-            <label className="auth-form-label" htmlFor="auth-password-login">
-              Password
-            </label>
-            <input
-              id="auth-password-login"
-              type="password"
-              className="input auth-input"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              autoComplete="current-password"
-              disabled={authLoading}
-            />
-            {authError && (
-              <p className="auth-error" role="alert">
-                {authError}
-              </p>
-            )}
-            <button
-              type="submit"
-              className="btn-primary"
-              disabled={authLoading || !email.trim() || !password}
-            >
-              {authLoading ? (
-                <>
-                  <span className="spinner" aria-hidden />
-                  Signing in...
-                </>
-              ) : (
-                'Sign in'
-              )}
-            </button>
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={goMain}
-              disabled={authLoading}
-            >
-              Back
-            </button>
-            <p className="auth-footer-link">
-              Don&apos;t have an account?{' '}
-              <button
-                type="button"
-                className="auth-link"
-                onClick={() => setView('register')}
-              >
-                Create an account
-              </button>
-            </p>
-          </form>
-        ) : view === 'register' ? (
-          <form onSubmit={handleRegisterSubmit} className="auth-form">
-            <label className="auth-form-label" htmlFor="auth-register-email">
-              Email
-            </label>
-            <input
-              id="auth-register-email"
-              type="email"
-              className="input auth-input"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              autoComplete="email"
-              disabled={authLoading}
-              autoFocus
-            />
-            <label className="auth-form-label" htmlFor="auth-register-password">
-              Password (min. 8 characters)
-            </label>
-            <input
-              id="auth-register-password"
-              type="password"
-              className="input auth-input"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              autoComplete="new-password"
-              disabled={authLoading}
-            />
-            <label className="auth-form-label" htmlFor="auth-register-name">
-              Name <span className="auth-optional">(optional)</span>
-            </label>
-            <input
-              id="auth-register-name"
-              type="text"
-              className="input auth-input"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Your name"
-              autoComplete="name"
-              disabled={authLoading}
-            />
-            {authError && (
-              <p className="auth-error" role="alert">
-                {authError}
-              </p>
-            )}
-            <button
-              type="submit"
-              className="btn-primary"
-              disabled={
-                authLoading ||
-                !email.trim() ||
-                !password ||
-                password.length < 8
-              }
-            >
-              {authLoading ? (
-                <>
-                  <span className="spinner" aria-hidden />
-                  Creating account...
-                </>
-              ) : (
-                'Create account'
-              )}
-            </button>
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={goMain}
-              disabled={authLoading}
-            >
-              Back
-            </button>
-            <p className="auth-footer-link">
-              Already have an account?{' '}
-              <button
-                type="button"
-                className="auth-link"
-                onClick={() => setView('email')}
-              >
-                Sign in
-              </button>
-            </p>
           </form>
         ) : (
           <form onSubmit={onTokenSubmit} className="auth-form">

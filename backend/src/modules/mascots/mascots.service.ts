@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Mascot, MascotStatus } from '../../entities/mascot.entity';
+import { Mascot, MascotStatus, MascotStyle } from '../../entities/mascot.entity';
 import { AnimationJob } from '../../entities/animation-job.entity';
 import { LogoPack } from '../../entities/logo-pack.entity';
 import { Pose } from '../../entities/pose.entity';
@@ -109,6 +109,29 @@ export class MascotsService {
 
   private generateBatchId(): string {
     return `batch_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+  }
+
+  /**
+   * Create a mascot from an uploaded image URL (no AI generation).
+   * Used when user uploads their own visual for Animate / Logo / Pose.
+   */
+  async createFromImage(
+    userId: string,
+    imageUrl: string,
+    name?: string,
+  ): Promise<MascotResponseDto> {
+    const mascot = this.mascotRepository.create({
+      name: (name && name.trim()) || 'Uploaded visual',
+      prompt: 'Uploaded by user',
+      style: MascotStyle.FLAT,
+      createdById: userId,
+      status: MascotStatus.COMPLETED,
+      fullBodyImageUrl: imageUrl,
+      avatarImageUrl: imageUrl,
+      squareIconUrl: imageUrl,
+    });
+    const saved = await this.mascotRepository.save(mascot);
+    return this.toResponseDto(saved);
   }
 
   async findAll(

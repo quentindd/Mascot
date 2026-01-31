@@ -74,12 +74,38 @@ Si tu en ajoutes ou modifies, Railway redémarre le service après sauvegarde.
 
 ---
 
-## 4. Récapitulatif rapide
+## 4. Mettre à jour sur Figma
+
+Le plugin Figma ne se met pas à jour tout seul : après chaque modification du code, il faut **rebuild** puis **recharger** (ou réimporter) dans Figma Desktop.
+
+### Étapes
+
+1. **Build du plugin** (depuis la racine du projet) :
+
+   ```bash
+   cd /Users/quentin/Documents/Mascot/figma-plugin
+   npm run build
+   ```
+
+   Cela régénère `code.js` et `ui.html` dans `figma-plugin/`.
+
+2. **Dans Figma Desktop** (pas le navigateur) :
+
+   - Si le plugin est **déjà en développement** : ouvrir le plugin (Plugins → Development → Mascot), puis **clic droit sur le panneau du plugin** → **Reload** pour voir les changements.
+   - Si le plugin n’est **pas encore chargé** : **Plugins** → **Development** → **Import plugin from manifest…** → choisir le fichier `figma-plugin/manifest.json`.
+
+3. **(Optionnel) Publier une nouvelle version** (si le plugin est déjà publié en Community ou en organisation) : dans Figma, **Plugins** → **Development** → Mascot → menu (⋯) → **Update** / **Publish new version**.
+
+En résumé : **build local** (`npm run build` dans `figma-plugin`) puis **Reload** (ou Import) dans Figma Desktop.
+
+---
+
+## 5. Récapitulatif rapide
 
 | Où        | Action |
 |----------|--------|
 | **Local** | `git pull` → `cd backend && npm install && npm run build` → `cd figma-plugin && npm install && npm run build` |
 | **Railway** | `git add . && git commit -m "..." && git push origin main` → attendre le déploiement auto (ou redéployer à la main) |
-| **Plugin Figma** | Recharger le plugin dans Figma (Développement → Recharger le plugin) après un `npm run build` dans `figma-plugin` |
+| **Figma** | `cd figma-plugin && npm run build` → dans Figma Desktop : Reload le plugin (ou Import from manifest) |
 
 Si tu vois encore l’ancien comportement (ex. Flux Kontext pour les poses), c’est en général que le backend tourne encore sur l’ancienne version : vérifier que le dernier déploiement Railway est bien terminé et que l’URL utilisée par le plugin pointe bien vers ce projet Railway.

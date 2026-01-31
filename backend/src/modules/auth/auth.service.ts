@@ -51,7 +51,9 @@ export class AuthService {
     });
 
     if (existingUser) {
-      throw new ConflictException('User with this email already exists');
+      throw new ConflictException(
+        'This email is already registered. Use Continue with Figma to sign in, or Sign in with Email if you set a password.',
+      );
     }
 
     const passwordHash = await bcrypt.hash(registerDto.password, 10);

@@ -9,16 +9,25 @@ interface LogosTabProps {
   mascots: any[];
 }
 
+/** Quick app style options for logo — one line, no parentheses. */
+const APP_STYLE_OPTIONS = [
+  { label: 'App Store', value: 'App Store' },
+  { label: 'Google Play', value: 'Google Play' },
+  { label: 'Web', value: 'Web' },
+] as const;
+
 export const LogosTab: React.FC<LogosTabProps> = ({
   rpc,
   selectedMascot,
   onSelectMascot,
   mascots,
 }) => {
-  const [brandColors, setBrandColors] = useState<string[]>([]);
   const [imageSource, setImageSource] = useState<'fullBody' | 'avatar' | 'squareIcon'>('avatar');
-  const [background, setBackground] = useState<'transparent' | 'white' | 'brand'>('transparent');
+  const [stylePrompt, setStylePrompt] = useState('');
   const [referenceLogoUrl, setReferenceLogoUrl] = useState('');
+  const [primaryColor, setPrimaryColor] = useState('');
+  const [secondaryColor, setSecondaryColor] = useState('');
+  const [tertiaryColor, setTertiaryColor] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,6 +50,13 @@ export const LogosTab: React.FC<LogosTabProps> = ({
     setError(data?.error ?? 'Generation failed');
   });
 
+  rpc.on('error', (data: { message?: string; context?: string }) => {
+    if (data.context === 'generate-logo-pack') {
+      setIsGenerating(false);
+      setError(data.message ?? 'Generation failed');
+    }
+  });
+
   rpc.on('logo-pack-generation-timeout', () => {
     setIsGenerating(false);
     setError('Logo pack generation timed out. Check the Gallery tab later.');
@@ -52,11 +68,15 @@ export const LogosTab: React.FC<LogosTabProps> = ({
       return;
     }
 
+    const brandColors = [primaryColor, secondaryColor, tertiaryColor]
+      .map((c) => c.trim())
+      .filter((c) => /^#[0-9A-Fa-f]{6}$/.test(c));
+
     rpc.send('generate-logo-pack', {
       mascotId: selectedMascot.id,
       brandColors: brandColors.length > 0 ? brandColors : undefined,
       imageSource,
-      background,
+      stylePrompt: stylePrompt.trim() || undefined,
       referenceLogoUrl: referenceLogoUrl.trim() || undefined,
     });
   };
@@ -167,52 +187,154 @@ export const LogosTab: React.FC<LogosTabProps> = ({
           <option value="squareIcon">Square icon</option>
         </select>
 
-        <label className="label">Reference logo (optional)</label>
-        <p className="field-hint">
-          Paste a direct image URL (PNG/JPEG/WebP). AI will adapt your mascot logo to match this style.
-        </p>
+        <label className="label">Copy the style of an existing app (optional)</label>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '10px' }}>
+          {APP_STYLE_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              className={stylePrompt.trim() === opt.value ? 'quick-pose-btn active' : 'quick-pose-btn'}
+              style={{ fontSize: '11px', padding: '8px 12px' }}
+              onClick={() => setStylePrompt(opt.value)}
+              disabled={isGenerating}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        <input
+          className="input"
+          type="text"
+          placeholder="Or type a style (e.g. minimal web app)"
+          value={stylePrompt}
+          onChange={(e) => setStylePrompt(e.target.value)}
+          disabled={isGenerating}
+          style={{ marginBottom: '12px' }}
+        />
+
+        <label className="label">Or paste a logo image URL to copy its style</label>
         <input
           className="input"
           type="url"
-          placeholder="https://… (logo image URL)"
+          placeholder="https://…"
           value={referenceLogoUrl}
           onChange={(e) => setReferenceLogoUrl(e.target.value)}
           disabled={isGenerating}
           style={{ marginBottom: '12px' }}
         />
 
-        <label className="label">Background</label>
-        <p className="field-hint">Transparent, white, or your brand color</p>
-        <select
-          className="input"
-          value={background}
-          onChange={(e) => setBackground(e.target.value as 'transparent' | 'white' | 'brand')}
-          disabled={isGenerating}
-          style={{ marginBottom: '12px' }}
-        >
-          <option value="transparent">Transparent</option>
-          <option value="white">White</option>
-          <option value="brand">Brand color (use first color below)</option>
-        </select>
-
-        <label className="label">Brand Colors (Optional)</label>
-        <p className="field-hint">
-          Enter hex colors separated by commas (e.g., #FF5733, #33FF57). Used for &quot;Brand color&quot; background.
-        </p>
-        <input
-          className="input"
-          type="text"
-          placeholder="#FF5733, #33FF57"
-          value={brandColors.join(', ')}
-          onChange={(e) => {
-            const colors = e.target.value
-              .split(',')
-              .map(c => c.trim())
-              .filter(c => c.startsWith('#'));
-            setBrandColors(colors);
-          }}
-          disabled={isGenerating}
-        />
+        <label className="label" style={{ marginTop: '12px' }}>Brand Colors (Optional)</label>
+        <p className="field-hint">Same as mascot creation — Primary, Secondary, Tertiary.</p>
+        <div className="color-picker-group">
+          <div className="color-picker-item">
+            <div className="color-picker-header">
+              <span className="color-picker-label">Primary</span>
+              {primaryColor && (
+                <button
+                  type="button"
+                  className="color-picker-clear"
+                  onClick={() => setPrimaryColor('')}
+                  disabled={isGenerating}
+                  title="Clear color"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+            <div className="color-picker-wrapper">
+              <input
+                type="color"
+                value={primaryColor || '#000000'}
+                onChange={(e) => setPrimaryColor(e.target.value)}
+                disabled={isGenerating}
+                className="color-picker-input"
+              />
+              <input
+                type="text"
+                placeholder="#FF5733"
+                value={primaryColor}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === '' || /^#[0-9A-Fa-f]{0,6}$/.test(val)) setPrimaryColor(val);
+                }}
+                disabled={isGenerating}
+                className="color-picker-text"
+              />
+            </div>
+          </div>
+          <div className="color-picker-item">
+            <div className="color-picker-header">
+              <span className="color-picker-label">Secondary</span>
+              {secondaryColor && (
+                <button
+                  type="button"
+                  className="color-picker-clear"
+                  onClick={() => setSecondaryColor('')}
+                  disabled={isGenerating}
+                  title="Clear color"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+            <div className="color-picker-wrapper">
+              <input
+                type="color"
+                value={secondaryColor || '#000000'}
+                onChange={(e) => setSecondaryColor(e.target.value)}
+                disabled={isGenerating}
+                className="color-picker-input"
+              />
+              <input
+                type="text"
+                placeholder="#33C3FF"
+                value={secondaryColor}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === '' || /^#[0-9A-Fa-f]{0,6}$/.test(val)) setSecondaryColor(val);
+                }}
+                disabled={isGenerating}
+                className="color-picker-text"
+              />
+            </div>
+          </div>
+          <div className="color-picker-item">
+            <div className="color-picker-header">
+              <span className="color-picker-label">Tertiary</span>
+              {tertiaryColor && (
+                <button
+                  type="button"
+                  className="color-picker-clear"
+                  onClick={() => setTertiaryColor('')}
+                  disabled={isGenerating}
+                  title="Clear color"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+            <div className="color-picker-wrapper">
+              <input
+                type="color"
+                value={tertiaryColor || '#000000'}
+                onChange={(e) => setTertiaryColor(e.target.value)}
+                disabled={isGenerating}
+                className="color-picker-input"
+              />
+              <input
+                type="text"
+                placeholder="#FFD700"
+                value={tertiaryColor}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === '' || /^#[0-9A-Fa-f]{0,6}$/.test(val)) setTertiaryColor(val);
+                }}
+                disabled={isGenerating}
+                className="color-picker-text"
+              />
+            </div>
+          </div>
+        </div>
 
         <button
           className="btn-primary"

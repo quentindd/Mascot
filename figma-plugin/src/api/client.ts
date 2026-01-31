@@ -101,12 +101,12 @@ export interface AnimationStatusResponse {
 }
 
 export type LogoImageSource = 'fullBody' | 'avatar' | 'squareIcon';
-export type LogoBackground = 'transparent' | 'white' | 'brand';
 
 export interface CreateLogoPackRequest {
   brandColors?: string[];
   imageSource?: LogoImageSource;
-  background?: LogoBackground;
+  /** Style of known app (e.g. App Store, Google Play, web). AI adapts logo to this style. */
+  stylePrompt?: string;
   /** Direct image URL (PNG/JPEG/WebP). AI adapts mascot logo to this style. */
   referenceLogoUrl?: string;
   figmaFileId?: string;

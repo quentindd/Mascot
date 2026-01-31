@@ -561,19 +561,21 @@ async function handleGenerateLogoPack(data: {
   mascotId: string;
   brandColors?: string[];
   imageSource?: 'fullBody' | 'avatar' | 'squareIcon';
-  background?: 'transparent' | 'white' | 'brand';
+  stylePrompt?: string;
   referenceLogoUrl?: string;
 }) {
-  // Demo mode: show message
+  if (!data?.mascotId) {
+    rpc.send('logo-pack-generation-failed', { error: 'No mascot selected.' });
+    return;
+  }
+
+  // Require auth: tell UI so it resets the button and shows error
   if (!apiClient) {
     rpc.send('logo-pack-generation-started', { mascotId: data.mascotId });
-    
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    rpc.send('error', { 
-      message: 'Demo mode: Logo pack generation requires authentication. Sign in to generate real logo packs.' 
+    rpc.send('logo-pack-generation-failed', {
+      error: 'Please sign in to generate logo packs. Use the Account tab to sign in.',
     });
-    figma.notify('Demo mode: Sign in for real logo generation.');
+    figma.notify('Sign in to generate logo packs');
     return;
   }
 
@@ -582,9 +584,10 @@ async function handleGenerateLogoPack(data: {
   rpc.send('logo-pack-generation-started', { mascotId: data.mascotId });
 
   try {
-    // Omit imageSource/background until backend is deployed with CreateLogoPackDto that accepts them (avoids 400 "property should not exist")
     const logoPack = await apiClient.createLogoPack(data.mascotId, {
       brandColors: data.brandColors,
+      imageSource: data.imageSource,
+      stylePrompt: data.stylePrompt,
       referenceLogoUrl: data.referenceLogoUrl,
       figmaFileId,
     });

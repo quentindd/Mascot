@@ -51,9 +51,9 @@ export class LogoPackGenerationProcessor extends WorkerHost {
   }
 
   async process(job: Job<any, any, string>): Promise<any> {
-    const { logoPackId, mascotId, imageSource, background, brandColors, referenceLogoUrl } = job.data;
+    const { logoPackId, mascotId, imageSource, brandColors, referenceLogoUrl, stylePrompt } = job.data;
 
-    this.logger.log(`[LogoPack] Starting logo pack ${logoPackId} for mascot ${mascotId} (source: ${imageSource ?? 'auto'}, bg: ${background ?? 'transparent'}, refLogo: ${referenceLogoUrl ? 'yes' : 'no'})`);
+    this.logger.log(`[LogoPack] Starting logo pack ${logoPackId} for mascot ${mascotId} (source: ${imageSource ?? 'auto'}, refLogo: ${referenceLogoUrl ? 'yes' : 'no'}, stylePrompt: ${stylePrompt ? 'yes' : 'no'})`);
 
     try {
       await this.logoPackRepository.update(logoPackId, { status: LogoPackStatus.GENERATING });
@@ -64,7 +64,7 @@ export class LogoPackGenerationProcessor extends WorkerHost {
       let imageBuffer: Buffer;
 
       if (referenceLogoUrl && referenceLogoUrl.trim()) {
-        imageBuffer = await this.generateLogoWithStyleReference(mascot, imageSource, referenceLogoUrl);
+        imageBuffer = await this.generateLogoWithStyleReference(mascot, imageSource, referenceLogoUrl, stylePrompt);
       } else {
         const sourceUrl = this.getSourceUrl(mascot, imageSource);
         if (!sourceUrl) throw new Error('Mascot has no image for selected source (fullBody, avatar or squareIcon)');
@@ -77,7 +77,8 @@ export class LogoPackGenerationProcessor extends WorkerHost {
         .png({ compressionLevel: 9, force: true })
         .toBuffer();
 
-      const bg = this.getBackground(background, brandColors);
+      // Always transparent: logos are App Store / Google Play / web sizes, no background
+      const transparentBg = { r: 0, g: 0, b: 0, alpha: 0 };
       const sizes: LogoSize[] = [];
       const timestamp = Date.now();
 
@@ -86,8 +87,8 @@ export class LogoPackGenerationProcessor extends WorkerHost {
           .ensureAlpha()
           .resize(spec.width, spec.height, {
             fit: 'contain',
-            background: bg,
-            withoutEnlargement: false, // allow upscale for 1024 (source often 512)
+            background: transparentBg,
+            withoutEnlargement: false,
           })
           .png({ compressionLevel: 9, force: true })
           .toBuffer();
@@ -103,8 +104,8 @@ export class LogoPackGenerationProcessor extends WorkerHost {
         metadata: {
           generatedAt: new Date().toISOString(),
           imageSource: imageSource ?? 'auto',
-          background: background ?? 'transparent',
           referenceLogoUrl: referenceLogoUrl || null,
+          stylePrompt: stylePrompt || null,
         } as Record<string, any>,
         errorMessage: null,
       });
@@ -125,6 +126,7 @@ export class LogoPackGenerationProcessor extends WorkerHost {
     mascot: Mascot,
     imageSource: string | undefined,
     referenceLogoUrl: string,
+    stylePrompt?: string,
   ): Promise<Buffer> {
     if (!this.geminiFlashService.isAvailable()) {
       throw new Error('AI service is not configured. Reference logo style requires Gemini Flash. Set GOOGLE_CLOUD_PROJECT_ID and credentials.');
@@ -156,6 +158,7 @@ export class LogoPackGenerationProcessor extends WorkerHost {
       mascotImage: { data: mascotPng, mimeType: 'image/png' },
       referenceLogoImage: { data: refPng, mimeType: 'image/png' },
       mascotDetails: mascot.prompt || undefined,
+      stylePrompt: stylePrompt?.trim() || undefined,
     });
     this.logger.log('[LogoPack] Removing background from AI-generated logo...');
     if (this.replicateService.isAvailable()) {
@@ -180,22 +183,5 @@ export class LogoPackGenerationProcessor extends WorkerHost {
     if (imageSource === 'avatar') return mascot.avatarImageUrl ?? null;
     if (imageSource === 'squareIcon') return mascot.squareIconUrl ?? null;
     return mascot.fullBodyImageUrl || mascot.avatarImageUrl || mascot.squareIconUrl || null;
-  }
-
-  private getBackground(
-    background?: string,
-    brandColors?: string[],
-  ): { r: number; g: number; b: number; alpha: number } {
-    if (background === 'white') return { r: 255, g: 255, b: 255, alpha: 1 };
-    if (background === 'brand' && brandColors?.length && /^#[0-9A-Fa-f]{6}$/.test(brandColors[0])) {
-      const hex = brandColors[0].replace('#', '');
-      return {
-        r: parseInt(hex.slice(0, 2), 16),
-        g: parseInt(hex.slice(2, 4), 16),
-        b: parseInt(hex.slice(4, 6), 16),
-        alpha: 1,
-      };
-    }
-    return { r: 0, g: 0, b: 0, alpha: 0 };
   }
 }

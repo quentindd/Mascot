@@ -333,6 +333,7 @@ export class GeminiFlashService implements OnModuleInit {
     mascotImage: { data: Buffer; mimeType: string };
     referenceLogoImage: { data: Buffer; mimeType: string };
     mascotDetails?: string;
+    stylePrompt?: string;
   }): Promise<Buffer> {
     if (this.initializationPromise && !this.initialized) {
       await this.initializationPromise;
@@ -341,7 +342,7 @@ export class GeminiFlashService implements OnModuleInit {
       throw new Error('Gemini Flash service not initialized.');
     }
 
-    const prompt = this.buildLogoInStylePrompt(config.mascotDetails);
+    const prompt = this.buildLogoInStylePrompt(config.mascotDetails, config.stylePrompt);
 
     const parts: any[] = [
       {
@@ -378,12 +379,15 @@ export class GeminiFlashService implements OnModuleInit {
     return this.extractImageFromResponse(response);
   }
 
-  private buildLogoInStylePrompt(mascotDetails?: string): string {
+  private buildLogoInStylePrompt(mascotDetails?: string, stylePrompt?: string): string {
     let p =
       'Image 1 is a mascot character. Image 2 is a reference app logo. ' +
       'Generate a single square app icon (1024x1024) showing ONLY the mascot from image 1, ' +
       'but drawn in the exact same visual style as the reference logo in image 2: same type of colors, shading, line style, and overall look. ' +
       'Keep the mascot\'s identity and design. Do NOT copy the reference logo\'s character or text. ';
+    if (stylePrompt?.trim()) {
+      p += `User wants the logo to fit the style of: ${stylePrompt.trim()}. `;
+    }
     if (mascotDetails?.trim()) {
       p += `Mascot description: ${mascotDetails.trim()}. `;
     }

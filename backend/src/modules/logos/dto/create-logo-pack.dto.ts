@@ -4,12 +4,9 @@ import { IsString, IsOptional, IsArray, IsHexColor, IsIn, IsUrl } from 'class-va
 export const LOGO_IMAGE_SOURCES = ['fullBody', 'avatar', 'squareIcon'] as const;
 export type LogoImageSource = (typeof LOGO_IMAGE_SOURCES)[number];
 
-export const LOGO_BACKGROUNDS = ['transparent', 'white', 'brand'] as const;
-export type LogoBackground = (typeof LOGO_BACKGROUNDS)[number];
-
 export class CreateLogoPackDto {
   @ApiPropertyOptional({
-    description: 'Brand colors in hex format (e.g., ["#FF5733", "#33FF57"]). Used for "brand" background and metadata.',
+    description: 'Brand colors in hex (Primary, Secondary, Tertiary). Same as mascot creation.',
     type: [String],
   })
   @IsOptional()
@@ -27,16 +24,14 @@ export class CreateLogoPackDto {
   imageSource?: LogoImageSource;
 
   @ApiPropertyOptional({
-    description: 'Logo background: transparent, white, or brand (uses first brand color)',
-    enum: LOGO_BACKGROUNDS,
+    description: 'Style of a known app (e.g. "App Store", "Google Play", "web"). AI will adapt the logo to this style. Optional.',
   })
   @IsOptional()
   @IsString()
-  @IsIn(LOGO_BACKGROUNDS)
-  background?: LogoBackground;
+  stylePrompt?: string;
 
   @ApiPropertyOptional({
-    description: 'URL of a reference app logo image. AI will adapt the mascot logo to match this style (colors, shading, look). Must be a direct image URL (PNG/JPEG/WebP).',
+    description: 'URL of a reference app logo image. AI will adapt the mascot logo to match this style. Must be a direct image URL (PNG/JPEG/WebP).',
   })
   @IsOptional()
   @IsUrl({ require_tld: true, protocols: ['https'] })

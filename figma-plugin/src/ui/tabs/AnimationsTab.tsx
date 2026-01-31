@@ -80,12 +80,7 @@ export const AnimationsTab: React.FC<AnimationsTabProps> = ({
   if (!selectedMascot) {
     return (
       <div className="select-mascot-step">
-        <div className="select-mascot-step-badge">1</div>
-        <h2 className="select-mascot-step-title">Choose a mascot to animate</h2>
-        <p className="select-mascot-step-desc">
-          Pick one mascot below. You’ll then choose an action (wave, celebrate, etc.) and generate an animation.
-        </p>
-        <p className="select-mascot-step-hint">Click a mascot to select it</p>
+        <h2 className="select-mascot-step-title">Pick a mascot below 👇</h2>
         <div className="mascots-selection-grid">
           {mascots.map((mascot) => (
             <div

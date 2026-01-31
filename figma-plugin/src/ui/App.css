@@ -610,53 +610,17 @@
   margin-bottom: 20px;
 }
 
-.select-mascot-step-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  background: #000000;
-  color: #ffffff;
-  font-size: 14px;
-  font-weight: 700;
-  border-radius: 8px;
-  margin-bottom: 12px;
-}
-
 .select-mascot-step-title {
   font-size: 18px;
   font-weight: 700;
   color: #0f172a;
-  margin: 0 0 6px 0;
+  margin: 0 0 24px 0;
   letter-spacing: -0.02em;
-}
-
-.select-mascot-step-desc {
-  font-size: 14px;
-  color: #475569;
-  margin: 0 0 16px 0;
-  line-height: 1.4;
-}
-
-.select-mascot-step-hint {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: #64748b;
-  margin-bottom: 14px;
-  font-weight: 500;
-}
-
-.select-mascot-step-hint::before {
-  content: '👆';
-  font-size: 14px;
 }
 
 .mascots-selection-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 12px;
 }
 

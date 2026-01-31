@@ -57,10 +57,6 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
   const [secondaryColor, setSecondaryColor] = useState('');
   const [tertiaryColor, setTertiaryColor] = useState('');
   
-  // Auto-fill
-  const [autoFillUrl, setAutoFillUrl] = useState('');
-  const [isAutoFilling, setIsAutoFilling] = useState(false);
-  
   // UI state
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -138,24 +134,6 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
 
   rpc.on('mascot-generation-failed', (data: { error: string }) => {
     setIsGenerating(false);
-    setError(data.error);
-  });
-
-  rpc.on('auto-fill-complete', (data: any) => {
-    setIsAutoFilling(false);
-    setName(data.name || '');
-    setPrompt(data.suggestedPrompt || data.description || '');
-    setType(data.suggestedType || 'auto');
-    if (data.brandColors) {
-      setPrimaryColor(data.brandColors.primary || '');
-      setSecondaryColor(data.brandColors.secondary || '');
-      setTertiaryColor(data.brandColors.tertiary || '');
-    }
-    setSuccess('Auto-filled from URL!');
-  });
-
-  rpc.on('auto-fill-failed', (data: { error: string }) => {
-    setIsAutoFilling(false);
     setError(data.error);
   });
 
@@ -260,16 +238,6 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
     }
   });
 
-  const handleAutoFill = () => {
-    if (!autoFillUrl.trim()) {
-      setError('Please enter a URL');
-      return;
-    }
-    setIsAutoFilling(true);
-    setError(null);
-    rpc.send('auto-fill', { url: autoFillUrl });
-  };
-
   const handleGenerate = () => {
     if (!name.trim() || !prompt.trim()) {
       setError('Please fill in all fields');
@@ -289,7 +257,6 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
       personality,
       negativePrompt: negativePrompt || undefined,
       brandColors: Object.keys(brandColors).length > 0 ? brandColors : undefined,
-      autoFillUrl: autoFillUrl || undefined,
     });
   };
 
@@ -335,40 +302,15 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
     setPrimaryColor('');
     setSecondaryColor('');
     setTertiaryColor('');
-    setAutoFillUrl('');
     setSuccess(imageUrl ? 'Mascot selected and added to Existing Mascots! You can now use it in Animations or Logos tabs. Other variations are still generating...' : 'Mascot selected and added to Existing Mascots! Image is still generating, but you can use it in Animations or Logos tabs. Other variations are still generating...');
   };
 
   return (
     <div>
-      <h3 className="section-title">Create New Mascot</h3>
+      <h2 className="select-mascot-step-title">Create new mascot ✨</h2>
       <p className="section-description">
         Create a new mascot with AI. Fill in the details below to generate 3 variations.
       </p>
-
-      {/* Auto-fill Section */}
-      <div style={{ marginBottom: '16px', padding: '12px', background: '#f8f8f8', borderRadius: '4px' }}>
-        <label className="label" style={{ marginBottom: '4px' }}>Auto-fill from URL (Optional)</label>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <input
-            className="input"
-            type="text"
-            placeholder="App Store, Play Store, or website URL"
-            value={autoFillUrl}
-            onChange={(e) => setAutoFillUrl(e.target.value)}
-            disabled={isGenerating || isAutoFilling}
-            style={{ flex: 1 }}
-          />
-          <button
-            className="btn-primary"
-            onClick={handleAutoFill}
-            disabled={isGenerating || isAutoFilling}
-            style={{ padding: '0 16px' }}
-          >
-            {isAutoFilling ? <span className="spinner" /> : 'Fill'}
-          </button>
-        </div>
-      </div>
 
       {/* Basic Fields */}
       <label className="label">Name *</label>

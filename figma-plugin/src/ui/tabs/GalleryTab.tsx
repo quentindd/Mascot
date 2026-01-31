@@ -936,19 +936,6 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
               </div>
             )}
 
-            {/* Replicate link (optional) */}
-            {animationModal.metadata?.replicatePredictionUrl && (
-              <div style={{ padding: '0 16px 16px', borderTop: '1px solid #f3f4f6' }}>
-                <a
-                  href={animationModal.metadata.replicatePredictionUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ fontSize: '11px', color: '#6366f1', textDecoration: 'none', fontWeight: 500 }}
-                >
-                  View run on Replicate →
-                </a>
-              </div>
-            )}
           </div>
         </div>
       )}

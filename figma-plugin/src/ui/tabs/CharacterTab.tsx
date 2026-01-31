@@ -1,6 +1,30 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { RPCClient } from '../rpc/client';
 
+/** Art style options with emoji (value = backend enum). */
+const ART_STYLES = [
+  { value: 'kawaii', emoji: '🌸', label: 'Kawaii' },
+  { value: 'minimal', emoji: '◻️', label: 'Minimal' },
+  { value: '3d_pixar', emoji: '🎬', label: '3D Pixar' },
+  { value: '3d', emoji: '💎', label: '3D' },
+  { value: 'cartoon', emoji: '🎨', label: 'Cartoon' },
+  { value: 'flat', emoji: '🟦', label: 'Flat' },
+  { value: 'pixel', emoji: '👾', label: 'Pixel' },
+  { value: 'hand_drawn', emoji: '✏️', label: 'Hand Drawn' },
+  { value: 'match_brand', emoji: '🎯', label: 'Match Brand' },
+] as const;
+
+/** Mascot type options with emoji (value = backend enum). */
+const MASCOT_TYPES = [
+  { value: 'auto', emoji: '✨', label: 'Auto-detect' },
+  { value: 'animal', emoji: '🐾', label: 'Animal' },
+  { value: 'creature', emoji: '🐲', label: 'Creature' },
+  { value: 'robot', emoji: '🤖', label: 'Robot' },
+  { value: 'food', emoji: '🍕', label: 'Food' },
+  { value: 'object', emoji: '📦', label: 'Object' },
+  { value: 'abstract', emoji: '💫', label: 'Abstract' },
+] as const;
+
 interface CharacterTabProps {
   rpc: RPCClient;
   mascots: any[];
@@ -367,40 +391,34 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
         disabled={isGenerating}
       />
 
-      {/* Style */}
+      {/* Art Style */}
           <label className="label">Art Style</label>
           <select
-            className="select"
+            className="select select-with-emoji"
             value={style}
             onChange={(e) => setStyle(e.target.value)}
             disabled={isGenerating}
           >
-            <option value="kawaii">Kawaii</option>
-            <option value="minimal">Minimal</option>
-            <option value="3d_pixar">3D Pixar</option>
-            <option value="3d">3D</option>
-            <option value="cartoon">Cartoon</option>
-            <option value="flat">Flat</option>
-            <option value="pixel">Pixel</option>
-            <option value="hand_drawn">Hand Drawn</option>
-            <option value="match_brand">Match Brand</option>
+            {ART_STYLES.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.emoji} {s.label}
+              </option>
+            ))}
           </select>
 
-          {/* Type */}
+          {/* Mascot Type */}
           <label className="label">Mascot Type</label>
           <select
-            className="select"
+            className="select select-with-emoji"
             value={type}
             onChange={(e) => setType(e.target.value)}
             disabled={isGenerating}
           >
-            <option value="auto">Auto-detect</option>
-            <option value="animal">Animal</option>
-            <option value="creature">Creature</option>
-            <option value="robot">Robot</option>
-            <option value="food">Food</option>
-            <option value="object">Object</option>
-            <option value="abstract">Abstract</option>
+            {MASCOT_TYPES.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.emoji} {t.label}
+              </option>
+            ))}
           </select>
 
           {/* Personality */}

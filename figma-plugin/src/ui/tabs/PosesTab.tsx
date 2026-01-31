@@ -4,12 +4,12 @@ import { UploadYourImage } from '../components/UploadYourImage';
 
 /** Quick pose options: emoji + label (label is used as prompt sent to API). */
 const QUICK_POSES = [
-  { emoji: '👋', label: 'Welcome' },
+  { emoji: '👋', label: 'Welcome, waving to greet' },
   { emoji: '😄', label: 'Happy' },
   { emoji: '🤔', label: 'Thinking' },
   { emoji: '💤', label: 'Idle' },
   { emoji: '🎉', label: 'Celebrate' },
-  { emoji: '❓', label: 'Help' },
+  { emoji: '❓', label: 'Ask for help' },
   { emoji: '👍', label: 'Thumbs Up' },
 ] as const;
 

@@ -4,9 +4,10 @@ import { RPCClient } from '../rpc/client';
 interface AccountTabProps {
   rpc: RPCClient;
   credits: number | null;
+  onLogout: () => void;
 }
 
-export const AccountTab: React.FC<AccountTabProps> = ({ credits }) => {
+export const AccountTab: React.FC<AccountTabProps> = ({ credits, onLogout }) => {
   const handleManageBilling = () => {
     // Open web dashboard in browser
     window.open('https://mascot-production.up.railway.app/dashboard', '_blank');
@@ -38,6 +39,14 @@ export const AccountTab: React.FC<AccountTabProps> = ({ credits }) => {
           style={{ width: '100%' }}
         >
           Manage Billing
+        </button>
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={onLogout}
+          style={{ width: '100%', marginTop: 8 }}
+        >
+          Log out
         </button>
       </div>
 

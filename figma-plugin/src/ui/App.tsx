@@ -5,6 +5,7 @@ import { LogosTab } from './tabs/LogosTab';
 import { AccountTab } from './tabs/AccountTab';
 import { GalleryTab } from './tabs/GalleryTab';
 import { PosesTab } from './tabs/PosesTab';
+import { AuthScreen } from './AuthScreen';
 import { RPCClient } from './rpc/client';
 import './App.css';
 
@@ -22,8 +23,10 @@ export const App: React.FC = () => {
   const [poses, setPoses] = useState<any[]>([]);
   const [generatedVariations, setGeneratedVariations] = useState<any[]>([]);
   const [tokenInput, setTokenInput] = useState<string>('');
-  const [showTokenInput, setShowTokenInput] = useState(false);
-  
+  const [authError, setAuthError] = useState<string>('');
+  const [authLoading, setAuthLoading] = useState(false);
+  const [checkingStoredToken, setCheckingStoredToken] = useState(false);
+
   // Debug: log mascots state changes
   React.useEffect(() => {
     console.log('[App] Mascots state updated:', mascots.length, 'mascots');
@@ -79,7 +82,8 @@ export const App: React.FC = () => {
     rpc.on('token-loaded', (data: { token: string }) => {
       console.log('[Mascot] Token loaded from storage');
       setToken(data.token);
-      setIsAuthenticated(true);
+      setAuthError('');
+      setCheckingStoredToken(true);
       rpc.send('init', { token: data.token });
     });
 
@@ -87,17 +91,39 @@ export const App: React.FC = () => {
       if (data.token && data.token.trim()) {
         console.log('[Mascot] Token retrieved from storage');
         setToken(data.token);
-        setIsAuthenticated(true);
+        setAuthError('');
+        setCheckingStoredToken(true);
         rpc.send('init', { token: data.token });
       } else {
-        // No token stored, show auth screen
         console.log('[Mascot] No token stored, showing auth screen');
       }
     });
 
     rpc.on('init-complete', () => {
+      setAuthError('');
+      setAuthLoading(false);
+      setCheckingStoredToken(false);
+      setIsAuthenticated(true);
       loadMascots();
       loadCredits();
+    });
+
+    rpc.on('init-failed', (data: { message?: string }) => {
+      const msg = data?.message || 'Invalid or expired token. Please check your API token.';
+      setAuthError(msg);
+      setAuthLoading(false);
+      setCheckingStoredToken(false);
+      setIsAuthenticated(false);
+      setToken(null);
+    });
+
+    rpc.on('credits-balance', (data: { balance: number | null }) => {
+      setCredits(data.balance ?? null);
+    });
+
+    rpc.on('logout-complete', () => {
+      setToken(null);
+      setIsAuthenticated(false);
     });
 
     rpc.on('mascot-deleted', () => {
@@ -313,15 +339,8 @@ export const App: React.FC = () => {
     rpc.send('get-mascots');
   };
 
-  const loadCredits = async () => {
-    // Would call API to get credits
-    // For now, mock
-    setCredits(100);
-  };
-
-  const handleLogin = async () => {
-    console.log('[Mascot] Sign In button clicked, showing token input');
-    setShowTokenInput(true);
+  const loadCredits = () => {
+    rpc.send('get-credits');
   };
 
   const handleGoogleLogin = async () => {
@@ -338,71 +357,71 @@ export const App: React.FC = () => {
   };
 
   const handleOAuthMessage = (event: MessageEvent) => {
-    // Security: only accept messages from our domain
     if (event.origin !== 'https://mascot-production.up.railway.app') {
       return;
     }
-
     if (event.data.type === 'oauth-success' && event.data.token) {
-      console.log('[Mascot] OAuth success, received token');
+      console.log('[Mascot] OAuth success, validating token...');
       setToken(event.data.token);
-      setIsAuthenticated(true);
+      setAuthError('');
+      setAuthLoading(true);
       rpc.send('init', { token: event.data.token });
       window.removeEventListener('message', handleOAuthMessage, false);
     }
   };
 
-  const handleTokenSubmit = async (e: React.FormEvent) => {
+  const handleLogout = () => {
+    rpc.send('logout');
+  };
+
+  const handleTokenSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!tokenInput.trim()) {
+      setAuthError('Please enter your API token.');
       return;
     }
-
-    console.log('[Mascot] Token submitted');
-    setToken(tokenInput.trim());
-    setIsAuthenticated(true);
+    setAuthError('');
+    setAuthLoading(true);
     rpc.send('init', { token: tokenInput.trim() });
+  };
+
+  const handleEmailLogin = (email: string, password: string) => {
+    setAuthError('');
+    setAuthLoading(true);
+    rpc.send('auth-login', { email, password });
+  };
+
+  const handleRegister = (email: string, password: string, name?: string) => {
+    setAuthError('');
+    setAuthLoading(true);
+    rpc.send('auth-register', { email, password, name });
+  };
+
+  const openGetTokenUrl = () => {
+    rpc.send('open-url', {
+      url: 'https://mascot-production.up.railway.app/api/v1/auth/google',
+    });
   };
 
   if (!isAuthenticated) {
     return (
-      <div className="auth-container">
-        <div className="auth-card">
-          <h2>Welcome to Mascot</h2>
-          <p>Sign in to start creating mascots</p>
-          {!showTokenInput ? (
-            <>
-              <button className="btn-primary" onClick={handleGoogleLogin}>
-                Sign in with Google
-              </button>
-              <button className="btn-secondary" onClick={handleLogin}>
-                Use API Token
-              </button>
-            </>
-          ) : (
-            <form onSubmit={handleTokenSubmit} className="auth-form">
-              <label>API Token</label>
-              <textarea
-                value={tokenInput}
-                onChange={(e) => setTokenInput(e.target.value)}
-                placeholder="Paste your API token here..."
-                className="token-input"
-                autoFocus
-              />
-              <button type="submit" className="btn-primary">
-                Continue
-              </button>
-              <button 
-                type="button" 
-                onClick={() => setShowTokenInput(false)} 
-                className="btn-secondary"
-              >
-                Back
-              </button>
-            </form>
-          )}
-        </div>
-      </div>
+      <AuthScreen
+        tokenInput={tokenInput}
+        setTokenInput={setTokenInput}
+        onUseToken={() => {}}
+        onBack={() => {
+          setTokenInput('');
+          setAuthError('');
+        }}
+        onGoogleLogin={handleGoogleLogin}
+        onTokenSubmit={handleTokenSubmit}
+        onEmailLogin={handleEmailLogin}
+        onRegister={handleRegister}
+        onOpenGetTokenUrl={openGetTokenUrl}
+        authError={authError}
+        authLoading={authLoading}
+        checkingStoredToken={checkingStoredToken}
+      />
     );
   }
 
@@ -543,7 +562,7 @@ export const App: React.FC = () => {
             />
           </div>
           <div style={{ display: activeTab === 'account' ? 'block' : 'none' }} className="tab-panel">
-            <AccountTab rpc={rpc} credits={credits} />
+            <AccountTab rpc={rpc} credits={credits} onLogout={handleLogout} />
           </div>
         </div>
       </div>

@@ -279,17 +279,31 @@
   text-align: center;
 }
 
-.auth-card h2 {
+.auth-card h2,
+.auth-title {
   font-size: 18px;
   font-weight: 600;
   color: #000000;
   margin-bottom: 8px;
 }
 
-.auth-card p {
-  font-size: 11px;
+.auth-card p,
+.auth-subtitle {
+  font-size: 13px;
   color: #666666;
   margin-bottom: 24px;
+}
+
+.auth-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-form-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #000000;
 }
 
 .auth-form {
@@ -325,6 +339,72 @@
 .token-input:focus {
   outline: none;
   border-color: #000000;
+}
+
+.auth-error {
+  color: #c33;
+  font-size: 13px;
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  background: #fff5f5;
+  border: 1px solid #fcc;
+  border-radius: 6px;
+  text-align: left;
+}
+
+.auth-help {
+  font-size: 12px;
+  color: #666666;
+  margin: 12px 0 0;
+}
+
+.auth-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  color: #0066cc;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.auth-link:hover {
+  color: #004499;
+}
+
+.auth-checking {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 0;
+}
+
+.auth-checking .spinner {
+  width: 28px;
+  height: 28px;
+}
+
+.auth-checking p {
+  margin: 0;
+  font-size: 13px;
+  color: #666666;
+}
+
+.auth-footer-link {
+  font-size: 12px;
+  color: #666666;
+  margin: 16px 0 0;
+}
+
+.auth-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.auth-optional {
+  font-weight: 400;
+  color: #999999;
 }
 
 /* Buttons */

@@ -137,11 +137,63 @@ export interface PaginatedResponse<T> {
   };
 }
 
+export interface AuthResponse {
+  accessToken: string;
+  refreshToken: string;
+  user: {
+    id: string;
+    email: string;
+    name: string | null;
+    plan: string;
+    creditBalance: number;
+  };
+}
+
 export class MascotAPI {
   private token: string;
 
   constructor(token: string) {
     this.token = token;
+  }
+
+  /** Login with email/password (no token required). Returns accessToken for use with plugin. */
+  static async login(email: string, password: string): Promise<AuthResponse> {
+    const url = `${API_BASE_URL}/auth/login`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim(), password }),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ message: response.statusText }));
+      const msg = err?.message;
+      throw new Error(typeof msg === 'string' ? msg : Array.isArray(msg) ? msg[0] : 'Login failed');
+    }
+    return response.json();
+  }
+
+  /** Register with email/password (no token required). Returns accessToken for use with plugin. */
+  static async register(
+    email: string,
+    password: string,
+    name?: string
+  ): Promise<AuthResponse> {
+    const url = `${API_BASE_URL}/auth/register`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: email.trim(),
+        password,
+        ...(name?.trim() ? { name: name.trim() } : {}),
+      }),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ message: response.statusText }));
+      const msg = err?.message;
+      throw new Error(typeof msg === 'string' ? msg : Array.isArray(msg) ? msg[0] : 'Registration failed');
+    }
+    return response.json();
   }
 
   private async request<T>(

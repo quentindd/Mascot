@@ -63,34 +63,32 @@ figma.ui.onmessage = async (msg) => {
   try {
     switch (msg.type) {
       case 'init':
-        // Initialize with auth token
+        // Initialize with auth token and validate against backend
         console.log('[Mascot Code] Received init message');
-        console.log('[Mascot Code] msg.type:', msg.type);
-        console.log('[Mascot Code] msg.data:', msg.data);
-        console.log('[Mascot Code] msg.token:', msg.token);
-        
-        // Try to get token from different possible locations
-        let authToken = null;
+        let authToken: string | null = null;
         if (msg.data && msg.data.token) {
           authToken = msg.data.token;
         } else if (msg.token) {
           authToken = msg.token;
         }
-        
-        console.log('[Mascot Code] Token received:', authToken ? `${authToken.substring(0, 20)}...` : 'null');
-        if (authToken && authToken.trim()) {
-          const trimmedToken = authToken.trim();
-          apiClient = new MascotAPI(trimmedToken);
-          // Store token in clientStorage
-          await figma.clientStorage.setAsync('mascot_token', trimmedToken);
-          console.log('[Mascot Code] Authenticated with API token, apiClient created');
-          console.log('[Mascot Code] apiClient is now:', apiClient ? 'INITIALIZED' : 'NULL');
-        } else {
-          console.error('[Mascot Code] Invalid token received');
-          rpc.send('error', { message: 'Invalid token. Please provide a valid API token.' });
+        if (!authToken || !authToken.trim()) {
+          rpc.send('init-failed', { message: 'Please enter your API token.' });
           return;
         }
-        console.log('[Mascot Code] Sending init-complete');
+        const trimmedToken = authToken.trim();
+        apiClient = new MascotAPI(trimmedToken);
+        try {
+          await apiClient.getCredits();
+        } catch (err) {
+          const message = getErrorMessage(err) || 'Invalid or expired token. Please check your API token.';
+          console.error('[Mascot Code] Token validation failed:', message);
+          apiClient = null;
+          await figma.clientStorage.deleteAsync('mascot_token');
+          rpc.send('init-failed', { message });
+          return;
+        }
+        await figma.clientStorage.setAsync('mascot_token', trimmedToken);
+        console.log('[Mascot Code] Token validated, sending init-complete');
         rpc.send('init-complete', { success: true });
         break;
 
@@ -98,6 +96,12 @@ figma.ui.onmessage = async (msg) => {
         // Send stored token to UI
         const token = await figma.clientStorage.getAsync('mascot_token');
         rpc.send('stored-token', { token: token || null });
+        break;
+
+      case 'logout':
+        await figma.clientStorage.deleteAsync('mascot_token');
+        apiClient = null;
+        rpc.send('logout-complete', {});
         break;
 
       case 'get-figma-file-id':
@@ -116,6 +120,14 @@ figma.ui.onmessage = async (msg) => {
         if (msg.data && msg.data.url) {
           figma.openExternal(msg.data.url);
         }
+        break;
+
+      case 'auth-login':
+        await handleAuthLogin(msg.data);
+        break;
+
+      case 'auth-register':
+        await handleAuthRegister(msg.data);
         break;
 
       case 'generate-mascot':
@@ -152,6 +164,10 @@ figma.ui.onmessage = async (msg) => {
 
       case 'get-mascots':
         await handleGetMascots();
+        break;
+
+      case 'get-credits':
+        await handleGetCredits();
         break;
 
       case 'get-batch-variations':
@@ -205,6 +221,60 @@ figma.ui.onmessage = async (msg) => {
     handleError(error, 'message handler');
   }
 };
+
+async function handleAuthLogin(data: { email: string; password: string }) {
+  const email = data?.email?.trim();
+  const password = data?.password;
+  if (!email || !password) {
+    rpc.send('init-failed', { message: 'Please enter your email and password.' });
+    return;
+  }
+  try {
+    const auth = await MascotAPI.login(email, password);
+    const token = auth?.accessToken;
+    if (!token) {
+      rpc.send('init-failed', { message: 'Login succeeded but no token received.' });
+      return;
+    }
+    apiClient = new MascotAPI(token);
+    await figma.clientStorage.setAsync('mascot_token', token);
+    rpc.send('init-complete', { success: true });
+  } catch (err) {
+    const message = getErrorMessage(err) || 'Invalid email or password.';
+    rpc.send('init-failed', { message });
+  }
+}
+
+async function handleAuthRegister(data: {
+  email: string;
+  password: string;
+  name?: string;
+}) {
+  const email = data?.email?.trim();
+  const password = data?.password;
+  if (!email || !password) {
+    rpc.send('init-failed', { message: 'Please enter your email and password.' });
+    return;
+  }
+  if (password.length < 8) {
+    rpc.send('init-failed', { message: 'Password must be at least 8 characters.' });
+    return;
+  }
+  try {
+    const auth = await MascotAPI.register(email, password, data?.name);
+    const token = auth?.accessToken;
+    if (!token) {
+      rpc.send('init-failed', { message: 'Registration succeeded but no token received.' });
+      return;
+    }
+    apiClient = new MascotAPI(token);
+    await figma.clientStorage.setAsync('mascot_token', token);
+    rpc.send('init-complete', { success: true });
+  } catch (err) {
+    const message = getErrorMessage(err) || 'Registration failed. Try another email.';
+    rpc.send('init-failed', { message });
+  }
+}
 
 async function handleGenerateMascot(data: any) {
   // Require authentication
@@ -762,6 +832,24 @@ async function handleGetMascots() {
     });
     // Still send empty array so UI doesn't hang
     rpc.send('mascots-loaded', { mascots: [] });
+  }
+}
+
+async function handleGetCredits() {
+  if (!apiClient) {
+    rpc.send('credits-balance', { balance: null });
+    return;
+  }
+  try {
+    const result = await apiClient.getCredits();
+    rpc.send('credits-balance', {
+      balance: result?.balance ?? null,
+      plan: result?.plan,
+      monthlyAllowance: result?.monthlyAllowance,
+    });
+  } catch (error) {
+    console.error('[Mascot Code] Error loading credits:', error);
+    rpc.send('credits-balance', { balance: null });
   }
 }
 

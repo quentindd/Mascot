@@ -66,7 +66,8 @@ export const AnimationsTab: React.FC<AnimationsTabProps> = ({
 
   return (
     <div>
-      <UploadYourImage rpc={rpc} />
+      {/* Upload only on selection page (no mascot chosen yet) */}
+      {!selectedMascot && <UploadYourImage rpc={rpc} />}
 
       {/* Empty state if no mascots */}
       {mascots.length === 0 && (

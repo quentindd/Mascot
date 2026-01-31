@@ -63,7 +63,8 @@ export const LogosTab: React.FC<LogosTabProps> = ({
 
   return (
     <div>
-      <UploadYourImage rpc={rpc} />
+      {/* Upload only on selection page (no mascot chosen yet) */}
+      {!selectedMascot && <UploadYourImage rpc={rpc} />}
 
       {mascots.length === 0 && (
         <div className="empty-state-content">

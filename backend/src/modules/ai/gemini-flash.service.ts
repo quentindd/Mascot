@@ -493,8 +493,9 @@ export class GeminiFlashService implements OnModuleInit {
     }
 
     p +=
-      'Output: ONE image only. Completely transparent background. No text, no words, no logos, no letters. ' +
-      'CRITICAL: Transparent background only. High quality, clean edges, ready for app store submission.';
+      'Output: ONE image only. OPAQUE background only: solid white or a single solid brand color (no transparency, no alpha). ' +
+      'App Store and Google Play require opaque backgrounds; no transparent pixels. Square corners (platforms round them). No text, no words, no logos, no letters. ' +
+      'CRITICAL: Solid opaque background. High quality, clean edges, sRGB, ready for store submission.';
     return p;
   }
 

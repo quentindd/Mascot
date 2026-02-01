@@ -10,6 +10,8 @@ const REMBG_VERSION = '4067ee2a58f6c161d434a9c077cfa012820b8e076efa2772aa171e265
 const VEO_FAST_MODEL = 'google/veo-3.1-fast';
 /** Image editing (poses): mascot-only edits, no background, 1080p. Model: https://replicate.com/google/nano-banana */
 const NANO_BANANA_MODEL = 'google/nano-banana';
+/** Logo generation: OpenAI GPT Image 1.5 via Replicate (image + prompt → app icon). https://replicate.com/openai/gpt-image-1.5 */
+const GPT_IMAGE_15_MODEL = 'openai/gpt-image-1.5';
 
 /** Kontext (BFL): input_image + prompt. */
 const KONTEXT_BFL_MODELS = ['black-forest-labs/flux-kontext-pro', 'black-forest-labs/flux-kontext-dev'];
@@ -99,6 +101,118 @@ export class ReplicateService {
       }
       throw err;
     }
+  }
+
+  /**
+   * Generate a logo from a mascot image using OpenAI GPT Image 1.5 via Replicate (openai/gpt-image-1.5).
+   * Same flow as ChatGPT: image + prompt → edited image (app icon). Use when you prefer Replicate over OpenAI API.
+   */
+  async generateLogoGptImageReplicate(
+    mascotImageBuffer: Buffer,
+    config: {
+      platform?: string;
+      referenceAppPrompt?: string;
+      brandColors?: string[];
+      mascotDetails?: string;
+    },
+    options?: { size?: string; quality?: string },
+  ): Promise<Buffer> {
+    if (!this.token?.trim()) {
+      throw new Error('REPLICATE_API_TOKEN is not set. Cannot use Replicate for GPT Image 1.5.');
+    }
+
+    const prompt = this.buildLogoPromptForReplicate(
+      config.platform,
+      config.referenceAppPrompt,
+      config.brandColors,
+      config.mascotDetails,
+    );
+
+    const dataUri = `data:image/png;base64,${mascotImageBuffer.toString('base64')}`;
+    const size = options?.size ?? '1024x1024';
+    const quality = options?.quality ?? 'high';
+
+    try {
+      this.logger.log('[Replicate] openai/gpt-image-1.5: generating logo from mascot image + prompt...');
+      this.logger.log('[Replicate] gpt-image-1.5 prompt: ' + prompt);
+      const version = await this.getModelVersion(GPT_IMAGE_15_MODEL);
+
+      const input: Record<string, unknown> = {
+        prompt: prompt.trim(),
+        image: dataUri,
+        size,
+        quality,
+      };
+
+      const createRes = await axios.post(
+        `${REPLICATE_API}/predictions`,
+        { version, input },
+        {
+          headers: {
+            Authorization: `Bearer ${this.token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 20000,
+        },
+      );
+
+      const predictionId = createRes.data?.id;
+      if (!predictionId) throw new Error('Replicate gpt-image-1.5 did not return prediction id');
+
+      const output = await this.waitForPrediction(predictionId, 120000);
+      const imageUrl = this.extractOutputUrl(output);
+      if (!imageUrl) throw new Error('Replicate gpt-image-1.5 did not return an image URL');
+
+      const imageResponse = await axios.get<ArrayBuffer>(imageUrl, {
+        responseType: 'arraybuffer',
+        timeout: 30000,
+      });
+      this.logger.log('[Replicate] gpt-image-1.5 logo completed');
+      return Buffer.from(imageResponse.data);
+    } catch (err: any) {
+      if (axios.isAxiosError(err)) {
+        const status = err.response?.status;
+        const msg = err.response?.data?.detail ?? err.message ?? 'Unknown error';
+        if (status === 401) {
+          throw new Error('Invalid REPLICATE_API_TOKEN. Get a token at replicate.com/account/api-tokens');
+        }
+        if (status === 403) {
+          throw new Error('Replicate API access denied (403). Check your REPLICATE_API_TOKEN.');
+        }
+        if (status === 404) {
+          throw new Error('Replicate openai/gpt-image-1.5 model not found.');
+        }
+        throw new Error(`Replicate gpt-image-1.5 error (${String(status ?? 'network')}): ${msg}`);
+      }
+      throw err;
+    }
+  }
+
+  private buildLogoPromptForReplicate(
+    platform?: string,
+    referenceAppPrompt?: string,
+    brandColors?: string[],
+    mascotDetails?: string,
+  ): string {
+    let p =
+      'Turn this image into a professional app icon / logo. ' +
+      'Keep the same character (mascot) as the only subject, centered, filling most of the frame. ' +
+      'The result must be a single square app icon suitable for App Store, Google Play, or web: clean, recognizable at small sizes, no text or letters. ';
+    if (platform?.trim()) {
+      const plat = platform.trim().toLowerCase();
+      if (plat.includes('app store') || plat.includes('ios')) p += 'Style: App Store quality, polished, premium. ';
+      else if (plat.includes('google') || plat.includes('play') || plat.includes('android')) p += 'Style: Google Play, clean, modern, vibrant. ';
+      else if (plat.includes('web')) p += 'Style: Web/PWA icon, sharp, scalable. ';
+    }
+    if (referenceAppPrompt?.trim()) p += `Make it feel like: "${referenceAppPrompt.trim()}" (same kind of visual quality and style). `;
+    if (brandColors?.length) {
+      const hexList = brandColors.slice(0, 3).filter((c) => /^#[0-9A-Fa-f]{6}$/.test(c));
+      if (hexList.length) p += `Use these brand colors if possible: ${hexList.join(', ')}. `;
+    }
+    if (mascotDetails?.trim()) p += `Context: ${mascotDetails.trim()}. `;
+    p +=
+      ' Output: one image only, no text, no words. OPAQUE background only: solid white or a single solid brand color (no transparency). App Store and Google Play require opaque backgrounds; square corners. Professional app icon ready for store submission.';
+    return p;
   }
 
   /**

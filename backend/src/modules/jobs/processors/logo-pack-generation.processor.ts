@@ -6,9 +6,7 @@ import { Logger } from '@nestjs/common';
 import { Mascot } from '../../../entities/mascot.entity';
 import { LogoPack, LogoPackStatus, LogoSize } from '../../../entities/logo-pack.entity';
 import { StorageService } from '../../storage/storage.service';
-import { GeminiFlashService } from '../../ai/gemini-flash.service';
 import { ReplicateService } from '../../ai/replicate.service';
-import { removeBackground } from '../../../common/utils/background-removal.util';
 import * as sharp from 'sharp';
 import axios from 'axios';
 
@@ -58,6 +56,16 @@ function getSizesForPlatform(platform?: string): SizeSpec[] {
   return [...APP_STORE_SIZES, ...GOOGLE_PLAY_SIZES.filter((s) => s.name !== 'android-512'), ...WEB_SIZES.filter((s) => s.width !== 512 && s.width !== 192)];
 }
 
+/** App Store / Google Play require opaque backgrounds. Returns RGB for white or first valid brand hex. */
+function getOpaqueBackground(brandColors?: string[]): { r: number; g: number; b: number } {
+  const hex = Array.isArray(brandColors) ? brandColors.find((c) => /^#[0-9A-Fa-f]{6}$/.test(c)) : undefined;
+  if (hex) {
+    const n = parseInt(hex.slice(1), 16);
+    return { r: (n >> 16) & 0xff, g: (n >> 8) & 0xff, b: n & 0xff };
+  }
+  return { r: 255, g: 255, b: 255 };
+}
+
 @Processor('logo-pack-generation')
 export class LogoPackGenerationProcessor extends WorkerHost {
   private readonly logger = new Logger(LogoPackGenerationProcessor.name);
@@ -68,7 +76,6 @@ export class LogoPackGenerationProcessor extends WorkerHost {
     @InjectRepository(LogoPack)
     private logoPackRepository: Repository<LogoPack>,
     private storageService: StorageService,
-    private geminiFlashService: GeminiFlashService,
     private replicateService: ReplicateService,
   ) {
     super();
@@ -87,16 +94,17 @@ export class LogoPackGenerationProcessor extends WorkerHost {
 
       let imageBuffer: Buffer;
 
-      if (referenceLogoUrl && referenceLogoUrl.trim()) {
-        imageBuffer = await this.generateLogoWithStyleReference(mascot, imageSource, referenceLogoUrl, platform);
-      } else if (this.geminiFlashService.isAvailable()) {
-        imageBuffer = await this.generateLogoFromMascotOnly(mascot, imageSource, platform, stylePrompt, brandColors);
-      } else {
-        const sourceUrl = this.getSourceUrl(mascot, imageSource);
-        if (!sourceUrl) throw new Error('Mascot has no image for selected source (fullBody, avatar or squareIcon)');
-        const res = await axios.get<ArrayBuffer>(sourceUrl, { responseType: 'arraybuffer', timeout: 20000 });
-        imageBuffer = Buffer.from(res.data);
+      // Logo generation uses only GPT via Replicate (openai/gpt-image-1.5).
+      if (!this.replicateService.isAvailable()) {
+        throw new Error('Logo generation requires REPLICATE_API_TOKEN. Set it in your environment.');
       }
+      imageBuffer = await this.generateLogoFromMascotOnlyReplicate(
+        mascot,
+        imageSource,
+        platform,
+        referenceLogoUrl?.trim() ? `Style reference: user provided a reference logo. ${stylePrompt ?? ''}`.trim() : stylePrompt,
+        brandColors,
+      );
 
       imageBuffer = await sharp(imageBuffer)
         .ensureAlpha()
@@ -104,16 +112,30 @@ export class LogoPackGenerationProcessor extends WorkerHost {
         .toBuffer();
 
       const sizeSpecs = getSizesForPlatform(platform);
-      const transparentBg = { r: 0, g: 0, b: 0, alpha: 0 };
+      const opaqueBg = getOpaqueBackground(brandColors);
       const sizes: LogoSize[] = [];
       const timestamp = Date.now();
 
+      // Flatten onto opaque background so output has no transparency (App Store / Google Play requirement)
+      const meta = await sharp(imageBuffer).metadata();
+      const width = meta.width ?? 1024;
+      const height = meta.height ?? 1024;
+      const backgroundBuffer = await sharp({
+        create: { width, height, channels: 3, background: opaqueBg },
+      })
+        .png()
+        .toBuffer();
+      imageBuffer = await sharp(backgroundBuffer)
+        .composite([{ input: imageBuffer, left: 0, top: 0 }])
+        .flatten({ background: opaqueBg })
+        .png({ compressionLevel: 9, force: true })
+        .toBuffer();
+
       for (const spec of sizeSpecs) {
         const resized = await sharp(imageBuffer)
-          .ensureAlpha()
           .resize(spec.width, spec.height, {
             fit: 'contain',
-            background: transparentBg,
+            background: opaqueBg,
             withoutEnlargement: false,
           })
           .png({ compressionLevel: 9, force: true })
@@ -149,7 +171,8 @@ export class LogoPackGenerationProcessor extends WorkerHost {
     }
   }
 
-  private async generateLogoFromMascotOnly(
+  /** Logo from mascot using Replicate openai/gpt-image-1.5 (only model used for logos). */
+  private async generateLogoFromMascotOnlyReplicate(
     mascot: Mascot,
     imageSource: string | undefined,
     platform?: string,
@@ -162,88 +185,14 @@ export class LogoPackGenerationProcessor extends WorkerHost {
     const mascotBuffer = Buffer.from(mascotRes.data as ArrayBuffer);
     const mascotPng = await sharp(mascotBuffer).ensureAlpha().png({ force: true }).toBuffer();
 
-    this.logger.log('[LogoPack] Calling AI to generate logo from mascot + text (platform, inspiration, colors)...');
-    let generated = await this.geminiFlashService.generateLogoFromMascotOnly({
-      mascotImage: { data: mascotPng, mimeType: 'image/png' },
+    this.logger.log('[LogoPack] Calling Replicate openai/gpt-image-1.5 to generate logo from mascot...');
+    const generated = await this.replicateService.generateLogoGptImageReplicate(mascotPng, {
       platform: platform?.trim() || undefined,
       referenceAppPrompt: stylePrompt?.trim() || undefined,
       brandColors: Array.isArray(brandColors) ? brandColors : undefined,
       mascotDetails: mascot.prompt || undefined,
-    });
-    this.logger.log('[LogoPack] Removing background from AI-generated logo (rembg-enhance then local)...');
-    try {
-      generated = await this.replicateService.removeBackgroundReplicate(generated);
-      this.logger.log('[LogoPack] Background removal (rembg-enhance) completed');
-    } catch (rembgErr) {
-      this.logger.warn(
-        '[LogoPack] rembg-enhance failed (REPLICATE_API_TOKEN or API error), using local removal only:',
-        rembgErr instanceof Error ? rembgErr.message : rembgErr,
-      );
-    }
-    generated = await removeBackground(generated, {
-      aggressive: false,
-      eraseSemiTransparentBorder: true,
-      borderAlphaThreshold: 100,
-      eraseWhiteOutline: true,
-    });
-    return generated;
-  }
-
-  private async generateLogoWithStyleReference(
-    mascot: Mascot,
-    imageSource: string | undefined,
-    referenceLogoUrl: string,
-    platform?: string,
-  ): Promise<Buffer> {
-    if (!this.geminiFlashService.isAvailable()) {
-      throw new Error('AI service is not configured. Reference logo style requires Gemini Flash. Set GOOGLE_CLOUD_PROJECT_ID and credentials.');
-    }
-    const sourceUrl = this.getSourceUrl(mascot, imageSource);
-    if (!sourceUrl) throw new Error('Mascot has no image for selected source (fullBody, avatar or squareIcon)');
-
-    const [mascotRes, refRes] = await Promise.all([
-      axios.get<ArrayBuffer>(sourceUrl, { responseType: 'arraybuffer', timeout: 20000 }),
-      axios.get<ArrayBuffer>(referenceLogoUrl, {
-        responseType: 'arraybuffer',
-        timeout: 15000,
-        validateStatus: (s) => s === 200,
-        maxContentLength: 10 * 1024 * 1024,
-      }),
-    ]);
-
-    const contentType = (refRes.headers['content-type'] || '').toLowerCase();
-    if (!contentType.startsWith('image/')) {
-      throw new Error(`Reference URL must return an image (got ${contentType}). Use a direct image URL (PNG/JPEG/WebP).`);
-    }
-    const mascotBuffer = Buffer.from(mascotRes.data as ArrayBuffer);
-    const refBuffer = Buffer.from(refRes.data as ArrayBuffer);
-    const mascotPng = await sharp(mascotBuffer).ensureAlpha().png({ force: true }).toBuffer();
-    const refPng = await sharp(refBuffer).ensureAlpha().png({ force: true }).toBuffer();
-
-    this.logger.log('[LogoPack] Calling AI to generate logo in reference style...');
-    let generated = await this.geminiFlashService.generateLogoInStyle({
-      mascotImage: { data: mascotPng, mimeType: 'image/png' },
-      referenceLogoImage: { data: refPng, mimeType: 'image/png' },
-      mascotDetails: mascot.prompt || undefined,
-      stylePrompt: platform?.trim() ? `Platform: ${platform.trim()}` : undefined,
-    });
-    this.logger.log('[LogoPack] Removing background from AI-generated logo (rembg-enhance then local)...');
-    try {
-      generated = await this.replicateService.removeBackgroundReplicate(generated);
-      this.logger.log('[LogoPack] Background removal (rembg-enhance) completed');
-    } catch (rembgErr) {
-      this.logger.warn(
-        '[LogoPack] rembg-enhance failed (REPLICATE_API_TOKEN or API error), using local removal only:',
-        rembgErr instanceof Error ? rembgErr.message : rembgErr,
-      );
-    }
-    generated = await removeBackground(generated, {
-      aggressive: false,
-      eraseSemiTransparentBorder: true,
-      borderAlphaThreshold: 100,
-      eraseWhiteOutline: true,
-    });
-    return generated;
+    }, { size: '1024x1024', quality: 'high' });
+    return sharp(generated).ensureAlpha().png({ compressionLevel: 9, force: true }).toBuffer();
   }
 
   private getSourceUrl(mascot: Mascot, imageSource?: string): string | null {

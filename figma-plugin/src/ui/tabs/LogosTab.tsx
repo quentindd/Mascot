@@ -72,7 +72,7 @@ export const LogosTab: React.FC<LogosTabProps> = ({
 
   rpc.on('logo-pack-generation-timeout', () => {
     setIsGenerating(false);
-    setError('Logo pack generation timed out. Check the Gallery tab later.');
+    setError('Logo generation timed out. Check the Gallery tab later.');
   });
 
   const handleInsertLogo = () => {
@@ -114,7 +114,7 @@ export const LogosTab: React.FC<LogosTabProps> = ({
           <div className="empty-state-icon">Logos</div>
           <h3 className="empty-state-title">No mascots yet</h3>
           <p className="empty-state-text">
-            Use your image above or create a mascot in the Character tab to generate logo packs.
+            Use your image above or create a mascot in the Character tab to generate logos.
           </p>
         </div>
       )}
@@ -345,7 +345,7 @@ export const LogosTab: React.FC<LogosTabProps> = ({
           onClick={handleGenerate}
           disabled={isGenerating || !selectedMascot}
         >
-          {isGenerating ? <span className="spinner" /> : 'Generate Logo Pack (10 credits)'}
+          {isGenerating ? <span className="spinner" /> : 'Generate Logo (10 credits)'}
         </button>
       </div>
 

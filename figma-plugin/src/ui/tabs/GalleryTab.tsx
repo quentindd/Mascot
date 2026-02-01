@@ -356,7 +356,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
 
   const handleDeleteLogoPack = (e: React.MouseEvent, logoPackId: string) => {
     e.stopPropagation();
-    if (confirm('Are you sure you want to delete this logo pack? This action cannot be undone.')) {
+    if (confirm('Are you sure you want to delete this logo? This action cannot be undone.')) {
       rpc.send('delete-logo-pack', { id: logoPackId });
     }
   };
@@ -370,9 +370,9 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
       return (
         <div className="empty-state-content">
           <div className="empty-state-icon">Logos</div>
-          <h3 className="empty-state-title">No logo packs yet</h3>
+          <h3 className="empty-state-title">No logos yet</h3>
           <p className="empty-state-text">
-            Create logo packs from the Logos tab.
+            Create logos from the Logos tab.
           </p>
         </div>
       );
@@ -407,7 +407,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
                 const url = logoPack.zipFileUrl || (logoPack.sizes?.[0]?.url);
                 if (url) openDownload(url);
               }}
-              title="Download logo pack"
+              title="Download logo"
               style={{
                 position: 'absolute',
                 top: '4px',
@@ -429,7 +429,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
               className="delete-btn gallery-delete-btn"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => handleDeleteLogoPack(e, logoPack.id)}
-              title="Delete logo pack"
+              title="Delete logo"
               style={{
                 position: 'absolute',
                 top: '4px',
@@ -450,7 +450,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
               {logoPack.sizes && logoPack.sizes.length > 0 ? (
                 <img
                   src={logoPack.sizes[0].url}
-                  alt="Logo pack"
+                  alt="Logo"
                   style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                 />
               ) : (logoPack.status === 'generating' || logoPack.status === 'pending') ? (
@@ -465,9 +465,9 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
               )}
             </div>
             <div className="gallery-item-info">
-              <div className="gallery-item-title">Logo Pack</div>
+              <div className="gallery-item-title">Logo</div>
               <div className="gallery-item-meta">
-                {getMascotName(logoPack.mascotId)} - {logoPack.sizes?.length ?? 0} sizes
+                {getMascotName(logoPack.mascotId)} - 1024×1024
               </div>
             </div>
           </div>
@@ -649,7 +649,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
                 )}
                 {logos.length > 0 && (
                   <div className="gallery-section">
-                    <h3 className="gallery-section-title">Logo Packs</h3>
+                    <h3 className="gallery-section-title">Logos</h3>
                     {renderLogos()}
                   </div>
                 )}

@@ -86,7 +86,7 @@ export const AccountTab: React.FC<AccountTabProps> = ({ credits, onLogout, rpc }
             <span className="account-usage-value">{CREDIT_COSTS.animation} cr</span>
           </div>
           <div className="account-usage-row">
-            <span>Logo pack</span>
+            <span>Logo</span>
             <span className="account-usage-value">{CREDIT_COSTS.logo} cr</span>
           </div>
         </div>

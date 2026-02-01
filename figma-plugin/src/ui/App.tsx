@@ -3,12 +3,13 @@ import { CharacterTab } from './tabs/CharacterTab';
 import { AnimationsTab } from './tabs/AnimationsTab';
 import { AccountTab } from './tabs/AccountTab';
 import { GalleryTab } from './tabs/GalleryTab';
+import { LogosTab } from './tabs/LogosTab';
 import { PosesTab } from './tabs/PosesTab';
 import { AuthScreen } from './AuthScreen';
 import { RPCClient } from './rpc/client';
 import './App.css';
 
-type Tab = 'gallery' | 'character' | 'animations' | 'poses' | 'account';
+type Tab = 'gallery' | 'character' | 'animations' | 'logos' | 'poses' | 'account';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('character');
@@ -18,6 +19,7 @@ export const App: React.FC = () => {
   const [selectedMascot, setSelectedMascot] = useState<any>(null);
   const [mascots, setMascots] = useState<any[]>([]);
   const [animations, setAnimations] = useState<any[]>([]);
+  const [logos, setLogos] = useState<any[]>([]);
   const [poses, setPoses] = useState<any[]>([]);
   const [generatedVariations, setGeneratedVariations] = useState<any[]>([]);
   const [tokenInput, setTokenInput] = useState<string>('');
@@ -135,10 +137,17 @@ export const App: React.FC = () => {
 
     // Logo-pack events: register at App level so messages are handled even when LogosTab is not mounted (avoids "No handlers registered")
     rpc.on('logo-pack-generation-started', () => {});
-    rpc.on('logo-pack-generated', () => {
+    rpc.on('logo-pack-generated', (data: { logoPack?: { mascotId?: string } }) => {
       loadCredits();
+      if (data?.logoPack?.mascotId) {
+        rpc.send('get-mascot-logos', { mascotId: data.logoPack.mascotId });
+      }
     });
-    rpc.on('logo-pack-completed', () => {});
+    rpc.on('logo-pack-completed', (data: { logoPack?: { mascotId?: string } }) => {
+      if (data?.logoPack?.mascotId) {
+        rpc.send('get-mascot-logos', { mascotId: data.logoPack.mascotId });
+      }
+    });
     rpc.on('logo-pack-generation-failed', () => {});
     rpc.on('logo-pack-generation-timeout', () => {});
     rpc.on('logo-pack-status-update', () => {});

@@ -17,8 +17,9 @@ export class LogosController {
   }
 
   @Get('mascots/:id/logo-packs')
-  findByMascot(@Param('id') mascotId: string) {
-    return this.logosService.findByMascot(mascotId);
+  async findByMascot(@Param('id') mascotId: string) {
+    const logoPacks = await this.logosService.findByMascot(mascotId);
+    return { data: logoPacks };
   }
 
   @Get('logo-packs/:id')

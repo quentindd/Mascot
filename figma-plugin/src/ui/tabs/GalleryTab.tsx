@@ -443,6 +443,11 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
                   alt="Logo pack"
                   style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                 />
+              ) : (logoPack.status === 'generating' || logoPack.status === 'pending') ? (
+                <div className="gallery-placeholder gallery-placeholder-loading">
+                  <span className="gallery-placeholder-text">Generating…</span>
+                  <span className="gallery-placeholder-name">{getMascotName(logoPack.mascotId)}</span>
+                </div>
               ) : (
                 <div className="gallery-placeholder">
                   {logoPack.status === 'completed' ? 'LOGO' : '...'}
@@ -452,7 +457,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
             <div className="gallery-item-info">
               <div className="gallery-item-title">Logo Pack</div>
               <div className="gallery-item-meta">
-                {getMascotName(logoPack.mascotId)} - {logoPack.sizes?.length || 0} sizes
+                {getMascotName(logoPack.mascotId)} - {logoPack.sizes?.length ?? 0} sizes
               </div>
             </div>
           </div>

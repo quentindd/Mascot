@@ -24,6 +24,8 @@ export interface AuthScreenProps {
   onGoogleCodeSubmit: (code: string) => void;
   onTokenSubmit: (e: React.FormEvent) => void;
   onOpenGetTokenUrl?: () => void;
+  onOpenTerms?: () => void;
+  onOpenPrivacy?: () => void;
   authError?: string;
   authLoading?: boolean;
   checkingStoredToken?: boolean;
@@ -41,6 +43,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   onGoogleCodeSubmit,
   onTokenSubmit,
   onOpenGetTokenUrl,
+  onOpenTerms,
+  onOpenPrivacy,
   authError = '',
   authLoading = false,
   checkingStoredToken = false,
@@ -109,8 +113,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             </p>
             <p className="auth-legal">
               By authenticating and using Mascot you agree to our{' '}
-              <button type="button" className="auth-link" onClick={() => {}}>
-                terms and conditions
+              <button type="button" className="auth-link" onClick={onOpenTerms}>
+                Terms of Service
+              </button>
+              {' and '}
+              <button type="button" className="auth-link" onClick={onOpenPrivacy}>
+                Privacy Policy
               </button>
             </p>
           </>

@@ -13,6 +13,7 @@ import { LogosModule } from './modules/logos/logos.module';
 import { PosesModule } from './modules/poses/poses.module';
 import { CreditsModule } from './modules/credits/credits.module';
 import { BillingModule } from './modules/billing/billing.module';
+import { LegalModule } from './modules/legal/legal.module';
 import { JobsModule } from './modules/jobs/jobs.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { DatabaseConfig } from './config/database.config';
@@ -43,6 +44,7 @@ import { RedisConfig } from './config/redis.config';
     PosesModule,
     CreditsModule,
     BillingModule,
+    LegalModule,
     JobsModule,
     StorageModule,
   ],

@@ -381,6 +381,10 @@ export const App: React.FC = () => {
     });
   };
 
+  const legalBase = 'https://mascot-production.up.railway.app/api/v1/legal';
+  const openTerms = () => rpc.send('open-url', { url: `${legalBase}/terms` });
+  const openPrivacy = () => rpc.send('open-url', { url: `${legalBase}/privacy` });
+
   if (!isAuthenticated) {
     return (
       <AuthScreen
@@ -395,6 +399,8 @@ export const App: React.FC = () => {
         onGoogleCodeSubmit={handleGoogleCodeSubmit}
         onTokenSubmit={handleTokenSubmit}
         onOpenGetTokenUrl={openGetTokenUrl}
+        onOpenTerms={openTerms}
+        onOpenPrivacy={openPrivacy}
         authError={authError}
         authLoading={authLoading}
         checkingStoredToken={checkingStoredToken}

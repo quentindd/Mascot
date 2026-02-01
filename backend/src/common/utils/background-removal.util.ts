@@ -9,11 +9,16 @@ import * as sharp from 'sharp';
  * Use eraseWhiteOutline: true to erode semi-transparent white pixels adjacent to transparent (removes white outline).
  * Use secondPass: true to remove thin strips left after first pass (better detouring).
  * Use whitenNearWhite: true to set almost-white pixels (e.g. gray-stained eye whites) to pure white (255,255,255).
+ * Use fillSmallTransparentHoles: true to fill small transparent holes (e.g. eyes removed by rembg) with white.
  * Uses 8-neighbor connectivity so diagonal border pixels are also removed.
  */
 const DEFAULT_BORDER_ALPHA_THRESHOLD = 120;
 /** Min brightness for "near white" pixels to be whitened (only affects very light gray, e.g. eye whites). */
 const WHITEN_MIN_BRIGHTNESS = 232;
+/** Pixels within this distance from image edge can be treated as "white background". Interior white (eyes) is preserved. */
+const BORDER_MARGIN_FOR_WHITE = 0.08; // 8% of min dimension
+/** Max area (fraction of image) for a transparent region to be considered a "small hole" to fill with white. */
+const FILL_HOLE_MAX_AREA_FRACTION = 0.025; // 2.5%
 
 /** 8-neighbor offsets (4 cardinal + 4 diagonal) for fuller border connectivity. */
 const NEIGHBOR_8 = [
@@ -34,6 +39,8 @@ export async function removeBackground(
     secondPass?: boolean;
     /** Set almost-white pixels (e.g. gray-stained eye whites) to pure white. Use for mascots. */
     whitenNearWhite?: boolean;
+    /** Fill small transparent holes (e.g. eyes removed by rembg) with white. Use for mascots. */
+    fillSmallTransparentHoles?: boolean;
   },
 ): Promise<Buffer> {
   const aggressive = options?.aggressive ?? false;
@@ -42,6 +49,7 @@ export async function removeBackground(
   const eraseWhiteOutline = options?.eraseWhiteOutline ?? false;
   const secondPass = options?.secondPass ?? false;
   const whitenNearWhite = options?.whitenNearWhite ?? false;
+  const fillSmallTransparentHoles = options?.fillSmallTransparentHoles ?? false;
   try {
     let processed = sharp(imageBuffer).ensureAlpha();
     processed = processed.unflatten();
@@ -86,15 +94,20 @@ export async function removeBackground(
     const isDarkBg = aggressive && avgBrightness < 80;
     const colorTolerance = aggressive ? 45 : 28;
     const darkTolerance = 40;
+    const borderMargin = Math.max(12, Math.min(width, height) * BORDER_MARGIN_FOR_WHITE);
 
-    const isBackgroundLike = (r: number, g: number, b: number, alpha?: number): boolean => {
+    const isNearBorder = (x: number, y: number): boolean =>
+      x < borderMargin || x >= width - borderMargin || y < borderMargin || y >= height - borderMargin;
+
+    const isBackgroundLike = (r: number, g: number, b: number, alpha?: number, x?: number, y?: number): boolean => {
       if (alpha !== undefined && alpha < 30) return true;
       if (eraseSemiTransparentBorder && alpha !== undefined && alpha < borderAlphaThreshold) return true;
-      // Remove near-white at border only when background is actually light (avoids cropping white/cream fur).
-      if (isLightBg && r >= 248 && g >= 248 && b >= 248) return true;
       const brightness = (r + g + b) / 3;
-      if (isLightBg && r > lightThreshold && g > lightThreshold && b > lightThreshold) return true;
-      if (isLightBg && Math.abs(brightness - avgBrightness) < colorTolerance) return true;
+      // Only treat near-white as background when pixel is near image border (preserve interior white: eyes, teeth).
+      const allowWhiteAsBg = x !== undefined && y !== undefined ? isNearBorder(x, y) : true;
+      if (allowWhiteAsBg && isLightBg && r >= 248 && g >= 248 && b >= 248) return true;
+      if (allowWhiteAsBg && isLightBg && r > lightThreshold && g > lightThreshold && b > lightThreshold) return true;
+      if (allowWhiteAsBg && isLightBg && Math.abs(brightness - avgBrightness) < colorTolerance) return true;
       if (isGrayBg && Math.abs(r - avgR) < colorTolerance && Math.abs(g - avgG) < colorTolerance && Math.abs(b - avgB) < colorTolerance) return true;
       if (isGrayBg && brightness >= 70 && brightness <= 230 && Math.abs(r - avgR) + Math.abs(g - avgG) + Math.abs(b - avgB) < 80) return true;
       if (isDarkBg && Math.abs(r - avgR) < darkTolerance && Math.abs(g - avgG) < darkTolerance && Math.abs(b - avgB) < darkTolerance) return true;
@@ -126,7 +139,7 @@ export async function removeBackground(
       const g = pixels[idx + 1];
       const b = pixels[idx + 2];
       const a = channels >= 4 ? pixels[idx + 3] : 255;
-      if (!isBackgroundLike(r, g, b, a)) continue;
+      if (!isBackgroundLike(r, g, b, a, x, y)) continue;
       toRemove[i] = 1;
       for (const [dx, dy] of NEIGHBOR_8) {
         stack.push([x + dx, y + dy]);
@@ -169,7 +182,7 @@ export async function removeBackground(
         const b = pixels[idx + 2];
         const a = channels >= 4 ? pixels[idx + 3] : 255;
         if (a < 10) continue;
-        if (!isBackgroundLike(r, g, b, a)) continue;
+        if (!isBackgroundLike(r, g, b, a, x, y)) continue;
         toRemove2[i] = 1;
         for (const [dx, dy] of NEIGHBOR_8) {
           stack2.push([x + dx, y + dy]);
@@ -206,6 +219,53 @@ export async function removeBackground(
       }
       for (let i = 0; i < pixels.length; i += channels) {
         if (toErode[i / channels]) pixels[i + 3] = 0;
+      }
+    }
+
+    // Optional: fill small transparent holes (e.g. eyes removed by Replicate rembg) with white
+    if (fillSmallTransparentHoles) {
+      const transparentThreshold = 15;
+      const totalPixels = width * height;
+      const maxHoleArea = Math.floor(totalPixels * FILL_HOLE_MAX_AREA_FRACTION);
+      const visitedHoles = new Uint8Array(width * height);
+      for (let sy = 0; sy < height; sy++) {
+        for (let sx = 0; sx < width; sx++) {
+          const si = sy * width + sx;
+          if (visitedHoles[si]) continue;
+          const a = pixels[(sy * width + sx) * channels + 3];
+          if (a >= transparentThreshold) continue;
+          const stack: [number, number][] = [[sx, sy]];
+          const component: number[] = [];
+          let touchesBorder = false;
+          visitedHoles[si] = 1;
+          while (stack.length > 0) {
+            const [x, y] = stack.pop()!;
+            if (x < 0 || x >= width || y < 0 || y >= height) continue;
+            const i = y * width + x;
+            component.push(i);
+            if (x <= 0 || x >= width - 1 || y <= 0 || y >= height - 1) touchesBorder = true;
+            for (const [dx, dy] of NEIGHBOR_8) {
+              const nx = x + dx;
+              const ny = y + dy;
+              if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+              const ni = ny * width + nx;
+              if (visitedHoles[ni]) continue;
+              const na = pixels[ni * channels + 3];
+              if (na >= transparentThreshold) continue;
+              visitedHoles[ni] = 1;
+              stack.push([nx, ny]);
+            }
+          }
+          if (!touchesBorder && component.length > 0 && component.length <= maxHoleArea) {
+            for (const i of component) {
+              const idx = i * channels;
+              pixels[idx] = 255;
+              pixels[idx + 1] = 255;
+              pixels[idx + 2] = 255;
+              pixels[idx + 3] = 255;
+            }
+          }
+        }
       }
     }
 

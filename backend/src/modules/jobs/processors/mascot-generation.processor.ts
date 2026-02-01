@@ -119,6 +119,7 @@ export class MascotGenerationProcessor extends WorkerHost {
         borderAlphaThreshold: 100, // only clear halo, not semi-transparent fur
         eraseWhiteOutline: true,
         whitenNearWhite: true, // fix gray stains in eye whites / near-white areas from generation or rembg
+        fillSmallTransparentHoles: true, // fill eyes (or other small holes) removed by rembg with white
       });
       this.logger.log('Background removal completed');
 

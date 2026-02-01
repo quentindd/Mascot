@@ -149,13 +149,15 @@ export class LogoPackGenerationProcessor extends WorkerHost {
     stylePrompt?: string,
     brandColors?: string[],
   ): Promise<Buffer> {
+    this.logger.log(`[LogoPack] getSourceUrl: imageSource=${imageSource}, available: fullBody=${!!mascot.fullBodyImageUrl}, avatar=${!!mascot.avatarImageUrl}, squareIcon=${!!mascot.squareIconUrl}`);
     const sourceUrl = this.getSourceUrl(mascot, imageSource);
-    if (!sourceUrl) throw new Error('Mascot has no image for selected source (fullBody, avatar or squareIcon)');
+    if (!sourceUrl) throw new Error(`Mascot has no image for selected source "${imageSource}" (fullBody, avatar or squareIcon)`);
+    this.logger.log(`[LogoPack] Using mascot image: ${sourceUrl.substring(0, 80)}...`);
     const mascotRes = await axios.get<ArrayBuffer>(sourceUrl, { responseType: 'arraybuffer', timeout: 20000 });
     const mascotBuffer = Buffer.from(mascotRes.data as ArrayBuffer);
     const mascotPng = await sharp(mascotBuffer).ensureAlpha().png({ force: true }).toBuffer();
 
-    this.logger.log(`[LogoPack] Calling Replicate openai/gpt-image-1.5 (imageSource: ${imageSource ?? 'auto'})...`);
+    this.logger.log(`[LogoPack] Calling Replicate openai/gpt-image-1.5 (imageSource: ${imageSource ?? 'auto'}, ${mascotPng.length} bytes)...`);
     const generated = await this.replicateService.generateLogoGptImageReplicate(mascotPng, {
       referenceAppPrompt: stylePrompt?.trim() || undefined,
       brandColors: Array.isArray(brandColors) ? brandColors : undefined,

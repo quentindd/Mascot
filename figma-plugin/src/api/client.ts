@@ -439,6 +439,14 @@ export class MascotAPI {
     return this.request('/credits/balance');
   }
 
+  /** Create Stripe checkout for a credit pack. Plan: "25" | "75" | "200". */
+  async createCheckout(plan: string): Promise<{ checkoutUrl: string }> {
+    return this.request<{ checkoutUrl: string }>('/billing/checkout', {
+      method: 'POST',
+      body: JSON.stringify({ plan }),
+    });
+  }
+
   async deleteMascot(id: string): Promise<void> {
     return this.request<void>(`/mascots/${id}`, {
       method: 'DELETE',

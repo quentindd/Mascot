@@ -1,8 +1,12 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreditLedger, CreditTransactionType, CreditTransactionStatus } from '../../entities/credit-ledger.entity';
 import { User } from '../../entities/user.entity';
+
+/** Emails that are exempt from credit deduction (e.g. owner account). Override with CREDITS_EXEMPT_EMAIL env. */
+const DEFAULT_EXEMPT_EMAIL = 'dimpre.quentin@gmail.com';
 
 @Injectable()
 export class CreditsService {
@@ -11,11 +15,25 @@ export class CreditsService {
     private ledgerRepository: Repository<CreditLedger>,
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    private configService: ConfigService,
   ) {}
+
+  private isExemptFromCredits(user: User): boolean {
+    const exempt = this.configService.get<string>('CREDITS_EXEMPT_EMAIL') || DEFAULT_EXEMPT_EMAIL;
+    const emails = exempt.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+    return emails.includes((user.email || '').toLowerCase());
+  }
 
   async checkAndReserveCredits(userId: string, amount: number): Promise<boolean> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
-    if (!user || user.creditBalance < amount) {
+    if (!user) return false;
+
+    // Exempt account: no deduction, always allow
+    if (this.isExemptFromCredits(user)) {
+      return true;
+    }
+
+    if (user.creditBalance < amount) {
       return false;
     }
 

@@ -69,6 +69,7 @@ Après un déploiement, vérifier que les variables nécessaires sont bien défi
 - `DATABASE_URL` — fourni par le plugin PostgreSQL Railway
 - `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` — stockage (images, vidéos)
 - (Optionnel) `REPLICATE_POSE_MODEL` — non utilisé pour les poses (on utilise Nano Banana) ; tu peux le laisser ou le retirer.
+- **Stripe (achat de crédits)** : `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` — voir [CONFIGURATION_STRIPE.md](CONFIGURATION_STRIPE.md).
 
 Si tu en ajoutes ou modifies, Railway redémarre le service après sauvegarde.
 
@@ -107,5 +108,12 @@ En résumé : **build local** (`npm run build` dans `figma-plugin`) puis **Reloa
 | **Local** | `git pull` → `cd backend && npm install && npm run build` → `cd figma-plugin && npm install && npm run build` |
 | **Railway** | `git add . && git commit -m "..." && git push origin main` → attendre le déploiement auto (ou redéployer à la main) |
 | **Figma** | `cd figma-plugin && npm run build` → dans Figma Desktop : Reload le plugin (ou Import from manifest) |
+
+## 6. Plugin en conditions réelles (production)
+
+1. **Backend déployé sur Railway** — Le plugin appelle l’URL de prod. Vérifier les variables (Replicate, Redis, Supabase, Stripe).
+2. **Build** — `cd figma-plugin && npm run build`.
+3. **Figma Desktop** — Import from manifest ou Reload. Onglet **Account** pour la connexion et les crédits (15 initiaux, achat Stripe).
+4. **Dev local** — Changer l’URL dans `figma-plugin/src/api/client.ts` vers localhost, rebuild, utiliser Figma Desktop.
 
 Si tu vois encore l’ancien comportement (ex. Flux Kontext pour les poses), c’est en général que le backend tourne encore sur l’ancienne version : vérifier que le dernier déploiement Railway est bien terminé et que l’URL utilisée par le plugin pointe bien vers ce projet Railway.

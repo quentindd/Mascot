@@ -230,6 +230,10 @@ figma.ui.onmessage = async (msg) => {
         await handleDeletePose(msg.data);
         break;
 
+      case 'create-checkout':
+        await handleCreateCheckout(msg.data);
+        break;
+
       default:
         rpc.send('error', { message: `Unknown message type: ${msg.type}` });
     }
@@ -994,6 +998,26 @@ async function handleGetCredits() {
   } catch (error) {
     console.error('[Mascot Code] Error loading credits:', error);
     rpc.send('credits-balance', { balance: null });
+  }
+}
+
+async function handleCreateCheckout(data: { plan?: string }) {
+  if (!apiClient) {
+    rpc.send('checkout-error', { message: 'Please sign in first.' });
+    return;
+  }
+  const plan = data?.plan ?? '75';
+  try {
+    const result = await apiClient.createCheckout(plan);
+    if (result?.checkoutUrl) {
+      rpc.send('checkout-url', { url: result.checkoutUrl });
+    } else {
+      rpc.send('checkout-error', { message: 'No checkout URL returned.' });
+    }
+  } catch (error) {
+    const msg = getErrorMessage(error);
+    console.error('[Mascot Code] Checkout error:', msg);
+    rpc.send('checkout-error', { message: msg });
   }
 }
 

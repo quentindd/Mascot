@@ -447,6 +447,7 @@ export class GeminiFlashService implements OnModuleInit {
     };
 
     this.logger.log('[generateLogoFromMascotOnly] Sending request (mascot + text prompt)...');
+    this.logger.log('[generateLogoFromMascotOnly] Prompt: ' + prompt);
     const response = await this.sendGenerateContentWithRetry(model, request);
     return this.extractImageFromResponse(response);
   }
@@ -458,40 +459,42 @@ export class GeminiFlashService implements OnModuleInit {
     mascotDetails?: string,
   ): string {
     let p =
-      'The image is a mascot character. Generate a single square app icon (1024x1024 pixels) showing ONLY this mascot, ' +
-      'optimized for use as a mobile or web app icon. The mascot must be the sole focus, centered, recognizable at small sizes. ';
+      'You are an expert at creating app icons and logos. ' +
+      'The attached image shows a mascot character. Your task: create ONE square image (1024x1024 pixels) that is an app icon / logo featuring THIS EXACT MASCOT. ' +
+      'Redraw the mascot clearly: same character, same identity, centered in the frame, filling most of the square. ' +
+      'The result must look like a professional app icon (iOS, Android, or web): single character, no scenery, no props, no text, no letters. ';
 
     if (platform?.trim()) {
       const plat = platform.trim().toLowerCase();
       if (plat.includes('app store') || plat.includes('ios')) {
-        p += 'Style for App Store: polished, premium, clear silhouette. ';
+        p += 'App Store style: polished, premium, clear silhouette, works at 1024px and small sizes. ';
       } else if (plat.includes('google') || plat.includes('play') || plat.includes('android')) {
-        p += 'Style for Google Play: clean, modern, vibrant. ';
+        p += 'Google Play style: clean, modern, vibrant, recognizable as an icon. ';
       } else if (plat.includes('web')) {
-        p += 'Style for web/PWA: sharp, scalable, professional. ';
+        p += 'Web/PWA style: sharp, scalable, professional icon. ';
       }
     }
 
     if (referenceAppPrompt?.trim()) {
-      p += `The user wants the logo to feel like: "${referenceAppPrompt.trim()}". ` +
-        'Match that app\'s visual quality and style (e.g. polished game icon, casual app, premium brand)—same level of finish, lighting, and appeal. ' +
-        'Do NOT copy any specific character or artwork; keep the mascot from the image as the only subject. ';
+      p += `Reference style: the user wants the icon to feel like "${referenceAppPrompt.trim()}". ` +
+        'Match that kind of visual quality and finish (e.g. polished game icon, casual app icon). ' +
+        'Keep ONLY the mascot from the image as the subject; do not copy other characters or logos. ';
     }
 
     if (brandColors?.length) {
       const hexList = brandColors.slice(0, 3).filter((c) => /^#[0-9A-Fa-f]{6}$/.test(c));
       if (hexList.length) {
-        p += `Use these brand colors where it fits the design: ${hexList.join(', ')}. Apply them to accents, background glow, or details while keeping the mascot recognizable. `;
+        p += `Use these brand colors if possible: ${hexList.join(', ')} (accents, glow, or details). `;
       }
     }
 
     if (mascotDetails?.trim()) {
-      p += `Mascot context: ${mascotDetails.trim()}. `;
+      p += `Mascot description: ${mascotDetails.trim()}. `;
     }
 
     p +=
-      'The output MUST have a completely transparent background. No text, no words, no letters anywhere. ' +
-      'CRITICAL: Transparent background only. High quality, clean edges, suitable for store submission.';
+      'Output: ONE image only. Completely transparent background. No text, no words, no logos, no letters. ' +
+      'CRITICAL: Transparent background only. High quality, clean edges, ready for app store submission.';
     return p;
   }
 

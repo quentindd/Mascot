@@ -205,9 +205,17 @@ export const App: React.FC = () => {
     });
 
     rpc.on('mascot-poses-loaded', (data: { mascotId: string; poses: any[] }) => {
+      const incoming = data.poses || [];
       setPoses((prev) => {
         const filtered = prev.filter((p) => p.mascotId !== data.mascotId);
-        return [...filtered, ...(data.poses || [])];
+        // Keep imageDataUrl from existing pose if incoming pose is completed but has no imageUrl yet (race)
+        const merged = incoming.map((p: any) => {
+          const existing = prev.find((e) => e.id === p.id);
+          if (existing && (existing.imageDataUrl || existing.imageUrl) && (!p.imageUrl && p.status === 'completed'))
+            return { ...p, imageDataUrl: existing.imageDataUrl, imageUrl: existing.imageUrl };
+          return p;
+        });
+        return [...filtered, ...merged];
       });
     });
     rpc.on('pose-completed', (data: { pose: any }) => {
@@ -222,9 +230,11 @@ export const App: React.FC = () => {
         }
         return [...prev, pose];
       });
-      // Refetch poses from API so Gallery and list stay in sync (imageUrl, status)
+      // Refetch after a short delay so backend has time to persist imageUrl
       if (pose.mascotId) {
-        rpc.send('get-mascot-poses', { mascotId: pose.mascotId });
+        setTimeout(() => {
+          rpc.send('get-mascot-poses', { mascotId: pose.mascotId });
+        }, 1500);
       }
     });
     rpc.on('pose-deleted', (data: { id: string }) => {

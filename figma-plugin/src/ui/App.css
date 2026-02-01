@@ -1630,6 +1630,8 @@
 .upload-your-image .btn-primary {
   padding: 6px 12px;
   font-size: 12px;
+  width: auto;
+  min-width: 0;
 }
 
 .upload-your-image-error {
@@ -1651,6 +1653,22 @@
   font-weight: 500;
   color: #999999;
   letter-spacing: 0.02em;
+}
+
+/* Logo tab: inspiration upload row – compact, button not full width */
+.logo-ref-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.logo-ref-upload-btn {
+  width: auto;
+  min-width: 0;
+  font-size: 11px;
+  padding: 6px 10px;
 }
 
 .card {

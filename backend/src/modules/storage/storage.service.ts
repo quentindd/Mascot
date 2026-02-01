@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
@@ -28,7 +28,9 @@ export class StorageService {
 
   async uploadFile(key: string, buffer: Buffer, contentType: string): Promise<string> {
     if (!this.useSupabase || !this.supabase) {
-      throw new Error('Storage not configured. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.');
+      throw new ServiceUnavailableException(
+        'Storage not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY on the server.',
+      );
     }
 
     try {

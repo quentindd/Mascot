@@ -40,6 +40,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
     this.logger.debug('Request body:', JSON.stringify(request.body, null, 2));
     this.logger.debug('Request headers:', JSON.stringify(request.headers, null, 2));
 
+    // Ensure CORS header on error responses so browser doesn't hide the body (e.g. Figma plugin origin: null)
+    const origin = request.headers.origin;
+    if (origin !== undefined) {
+      response.setHeader('Access-Control-Allow-Origin', origin);
+    } else {
+      response.setHeader('Access-Control-Allow-Origin', 'null');
+    }
+
     response.status(status).json({
       statusCode: status,
       timestamp: new Date().toISOString(),

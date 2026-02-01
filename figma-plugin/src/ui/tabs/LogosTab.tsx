@@ -220,7 +220,7 @@ export const LogosTab: React.FC<LogosTabProps> = ({
           disabled={isGenerating}
           style={{ marginBottom: '8px' }}
         />
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
+        <div className="logo-ref-upload-row">
           <span className="field-hint" style={{ margin: 0 }}>or</span>
           <input
             ref={logoRefInputRef}
@@ -245,12 +245,11 @@ export const LogosTab: React.FC<LogosTabProps> = ({
           />
           <button
             type="button"
-            className="btn-secondary"
+            className="btn-secondary logo-ref-upload-btn"
             disabled={isGenerating || isUploadingRef}
             onClick={() => logoRefInputRef.current?.click()}
-            style={{ fontSize: '11px', padding: '6px 10px' }}
           >
-            {isUploadingRef ? 'Uploading…' : 'Upload reference image'}
+            {isUploadingRef ? 'Uploading…' : 'Upload image'}
           </button>
         </div>
 

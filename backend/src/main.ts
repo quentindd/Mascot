@@ -51,12 +51,17 @@ async function bootstrap() {
 
   // CORS configuration
   // Allow requests from Figma plugins (origin: null) and web origins.
-  // Preflight (OPTIONS) must receive Access-Control-Allow-Origin and other CORS headers.
+  // Preflight (OPTIONS) must receive Access-Control-Allow-Origin; reflect request origin when allowing.
   app.enableCors({
     origin: (origin, callback) => {
+      const reflectOrigin = (allow: boolean) => {
+        // Reflect the request origin so preflight gets Access-Control-Allow-Origin (required for credentials)
+        const value = origin === undefined || origin === null || origin === '' ? 'null' : origin;
+        return callback(null, allow ? value : false);
+      };
       // Allow requests with no origin OR origin === 'null' (Figma plugin iframe/sandbox)
       if (origin === undefined || origin === null || origin === 'null' || origin === '') {
-        return callback(null, true);
+        return reflectOrigin(true);
       }
       // Allow specific origins
       const allowedOrigins = [
@@ -76,14 +81,14 @@ async function bootstrap() {
         return allowed === origin;
       });
       if (isAllowed) {
-        return callback(null, true);
+        return reflectOrigin(true);
       }
       const allowAllOrigins =
         process.env.ALLOW_ALL_ORIGINS === 'true' ||
         process.env.NODE_ENV === 'development' ||
         !process.env.NODE_ENV;
       if (allowAllOrigins) {
-        return callback(null, true);
+        return reflectOrigin(true);
       }
       return callback(new Error('Not allowed by CORS'));
     },

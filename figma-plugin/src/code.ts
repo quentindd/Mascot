@@ -533,14 +533,15 @@ async function pollPoseStatus(poseId: string) {
     }
 
     try {
-      const status = await apiClient!.getPoseStatus(poseId);
+      const statusRes = await apiClient!.getPoseStatus(poseId);
+      const statusStr = typeof statusRes?.status === 'string' ? statusRes.status.toLowerCase() : '';
 
       rpc.send('pose-status-update', {
         poseId,
-        status: status.status,
+        status: statusRes?.status ?? statusStr,
       });
 
-      if (status.status === 'completed') {
+      if (statusStr === 'completed') {
         const pose = await apiClient!.getPose(poseId);
         try {
           const imageDataUrl = await apiClient!.getPoseImageDataUrl(poseId);
@@ -548,17 +549,21 @@ async function pollPoseStatus(poseId: string) {
         } catch (imgErr) {
           rpc.send('pose-completed', { pose });
         }
-      } else if (status.status === 'failed') {
-        rpc.send('pose-generation-failed', {
-          error: status.errorMessage || 'Generation failed',
-        });
-      } else {
-        // Still processing, poll again
-        setTimeout(poll, 5000); // Poll every 5 seconds
-        attempts++;
+        return;
       }
+      if (statusStr === 'failed') {
+        rpc.send('pose-generation-failed', {
+          error: statusRes?.errorMessage || 'Generation failed',
+        });
+        return;
+      }
+      // Still processing, poll again
+      attempts++;
+      setTimeout(poll, 3000); // Poll every 3 seconds
     } catch (error) {
       handleError(error, 'poll-pose-status');
+      attempts++;
+      setTimeout(poll, 5000);
     }
   };
 

@@ -189,29 +189,23 @@ export class ReplicateService {
   }
 
   private buildLogoPromptForReplicate(
-    platform?: string,
-    referenceAppPrompt?: string,
+    _platform?: string, // unused, kept for backward compatibility
+    referenceAppName?: string,
     brandColors?: string[],
-    mascotDetails?: string,
+    _mascotDetails?: string, // unused
   ): string {
     let p =
-      'Turn this image into a professional app icon / logo. ' +
-      'Keep the same character (mascot) as the only subject, centered, filling most of the frame. ' +
-      'The result must be a single square app icon suitable for App Store, Google Play, or web: clean, recognizable at small sizes, no text or letters. ';
-    if (platform?.trim()) {
-      const plat = platform.trim().toLowerCase();
-      if (plat.includes('app store') || plat.includes('ios')) p += 'Style: App Store quality, polished, premium. ';
-      else if (plat.includes('google') || plat.includes('play') || plat.includes('android')) p += 'Style: Google Play, clean, modern, vibrant. ';
-      else if (plat.includes('web')) p += 'Style: Web/PWA icon, sharp, scalable. ';
+      'Generate icon app for iOS (1024x1024) with this mascot. ' +
+      'Square app icon with sharp corners, no rounded corners. ' +
+      'Keep the mascot centered, filling most of the frame. No text, no letters. ';
+    if (referenceAppName?.trim()) {
+      p += `Style inspiration: the "${referenceAppName.trim()}" app icon style. `;
     }
-    if (referenceAppPrompt?.trim()) p += `Make it feel like: "${referenceAppPrompt.trim()}" (same kind of visual quality and style). `;
     if (brandColors?.length) {
       const hexList = brandColors.slice(0, 3).filter((c) => /^#[0-9A-Fa-f]{6}$/.test(c));
-      if (hexList.length) p += `Use these brand colors if possible: ${hexList.join(', ')}. `;
+      if (hexList.length) p += `Use these brand colors: ${hexList.join(', ')}. `;
     }
-    if (mascotDetails?.trim()) p += `Context: ${mascotDetails.trim()}. `;
-    p +=
-      ' Output: one image only, no text, no words. OPAQUE background only: solid white or a single solid brand color (no transparency). App Store and Google Play require opaque backgrounds; square corners. Professional app icon ready for store submission.';
+    p += 'Opaque background (no transparency). Professional quality.';
     return p;
   }
 

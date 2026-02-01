@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { CharacterTab } from './tabs/CharacterTab';
 import { AnimationsTab } from './tabs/AnimationsTab';
 import { AccountTab } from './tabs/AccountTab';
@@ -43,29 +43,51 @@ export const App: React.FC = () => {
   const rpc = rpcRef.current;
 
   // Request animations/logos/poses only once per mascot per session (persists across tab switches)
+  // Throttled to avoid ERR_INSUFFICIENT_RESOURCES (max 3 concurrent requests, 200ms between batches)
   const requestedAnimationMascotIds = useRef<Set<string>>(new Set());
   const requestedLogoMascotIds = useRef<Set<string>>(new Set());
   const requestedPoseMascotIds = useRef<Set<string>>(new Set());
+  const assetLoadQueueRef = useRef<Array<{ type: string; mascotId: string }>>([]);
+  const assetLoadingRef = useRef<boolean>(false);
+
+  const processAssetLoadQueue = useCallback(() => {
+    if (assetLoadingRef.current || assetLoadQueueRef.current.length === 0) return;
+    assetLoadingRef.current = true;
+    // Process 3 requests at a time, then wait 300ms
+    const batch = assetLoadQueueRef.current.splice(0, 3);
+    for (const item of batch) {
+      if (item.type === 'animations') rpc.send('get-mascot-animations', { mascotId: item.mascotId });
+      else if (item.type === 'logos') rpc.send('get-mascot-logos', { mascotId: item.mascotId });
+      else if (item.type === 'poses') rpc.send('get-mascot-poses', { mascotId: item.mascotId });
+    }
+    setTimeout(() => {
+      assetLoadingRef.current = false;
+      processAssetLoadQueue();
+    }, 300);
+  }, [rpc]);
+
   useEffect(() => {
     if (mascots.length === 0) return;
     const needAnimationsOrLogosOrPoses = activeTab === 'gallery';
     const needPoses = activeTab === 'gallery' || activeTab === 'poses';
+    const queue = assetLoadQueueRef.current;
     for (const mascot of mascots) {
       if (!mascot.id) continue;
       if (needAnimationsOrLogosOrPoses && !requestedAnimationMascotIds.current.has(mascot.id)) {
         requestedAnimationMascotIds.current.add(mascot.id);
-        rpc.send('get-mascot-animations', { mascotId: mascot.id });
+        queue.push({ type: 'animations', mascotId: mascot.id });
       }
       if (needAnimationsOrLogosOrPoses && !requestedLogoMascotIds.current.has(mascot.id)) {
         requestedLogoMascotIds.current.add(mascot.id);
-        rpc.send('get-mascot-logos', { mascotId: mascot.id });
+        queue.push({ type: 'logos', mascotId: mascot.id });
       }
       if (needPoses && !requestedPoseMascotIds.current.has(mascot.id)) {
         requestedPoseMascotIds.current.add(mascot.id);
-        rpc.send('get-mascot-poses', { mascotId: mascot.id });
+        queue.push({ type: 'poses', mascotId: mascot.id });
       }
     }
-  }, [activeTab, mascots, rpc]);
+    processAssetLoadQueue();
+  }, [activeTab, mascots, rpc, processAssetLoadQueue]);
 
   useEffect(() => {
     console.log('[Mascot] App component mounted');

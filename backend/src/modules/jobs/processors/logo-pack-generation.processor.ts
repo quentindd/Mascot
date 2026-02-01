@@ -29,33 +29,6 @@ const APP_STORE_SIZES: SizeSpec[] = [
   { name: 'ios-20', width: 20, height: 20 },
 ];
 
-/** Google Play (Android): 512 required + common densities. */
-const GOOGLE_PLAY_SIZES: SizeSpec[] = [
-  { name: 'android-512', width: 512, height: 512 },
-  { name: 'android-192', width: 192, height: 192 },
-  { name: 'android-96', width: 96, height: 96 },
-  { name: 'android-48', width: 48, height: 48 },
-];
-
-/** Web (PWA): 512 + 192 required, plus common sizes. */
-const WEB_SIZES: SizeSpec[] = [
-  { name: 'web-512', width: 512, height: 512 },
-  { name: 'web-192', width: 192, height: 192 },
-  { name: 'web-152', width: 152, height: 152 },
-  { name: 'web-144', width: 144, height: 144 },
-  { name: 'web-96', width: 96, height: 96 },
-  { name: 'web-72', width: 72, height: 72 },
-  { name: 'web-48', width: 48, height: 48 },
-];
-
-function getSizesForPlatform(platform?: string): SizeSpec[] {
-  const p = (platform || '').trim().toLowerCase();
-  if (p === 'app store') return APP_STORE_SIZES;
-  if (p === 'google play') return GOOGLE_PLAY_SIZES;
-  if (p === 'web') return WEB_SIZES;
-  return [...APP_STORE_SIZES, ...GOOGLE_PLAY_SIZES.filter((s) => s.name !== 'android-512'), ...WEB_SIZES.filter((s) => s.width !== 512 && s.width !== 192)];
-}
-
 /** App Store / Google Play require opaque backgrounds. Returns RGB for white or first valid brand hex. */
 function getOpaqueBackground(brandColors?: string[]): { r: number; g: number; b: number } {
   const hex = Array.isArray(brandColors) ? brandColors.find((c) => /^#[0-9A-Fa-f]{6}$/.test(c)) : undefined;
@@ -82,9 +55,9 @@ export class LogoPackGenerationProcessor extends WorkerHost {
   }
 
   async process(job: Job<any, any, string>): Promise<any> {
-    const { logoPackId, mascotId, imageSource, brandColors, referenceLogoUrl, platform, stylePrompt } = job.data;
+    const { logoPackId, mascotId, imageSource, brandColors, referenceLogoUrl, stylePrompt } = job.data;
 
-    this.logger.log(`[LogoPack] Starting logo pack ${logoPackId} for mascot ${mascotId} (platform: ${platform ?? 'all'}, refLogo: ${referenceLogoUrl ? 'yes' : 'no'}, stylePrompt: ${stylePrompt ? 'yes' : 'no'})`);
+    this.logger.log(`[LogoPack] Starting logo pack ${logoPackId} for mascot ${mascotId} (imageSource: ${imageSource ?? 'auto'}, stylePrompt: ${stylePrompt ? 'yes' : 'no'})`);
 
     try {
       await this.logoPackRepository.update(logoPackId, { status: LogoPackStatus.GENERATING });
@@ -101,7 +74,6 @@ export class LogoPackGenerationProcessor extends WorkerHost {
       imageBuffer = await this.generateLogoFromMascotOnlyReplicate(
         mascot,
         imageSource,
-        platform,
         referenceLogoUrl?.trim() ? `Style reference: user provided a reference logo. ${stylePrompt ?? ''}`.trim() : stylePrompt,
         brandColors,
       );
@@ -111,7 +83,7 @@ export class LogoPackGenerationProcessor extends WorkerHost {
         .png({ compressionLevel: 9, force: true })
         .toBuffer();
 
-      const sizeSpecs = getSizesForPlatform(platform);
+      const sizeSpecs = APP_STORE_SIZES;
       const opaqueBg = getOpaqueBackground(brandColors);
       const sizes: LogoSize[] = [];
       const timestamp = Date.now();
@@ -153,7 +125,6 @@ export class LogoPackGenerationProcessor extends WorkerHost {
           generatedAt: new Date().toISOString(),
           imageSource: imageSource ?? 'auto',
           referenceLogoUrl: referenceLogoUrl || null,
-          platform: platform || null,
           stylePrompt: stylePrompt || null,
         } as Record<string, any>,
         errorMessage: null,
@@ -175,7 +146,6 @@ export class LogoPackGenerationProcessor extends WorkerHost {
   private async generateLogoFromMascotOnlyReplicate(
     mascot: Mascot,
     imageSource: string | undefined,
-    platform?: string,
     stylePrompt?: string,
     brandColors?: string[],
   ): Promise<Buffer> {
@@ -185,9 +155,8 @@ export class LogoPackGenerationProcessor extends WorkerHost {
     const mascotBuffer = Buffer.from(mascotRes.data as ArrayBuffer);
     const mascotPng = await sharp(mascotBuffer).ensureAlpha().png({ force: true }).toBuffer();
 
-    this.logger.log('[LogoPack] Calling Replicate openai/gpt-image-1.5 to generate logo from mascot...');
+    this.logger.log(`[LogoPack] Calling Replicate openai/gpt-image-1.5 (imageSource: ${imageSource ?? 'auto'})...`);
     const generated = await this.replicateService.generateLogoGptImageReplicate(mascotPng, {
-      platform: platform?.trim() || undefined,
       referenceAppPrompt: stylePrompt?.trim() || undefined,
       brandColors: Array.isArray(brandColors) ? brandColors : undefined,
       mascotDetails: mascot.prompt || undefined,

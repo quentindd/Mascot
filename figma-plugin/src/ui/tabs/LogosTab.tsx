@@ -9,11 +9,11 @@ interface LogosTabProps {
   mascots: any[];
 }
 
-/** Platform selection for logo dimensions (App Store / Google Play / Web). */
-const PLATFORM_OPTIONS = [
-  { label: 'App Store', value: 'App Store', hint: '1024×1024 px' },
-  { label: 'Google Play', value: 'Google Play', hint: '512×512 px' },
-  { label: 'Web', value: 'Web', hint: '512×512, 192×192 px' },
+/** Style selection for logo source image. */
+const STYLE_OPTIONS = [
+  { label: 'Avatar', value: 'avatar', hint: 'Face/head only' },
+  { label: 'Full Body', value: 'fullBody', hint: 'Complete character' },
+  { label: 'Square Icon', value: 'squareIcon', hint: 'Icon format' },
 ] as const;
 
 export const LogosTab: React.FC<LogosTabProps> = ({
@@ -22,13 +22,14 @@ export const LogosTab: React.FC<LogosTabProps> = ({
   onSelectMascot,
   mascots,
 }) => {
-  const [platform, setPlatform] = useState<string>('');
+  const [imageSource, setImageSource] = useState<string>('avatar');
   const [referenceAppPrompt, setReferenceAppPrompt] = useState('');
   const [primaryColor, setPrimaryColor] = useState('');
   const [secondaryColor, setSecondaryColor] = useState('');
   const [tertiaryColor, setTertiaryColor] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [generatedLogo, setGeneratedLogo] = useState<{ id: string; url: string } | null>(null);
 
   React.useEffect(() => {
     console.log('[LogosTab] Mascots available:', mascots.length);
@@ -38,10 +39,20 @@ export const LogosTab: React.FC<LogosTabProps> = ({
   rpc.on('logo-pack-generation-started', () => {
     setIsGenerating(true);
     setError(null);
+    setGeneratedLogo(null);
   });
 
   rpc.on('logo-pack-completed', () => {
     setIsGenerating(false);
+  });
+
+  rpc.on('logo-pack-generated', (data: { logoPack: any }) => {
+    setIsGenerating(false);
+    if (data.logoPack?.sizes?.length > 0) {
+      // Get the largest size (1024x1024)
+      const largestSize = data.logoPack.sizes.find((s: any) => s.width === 1024) || data.logoPack.sizes[0];
+      setGeneratedLogo({ id: data.logoPack.id, url: largestSize.url });
+    }
   });
 
   rpc.on('logo-pack-generation-failed', (data: { error: string }) => {
@@ -61,6 +72,12 @@ export const LogosTab: React.FC<LogosTabProps> = ({
     setError('Logo pack generation timed out. Check the Gallery tab later.');
   });
 
+  const handleInsertLogo = () => {
+    if (generatedLogo?.url) {
+      rpc.send('insert-image', { url: generatedLogo.url, name: 'Logo 1024x1024' });
+    }
+  };
+
   const handleGenerate = () => {
     if (!selectedMascot) {
       setError('Please select a mascot first');
@@ -74,8 +91,7 @@ export const LogosTab: React.FC<LogosTabProps> = ({
     rpc.send('generate-logo-pack', {
       mascotId: selectedMascot.id,
       brandColors: brandColors.length > 0 ? brandColors : undefined,
-      imageSource: 'avatar',
-      platform: platform.trim() || undefined,
+      imageSource: imageSource || 'avatar',
       stylePrompt: referenceAppPrompt.trim() || undefined,
     });
   };
@@ -84,7 +100,7 @@ export const LogosTab: React.FC<LogosTabProps> = ({
     <div>
       <h2 className="select-mascot-step-title">Create a logo 🎨</h2>
       <p className="section-description">
-        Pick a platform for dimensions, add an app style inspiration (e.g. &quot;like Royal Match app&quot;) and optional brand colors. The AI will create the best logo from your mascot.
+        Choose mascot style, enter an app name for inspiration, and optional brand colors. Output: 1024×1024 px (iOS App Store).
       </p>
 
       {/* Upload only on selection page (no mascot chosen yet) */}
@@ -177,33 +193,31 @@ export const LogosTab: React.FC<LogosTabProps> = ({
       )}
 
       <div className="card logo-section-card">
-        <label className="label">Platform (logo dimensions)</label>
+        <label className="label">Mascot style</label>
         <div className="logo-platform-buttons">
-          {PLATFORM_OPTIONS.map((opt) => (
+          {STYLE_OPTIONS.map((opt) => (
             <button
               key={opt.value}
               type="button"
-              className={platform.trim() === opt.value ? 'quick-pose-btn active' : 'quick-pose-btn'}
-              onClick={() => setPlatform(opt.value)}
+              className={imageSource === opt.value ? 'quick-pose-btn active' : 'quick-pose-btn'}
+              onClick={() => setImageSource(opt.value)}
               disabled={isGenerating}
             >
               {opt.label}
             </button>
           ))}
         </div>
-        {platform.trim() && (
-          <p className="field-hint logo-hint">
-            Output: {PLATFORM_OPTIONS.find((o) => o.value === platform.trim())?.hint ?? ''}
-          </p>
-        )}
+        <p className="field-hint logo-hint">
+          {STYLE_OPTIONS.find((o) => o.value === imageSource)?.hint ?? 'Select a style'}
+        </p>
 
         <div className="logo-block-spaced">
-          <label className="label">Inspiration (optional)</label>
-          <p className="field-hint">Example of an app style, e.g. &quot;like Royal Match app&quot;. The AI will create a logo in that style with your mascot.</p>
+          <label className="label">App style inspiration (optional)</label>
+          <p className="field-hint">Just the app name, nothing else (e.g. &quot;Royal Match&quot;, &quot;Candy Crush&quot;, &quot;Clash of Clans&quot;).</p>
           <input
             className="input"
             type="text"
-            placeholder="e.g. like Royal Match app"
+            placeholder="Royal Match"
             value={referenceAppPrompt}
             onChange={(e) => setReferenceAppPrompt(e.target.value)}
             disabled={isGenerating}
@@ -331,6 +345,44 @@ export const LogosTab: React.FC<LogosTabProps> = ({
           {isGenerating ? <span className="spinner" /> : 'Generate Logo Pack (10 credits)'}
         </button>
       </div>
+
+      {/* Logo Preview Section */}
+      {(isGenerating || generatedLogo) && (
+        <div className="card logo-preview-card" style={{ marginTop: '16px' }}>
+          <label className="label">Generated Logo</label>
+          {isGenerating ? (
+            <div className="logo-preview-loading">
+              <div className="logo-preview-placeholder">
+                <span className="spinner" style={{ width: '32px', height: '32px' }} />
+              </div>
+              <p className="field-hint" style={{ textAlign: 'center', marginTop: '12px' }}>
+                Generating logo… This may take a minute.
+              </p>
+            </div>
+          ) : generatedLogo ? (
+            <div className="logo-preview-result">
+              <div
+                className="logo-preview-image"
+                onClick={handleInsertLogo}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && handleInsertLogo()}
+                title="Click to insert in Figma"
+                style={{ cursor: 'pointer' }}
+              >
+                <img
+                  src={generatedLogo.url}
+                  alt="Generated Logo"
+                  style={{ width: '100%', maxWidth: '200px', borderRadius: '8px', border: '1px solid #e0e0e0' }}
+                />
+              </div>
+              <p className="field-hint" style={{ textAlign: 'center', marginTop: '8px' }}>
+                Click to insert in Figma (1024×1024)
+              </p>
+            </div>
+          ) : null}
+        </div>
+      )}
         </>
       )}
     </div>

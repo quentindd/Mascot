@@ -180,27 +180,34 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
   const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pollingAttemptsRef = useRef<number>(0);
   const currentBatchIdRef = useRef<string | null>(null);
+  const pollingStoppedRef = useRef<boolean>(false);
 
-  // Poll for variation images
+  // Poll for variation images (max 60 attempts = 5 minutes with 5s interval)
   const pollForVariationImages = (batchId: string) => {
-    const maxAttempts = 180; // 15 minutes max (increased significantly for 3 variations that may take longer)
+    // Prevent duplicate polling for the same batch
+    if (currentBatchIdRef.current === batchId && pollingTimeoutRef.current) {
+      console.log('[Mascot] Already polling for this batch, skipping');
+      return;
+    }
+    stopPolling(); // Clear any existing polling
+    const maxAttempts = 60; // 5 minutes max (60 × 5s)
     pollingAttemptsRef.current = 0;
     currentBatchIdRef.current = batchId;
+    pollingStoppedRef.current = false;
 
     console.log('[Mascot] Starting to poll for batch variations:', batchId);
-    console.log('[Mascot] Will poll for up to', maxAttempts, 'attempts (15 minutes)');
 
     const poll = () => {
-      // Check if we've moved to a new batch
-      if (currentBatchIdRef.current !== batchId) {
-        console.log('[Mascot] Batch changed, stopping old polling');
+      // Check if polling was stopped or batch changed
+      if (pollingStoppedRef.current || currentBatchIdRef.current !== batchId) {
+        console.log('[Mascot] Polling stopped or batch changed');
         return;
       }
 
       if (pollingAttemptsRef.current >= maxAttempts) {
-        console.error('[Mascot] Polling timeout after', pollingAttemptsRef.current, 'attempts');
-        setError('Images are taking longer than expected. Some variations may still be generating. Please check back later.');
-        // Don't stop polling completely - continue in background
+        console.warn('[Mascot] Polling timeout after', pollingAttemptsRef.current, 'attempts');
+        setError('Images are taking longer than expected. Check back later or try refreshing.');
+        stopPolling();
         return;
       }
 
@@ -212,12 +219,13 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
       pollingTimeoutRef.current = setTimeout(poll, 5000);
     };
 
-    // Start immediately, then poll every 5 seconds
+    // Start after initial delay (1.5s already set in mascot-generated handler)
     poll();
   };
 
   // Stop polling when component unmounts or when all variations have images
   const stopPolling = () => {
+    pollingStoppedRef.current = true;
     if (pollingTimeoutRef.current) {
       clearTimeout(pollingTimeoutRef.current);
       pollingTimeoutRef.current = null;
@@ -235,44 +243,40 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
   rpc.on('batch-variations-loaded', (data: { variations: any[] }) => {
     console.log('[Mascot] Batch variations loaded:', data.variations ? data.variations.length : 0);
     if (data.variations && data.variations.length > 0) {
+      // Terminal states: completed or failed (no more processing expected)
+      const allTerminal = data.variations.every(v =>
+        v.status === 'completed' || v.status === 'failed'
+      );
       // Only consider images when status is completed (after rembg)
       const allHaveImages = data.variations.every(v =>
-        v.status === 'completed' && !!(v.fullBodyImageUrl || v.avatarImageUrl || v.imageUrl)
-      );
-      const someHaveImages = data.variations.some(v =>
         v.status === 'completed' && !!(v.fullBodyImageUrl || v.avatarImageUrl || v.imageUrl)
       );
       const readyCount = data.variations.filter(v =>
         v.status === 'completed' && (v.fullBodyImageUrl || v.avatarImageUrl || v.imageUrl)
       ).length;
+      const failedCount = data.variations.filter(v => v.status === 'failed').length;
       
-      console.log('[Mascot] All variations have images:', allHaveImages);
-      console.log('[Mascot] Some variations have images:', someHaveImages);
-      console.log('[Mascot] Ready variations:', readyCount, '/', data.variations.length);
-      
-      // Log each variation's image status (only completed = final image)
-      data.variations.forEach((v, idx) => {
-        const hasImage = v.status === 'completed' && !!(v.fullBodyImageUrl || v.avatarImageUrl || v.imageUrl);
-        console.log(`[Mascot] Variation ${idx + 1} (${v.id}): status=${v.status}, hasImage=${hasImage}`);
-      });
+      console.log(`[Mascot] Variations: ${readyCount} ready, ${failedCount} failed, allTerminal=${allTerminal}`);
       
       // Always update the variations (even if images aren't ready yet)
       setGeneratedVariations(data.variations);
       
-      // Variations are now stored in global state, no need to update local mascots here
-      
-      if (allHaveImages) {
-        // All variations are ready - stop polling
+      if (allTerminal) {
+        // All variations are in terminal state - stop polling
         stopPolling();
-        setSuccess(`Created ${data.variations.length} variations! Select one below.`);
-      } else if (someHaveImages) {
-        // Some have images - allow selection but continue polling for the rest
-        // Don't stop polling - keep checking for remaining variations
-        setSuccess(`Created ${data.variations.length} variations! ${readyCount}/${data.variations.length} ready. Select one below or wait for others...`);
-        // Continue polling - don't stop even if some have images
+        if (failedCount > 0) {
+          setSuccess(`Created ${data.variations.length} variations! ${readyCount} ready, ${failedCount} failed.`);
+        } else if (allHaveImages) {
+          setSuccess(`Created ${data.variations.length} variations! Select one below.`);
+        } else {
+          setSuccess(`Created ${data.variations.length} variations! ${readyCount} ready.`);
+        }
+      } else if (readyCount > 0) {
+        // Some have images - show progress
+        setSuccess(`Created ${data.variations.length} variations! ${readyCount}/${data.variations.length} ready...`);
       } else {
         // Still waiting for images - continue polling
-        setSuccess(`Created ${data.variations.length} variations! Images are being generated...`);
+        setSuccess(`Created ${data.variations.length} variations! Mascot + background removal…`);
       }
     }
   });

@@ -384,9 +384,18 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
           <div
             key={logoPack.id}
             className="gallery-item"
-            style={{ position: 'relative' }}
+            style={{
+              position: 'relative',
+              cursor: logoPack.status === 'completed' && logoPack.sizes?.length > 0 ? 'pointer' : 'default',
+            }}
             onClick={(e) => {
               if ((e.target as HTMLElement).closest('.delete-btn') || (e.target as HTMLElement).closest('.download-btn')) return;
+              // Insert the largest logo (1024x1024) into Figma
+              if (logoPack.status === 'completed' && logoPack.sizes?.length > 0) {
+                const largestSize = logoPack.sizes.find((s: any) => s.width === 1024) || logoPack.sizes[0];
+                const mascotName = getMascotName(logoPack.mascotId);
+                rpc.send('insert-image', { url: largestSize.url, name: `${mascotName} - Logo ${largestSize.width}x${largestSize.height}` });
+              }
             }}
           >
             <button

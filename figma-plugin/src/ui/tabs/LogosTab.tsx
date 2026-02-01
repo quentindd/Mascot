@@ -42,17 +42,20 @@ export const LogosTab: React.FC<LogosTabProps> = ({
     setGeneratedLogo(null);
   });
 
-  rpc.on('logo-pack-completed', () => {
+  rpc.on('logo-pack-completed', (data: { logoPack: any }) => {
     setIsGenerating(false);
-  });
-
-  rpc.on('logo-pack-generated', (data: { logoPack: any }) => {
-    setIsGenerating(false);
+    console.log('[LogosTab] logo-pack-completed:', data.logoPack);
     if (data.logoPack?.sizes?.length > 0) {
       // Get the largest size (1024x1024)
       const largestSize = data.logoPack.sizes.find((s: any) => s.width === 1024) || data.logoPack.sizes[0];
+      console.log('[LogosTab] Setting generated logo:', largestSize.url);
       setGeneratedLogo({ id: data.logoPack.id, url: largestSize.url });
     }
+  });
+
+  rpc.on('logo-pack-generated', () => {
+    // Logo pack job started, keep showing loading state
+    console.log('[LogosTab] logo-pack-generated (job started, waiting for completion...)');
   });
 
   rpc.on('logo-pack-generation-failed', (data: { error: string }) => {

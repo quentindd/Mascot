@@ -525,7 +525,7 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
         disabled={isGenerating}
         style={{ width: '100%', marginTop: '12px' }}
       >
-        {isGenerating ? <span className="spinner" /> : 'Create (1 credit for 3 variations)'}
+        {isGenerating ? <span className="spinner" /> : 'Create (1 credit · 3 variations)'}
       </button>
 
       {/* Created Variations */}

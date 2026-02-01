@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { LogoPack, LogoPackStatus } from '../../entities/logo-pack.entity';
@@ -18,7 +18,8 @@ export class LogosService {
   ) {}
 
   async create(mascotId: string, dto: CreateLogoPackDto, userId: string) {
-    // Logo packs are free (no credit check). Re-enable: checkAndReserveCredits(userId, 20) then throw if !hasCredits
+    const hasCredits = await this.creditsService.checkAndReserveCredits(userId, 10);
+    if (!hasCredits) throw new BadRequestException('Insufficient credits. Logo pack costs 10 credits.');
 
     const logoPack = this.logoPackRepository.create({
       mascotId,

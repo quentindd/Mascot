@@ -27,7 +27,8 @@ export class AnimationsService {
       );
     }
 
-    // Animations are free (no credit check). Re-enable: checkAndReserveCredits(userId, 25) then throw if !hasCredits
+    const hasCredits = await this.creditsService.checkAndReserveCredits(userId, 20);
+    if (!hasCredits) throw new BadRequestException('Insufficient credits. Animation costs 20 credits.');
 
     const animation = this.animationRepository.create({
       mascotId,

@@ -342,7 +342,7 @@ export const LogosTab: React.FC<LogosTabProps> = ({
           disabled={isGenerating || !selectedMascot}
           style={{ width: '100%', marginTop: '8px' }}
         >
-          {isGenerating ? <span className="spinner" /> : 'Generate Logo Pack'}
+          {isGenerating ? <span className="spinner" /> : 'Generate Logo Pack (10 credits)'}
         </button>
       </div>
         </>

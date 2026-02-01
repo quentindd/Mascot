@@ -622,6 +622,12 @@
   width: 100%;
 }
 
+.gallery-tab-body {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #e5e5e5;
+}
+
 .gallery-filters {
   display: flex;
   gap: 4px;
@@ -1254,6 +1260,64 @@
 .account-info-value {
   font-weight: 600;
   color: #000000;
+}
+
+/* Buy Credits Packs (Account tab) */
+.credit-packs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.credit-pack {
+  position: relative;
+  background: #ffffff;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 12px;
+}
+
+.credit-pack-popular {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+
+.credit-pack-badge {
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #059669;
+}
+
+.credit-pack-popular-badge {
+  position: absolute;
+  top: 6px;
+  left: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #f59e0b;
+}
+
+.credit-pack-credits {
+  font-weight: 600;
+  color: #000000;
+  margin-bottom: 2px;
+}
+
+.credit-pack-price {
+  font-size: 16px;
+  font-weight: 700;
+  color: #000000;
+}
+
+.credit-pack-per-credit {
+  font-size: 10px;
+  color: #666666;
+  margin-top: 2px;
 }
 
 /* Color Picker Styles */

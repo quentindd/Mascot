@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import axios from 'axios';
@@ -21,9 +21,8 @@ export class PosesService {
   ) {}
 
   async create(mascotId: string, dto: CreatePoseDto, userId: string) {
-    // Poses are free (no credit check). Re-enable by uncommenting:
-    // const hasCredits = await this.creditsService.checkAndReserveCredits(userId, 1);
-    // if (!hasCredits) throw new Error('Insufficient credits');
+    const hasCredits = await this.creditsService.checkAndReserveCredits(userId, 4);
+    if (!hasCredits) throw new BadRequestException('Insufficient credits. Pose generation costs 4 credits.');
 
     const pose = this.poseRepository.create({
       mascotId,

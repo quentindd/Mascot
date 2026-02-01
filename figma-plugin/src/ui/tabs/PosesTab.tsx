@@ -251,7 +251,7 @@ export const PosesTab: React.FC<PosesTabProps> = ({
           disabled={isGenerating || !selectedMascot}
           style={{ width: '100%' }}
         >
-          {isGenerating ? <span className="spinner" /> : 'Generate Pose (1 credit)'}
+          {isGenerating ? <span className="spinner" /> : 'Generate Pose (4 credits)'}
         </button>
       </div>
 

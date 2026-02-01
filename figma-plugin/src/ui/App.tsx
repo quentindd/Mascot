@@ -137,7 +137,9 @@ export const App: React.FC = () => {
 
     // Logo-pack events: register at App level so messages are handled even when LogosTab is not mounted (avoids "No handlers registered")
     rpc.on('logo-pack-generation-started', () => {});
-    rpc.on('logo-pack-generated', () => {});
+    rpc.on('logo-pack-generated', () => {
+      loadCredits();
+    });
     rpc.on('logo-pack-completed', () => {});
     rpc.on('logo-pack-generation-failed', () => {});
     rpc.on('logo-pack-generation-timeout', () => {});
@@ -145,6 +147,7 @@ export const App: React.FC = () => {
 
     // Pose events: refetch poses for mascot when a pose is generated so Gallery shows it
     rpc.on('pose-generated', (data: { pose: any }) => {
+      loadCredits();
       if (data?.pose?.mascotId) {
         rpc.send('get-mascot-poses', { mascotId: data.pose.mascotId });
       }
@@ -153,6 +156,7 @@ export const App: React.FC = () => {
 
     // Animation created: refetch animations for that mascot so Gallery shows the new item (and no "No handlers registered")
     rpc.on('animation-generated', (data: { animation: any }) => {
+      loadCredits();
       if (data?.animation?.mascotId) {
         rpc.send('get-mascot-animations', { mascotId: data.animation.mascotId });
       }
@@ -296,6 +300,7 @@ export const App: React.FC = () => {
         setSelectedMascot(data.mascot);
       }
       
+      loadCredits();
       // Reload mascots from API after a delay to ensure backend has processed them
       setTimeout(() => {
         console.log('[App] Reloading mascots from API after generation...');

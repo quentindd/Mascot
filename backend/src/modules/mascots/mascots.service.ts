@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Mascot, MascotStatus, MascotStyle } from '../../entities/mascot.entity';
@@ -29,7 +29,8 @@ export class MascotsService {
 
   async create(createMascotDto: CreateMascotDto, userId: string): Promise<MascotResponseDto[]> {
     try {
-      // Create is free (no credit check). Re-enable: checkAndReserveCredits(userId, 1) then throw if !hasCredits
+      const hasCredits = await this.creditsService.checkAndReserveCredits(userId, 1);
+      if (!hasCredits) throw new BadRequestException('Insufficient credits. Mascot creation costs 1 credit.');
 
       // Generate 3 variations by default (or use provided numVariations)
       const numVariations = createMascotDto.numVariations || 3;

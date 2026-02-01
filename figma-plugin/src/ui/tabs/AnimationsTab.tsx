@@ -184,7 +184,7 @@ export const AnimationsTab: React.FC<AnimationsTabProps> = ({
           disabled={isGenerating || !selectedMascot}
           style={{ width: '100%', marginTop: '8px' }}
         >
-          {isGenerating ? <span className="spinner" /> : 'Generate Animation'}
+          {isGenerating ? <span className="spinner" /> : 'Generate Animation (20 credits)'}
         </button>
       </div>
         </>

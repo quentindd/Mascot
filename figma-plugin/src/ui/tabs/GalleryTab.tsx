@@ -568,6 +568,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
         All your mascots, animations, logos, and poses in one place. Click to insert into Figma or download.
       </p>
 
+      <div className="gallery-tab-body">
       <div className="gallery-filters">
         <button
           className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
@@ -652,6 +653,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
             {filter === 'poses' && renderPoses()}
           </>
         )}
+      </div>
       </div>
 
       {animationModal && animationModal.status === 'completed' && (

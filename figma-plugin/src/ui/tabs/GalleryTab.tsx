@@ -131,18 +131,18 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
             className={`gallery-item ${selectedMascot?.id === mascot.id ? 'selected' : ''}`}
             onClick={(e) => {
               if ((e.target as HTMLElement).closest('.delete-btn') || (e.target as HTMLElement).closest('.download-btn')) return;
-              console.log('[GalleryTab] Mascot clicked, inserting into Figma:', mascot.id, mascot.name);
+              if (mascot.status !== 'completed') return;
               const imageUrl = mascot.fullBodyImageUrl || mascot.avatarImageUrl || mascot.imageUrl;
               if (imageUrl) {
-                rpc.send('insert-image', {
-                  url: imageUrl,
-                  name: mascot.name || 'Mascot',
-                });
+                rpc.send('insert-image', { url: imageUrl, name: mascot.name || 'Mascot' });
               } else {
-                console.warn('[GalleryTab] No image URL available for mascot:', mascot.id);
+                console.warn('[GalleryTab] No image URL for mascot:', mascot.id);
               }
             }}
-            style={{ cursor: 'pointer', position: 'relative' }}
+            style={{
+              cursor: mascot.status === 'completed' && (mascot.fullBodyImageUrl || mascot.avatarImageUrl || mascot.imageUrl) ? 'pointer' : 'default',
+              position: 'relative',
+            }}
           >
             <button
               type="button"
@@ -150,10 +150,11 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
+                if (mascot.status !== 'completed') return;
                 const url = mascot.fullBodyImageUrl || mascot.avatarImageUrl || mascot.imageUrl;
                 if (url) openDownload(url);
               }}
-              title="Download mascot"
+              title={mascot.status === 'completed' ? 'Download mascot' : 'Generating…'}
               style={{
                 position: 'absolute',
                 top: '4px',
@@ -193,7 +194,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
               <TrashIcon size={14} />
             </button>
             <div className="gallery-item-image">
-              {(mascot.fullBodyImageUrl || mascot.avatarImageUrl || mascot.imageUrl) ? (
+              {mascot.status === 'completed' && (mascot.fullBodyImageUrl || mascot.avatarImageUrl || mascot.imageUrl) ? (
                 <img
                   src={mascot.fullBodyImageUrl || mascot.avatarImageUrl || mascot.imageUrl}
                   alt={mascot.name}
@@ -214,7 +215,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
             <div className="gallery-item-info">
               <div className="gallery-item-title">{mascot.name || 'Mascot'}</div>
               <div className="gallery-item-meta">
-                {mascot.fullBodyImageUrl || mascot.avatarImageUrl || mascot.imageUrl
+                {mascot.status === 'completed' && (mascot.fullBodyImageUrl || mascot.avatarImageUrl || mascot.imageUrl)
                   ? `Mascot - ${mascot.style || 'default'}`
                   : `Variation ${mascot.variationIndex ?? ''} - generating`}
               </div>
@@ -550,7 +551,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
               <TrashIcon size={14} />
             </button>
             <div className="gallery-item-image">
-              {(pose.imageUrl || pose.imageDataUrl) ? (
+              {pose.status === 'completed' && (pose.imageUrl || pose.imageDataUrl) ? (
                 <img
                   src={pose.imageUrl || pose.imageDataUrl}
                   alt={pose.prompt || 'Pose'}

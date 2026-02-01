@@ -542,12 +542,14 @@ async function pollPoseStatus(poseId: string) {
       });
 
       if (statusStr === 'completed') {
+        // Short delay so backend has finished persisting imageUrl and storage (after rembg)
+        await new Promise((r) => setTimeout(r, 800));
         const pose = await apiClient!.getPose(poseId);
         try {
           const imageDataUrl = await apiClient!.getPoseImageDataUrl(poseId);
-          rpc.send('pose-completed', { pose: Object.assign({}, pose, { imageDataUrl }) });
+          rpc.send('pose-completed', { pose: Object.assign({}, pose, { status: 'completed', imageDataUrl }) });
         } catch (imgErr) {
-          rpc.send('pose-completed', { pose });
+          rpc.send('pose-completed', { pose: Object.assign({}, pose, { status: 'completed' }) });
         }
         return;
       }

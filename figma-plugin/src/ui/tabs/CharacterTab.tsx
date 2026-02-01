@@ -91,14 +91,14 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
     }
   }, [mascots]);
 
-  // Sync variations with mascots list: when Gallery (or any refetch) has loaded mascots with images,
-  // use those URLs so the Mascot tab shows images instead of spinners.
+  // Sync variations with mascots list: only use image URLs when mascot status is completed (after rembg).
   const displayVariations = useMemo(() => {
     return generatedVariations.map((v) => {
       const fromList = mascots.find((m) => m.id === v.id);
-      if (fromList && (fromList.fullBodyImageUrl || fromList.avatarImageUrl || fromList.squareIconUrl)) {
+      if (fromList && fromList.status === 'completed' && (fromList.fullBodyImageUrl || fromList.avatarImageUrl || fromList.squareIconUrl)) {
         return {
           ...v,
+          status: fromList.status ?? v.status,
           fullBodyImageUrl: fromList.fullBodyImageUrl ?? v.fullBodyImageUrl,
           avatarImageUrl: fromList.avatarImageUrl ?? v.avatarImageUrl,
           squareIconUrl: fromList.squareIconUrl ?? v.squareIconUrl,
@@ -108,11 +108,11 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
     });
   }, [generatedVariations, mascots]);
 
-  // When mascots list brings in images for our variations, update success/error
+  // When mascots list brings in images for our variations (only when completed), update success/error
   useEffect(() => {
     if (displayVariations.length === 0) return;
     const allHaveImages = displayVariations.every(
-      (v) => v.fullBodyImageUrl || v.avatarImageUrl || v.imageUrl
+      (v) => v.status === 'completed' && (v.fullBodyImageUrl || v.avatarImageUrl || v.imageUrl)
     );
     if (allHaveImages && (success?.includes('generating') || success?.includes('Waiting for images'))) {
       setSuccess(`Created ${displayVariations.length} variations! Select one below.`);
@@ -138,13 +138,14 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
       console.log('[Mascot] Received variations:', data.variations);
       console.log('[Mascot] Checking for images in variations...');
       
-      // Check if images are already available
-      const hasImages = data.variations.some(v => v.fullBodyImageUrl || v.avatarImageUrl || v.imageUrl);
-      console.log('[Mascot] Has images:', hasImages);
+      // Only consider images when status is completed (after rembg)
+      const hasImages = data.variations.some(v =>
+        v.status === 'completed' && (v.fullBodyImageUrl || v.avatarImageUrl || v.imageUrl)
+      );
+      console.log('[Mascot] Has images (completed):', hasImages);
       
       setGeneratedVariations(data.variations);
       
-      // Poll for images if they're not ready yet
       const batchId = data.variations[0]?.batchId;
       console.log('[Mascot] BatchId:', batchId);
       
@@ -152,9 +153,9 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
         if (hasImages) {
           setSuccess(`Created ${data.variations.length} variations! Select one below.`);
         } else {
-          setSuccess(`Created ${data.variations.length} variations! Waiting for images...`);
-          // Start polling immediately
-          pollForVariationImages(batchId);
+          setSuccess(`Created ${data.variations.length} variations! Mascot + background removal…`);
+          // Start polling after a short delay so backend has time to process
+          setTimeout(() => pollForVariationImages(batchId), 1500);
         }
       } else {
         if (hasImages) {
@@ -234,25 +235,25 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
   rpc.on('batch-variations-loaded', (data: { variations: any[] }) => {
     console.log('[Mascot] Batch variations loaded:', data.variations ? data.variations.length : 0);
     if (data.variations && data.variations.length > 0) {
-      // Check if all variations have images
-      const allHaveImages = data.variations.every(v => {
-        const hasImage = !!(v.fullBodyImageUrl || v.avatarImageUrl || v.imageUrl);
-        return hasImage;
-      });
-      const someHaveImages = data.variations.some(v => {
-        const hasImage = !!(v.fullBodyImageUrl || v.avatarImageUrl || v.imageUrl);
-        return hasImage;
-      });
-      const readyCount = data.variations.filter(v => v.fullBodyImageUrl || v.avatarImageUrl || v.imageUrl).length;
+      // Only consider images when status is completed (after rembg)
+      const allHaveImages = data.variations.every(v =>
+        v.status === 'completed' && !!(v.fullBodyImageUrl || v.avatarImageUrl || v.imageUrl)
+      );
+      const someHaveImages = data.variations.some(v =>
+        v.status === 'completed' && !!(v.fullBodyImageUrl || v.avatarImageUrl || v.imageUrl)
+      );
+      const readyCount = data.variations.filter(v =>
+        v.status === 'completed' && (v.fullBodyImageUrl || v.avatarImageUrl || v.imageUrl)
+      ).length;
       
       console.log('[Mascot] All variations have images:', allHaveImages);
       console.log('[Mascot] Some variations have images:', someHaveImages);
       console.log('[Mascot] Ready variations:', readyCount, '/', data.variations.length);
       
-      // Log each variation's image status
+      // Log each variation's image status (only completed = final image)
       data.variations.forEach((v, idx) => {
-        const hasImage = !!(v.fullBodyImageUrl || v.avatarImageUrl || v.imageUrl);
-        console.log(`[Mascot] Variation ${idx + 1} (${v.id}): hasImage=${hasImage}, fullBody=${!!v.fullBodyImageUrl}, avatar=${!!v.avatarImageUrl}, image=${!!v.imageUrl}`);
+        const hasImage = v.status === 'completed' && !!(v.fullBodyImageUrl || v.avatarImageUrl || v.imageUrl);
+        console.log(`[Mascot] Variation ${idx + 1} (${v.id}): status=${v.status}, hasImage=${hasImage}`);
       });
       
       // Always update the variations (even if images aren't ready yet)
@@ -302,17 +303,18 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
   const handleSelectVariation = (variation: any) => {
     console.log('[CharacterTab] Variation selected:', variation.id, variation.name);
     
-    // Get the image URL (try fullBodyImageUrl first, then imageUrl, then avatarImageUrl)
-    const imageUrl = variation.fullBodyImageUrl || variation.imageUrl || variation.avatarImageUrl;
+    // Only use image when status is completed (after rembg)
+    const imageUrl = variation.status === 'completed'
+      ? (variation.fullBodyImageUrl || variation.imageUrl || variation.avatarImageUrl)
+      : null;
     
     if (imageUrl) {
-      // Insert image into Figma if we have an image
       rpc.send('insert-image', {
         url: imageUrl,
         name: variation.name || 'Mascot Variation'
       });
     } else {
-      console.warn('[CharacterTab] Variation selected but no image URL yet:', variation.id);
+      console.warn('[CharacterTab] Variation selected but image not ready yet (status:', variation.status, '):', variation.id);
     }
     
     // Select the variation
@@ -573,17 +575,12 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
                 onClick={() => handleSelectVariation(variation)}
               >
                 <div className="variation-image">
-                  {(variation.fullBodyImageUrl || variation.avatarImageUrl || variation.imageUrl) ? (
+                  {variation.status === 'completed' && (variation.fullBodyImageUrl || variation.avatarImageUrl || variation.imageUrl) ? (
                     <img
                       src={variation.fullBodyImageUrl || variation.avatarImageUrl || variation.imageUrl}
                       alt={variation.name || `Variation ${index + 1}`}
                       onError={(e) => {
                         console.error('[Mascot] Failed to load image for variation', index + 1, ':', variation.id);
-                        console.error('[Mascot] Image URLs:', {
-                          fullBody: variation.fullBodyImageUrl,
-                          avatar: variation.avatarImageUrl,
-                          image: variation.imageUrl
-                        });
                         const placeholder = e.currentTarget.parentElement?.querySelector('.variation-placeholder') as HTMLElement;
                         if (placeholder) placeholder.style.display = 'flex';
                         e.currentTarget.style.display = 'none';
@@ -595,7 +592,9 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
                   ) : (
                     <div className="variation-placeholder variation-loading-wrap">
                       <div className="spinner" />
-                      <div className="variation-loading-subtext">Variation {index + 1}</div>
+                      <div className="variation-loading-subtext">
+                        {variation.status === 'completed' ? `Variation ${index + 1}` : 'Mascot + background removal…'}
+                      </div>
                     </div>
                   )}
                 </div>

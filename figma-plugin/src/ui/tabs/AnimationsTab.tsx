@@ -101,7 +101,7 @@ export const AnimationsTab: React.FC<AnimationsTabProps> = ({
                 aria-label={`Select ${mascot.name ?? 'Unnamed'}`}
               >
                 <div className="mascot-selection-image">
-                  {(mascot.avatarImageUrl || mascot.imageUrl || mascot.fullBodyImageUrl) ? (
+                  {mascot.status === 'completed' && (mascot.avatarImageUrl || mascot.imageUrl || mascot.fullBodyImageUrl) ? (
                     <img
                       src={mascot.fullBodyImageUrl || mascot.avatarImageUrl || mascot.imageUrl}
                       alt={mascot.name}
@@ -111,7 +111,7 @@ export const AnimationsTab: React.FC<AnimationsTabProps> = ({
                     />
                   ) : (
                     <div className="mascot-selection-placeholder">
-                      {(mascot.name && mascot.name.charAt(0)) ? mascot.name.charAt(0).toUpperCase() : '?'}
+                      {mascot.status === 'completed' && mascot.name?.charAt(0) ? mascot.name.charAt(0).toUpperCase() : '…'}
                     </div>
                   )}
                 </div>
@@ -131,7 +131,7 @@ export const AnimationsTab: React.FC<AnimationsTabProps> = ({
       {/* Selected Mascot Preview */}
       <div className="selected-mascot-preview">
         <div className="selected-mascot-image">
-          {(selectedMascot.avatarImageUrl || selectedMascot.imageUrl || selectedMascot.fullBodyImageUrl) ? (
+          {selectedMascot.status === 'completed' && (selectedMascot.avatarImageUrl || selectedMascot.imageUrl || selectedMascot.fullBodyImageUrl) ? (
             <img
               src={selectedMascot.fullBodyImageUrl || selectedMascot.avatarImageUrl || selectedMascot.imageUrl}
               alt={selectedMascot.name}
@@ -141,7 +141,7 @@ export const AnimationsTab: React.FC<AnimationsTabProps> = ({
             />
           ) : (
             <div className="selected-mascot-placeholder">
-              {selectedMascot.name.charAt(0).toUpperCase()}
+              {selectedMascot.status === 'completed' && selectedMascot.name?.charAt(0) ? selectedMascot.name.charAt(0).toUpperCase() : '…'}
             </div>
           )}
         </div>

@@ -215,14 +215,8 @@ export const App: React.FC = () => {
       const incoming = data.poses || [];
       setPoses((prev) => {
         const filtered = prev.filter((p) => p.mascotId !== data.mascotId);
-        // Keep imageDataUrl from existing pose if incoming pose is completed but has no imageUrl yet (race)
-        const merged = incoming.map((p: any) => {
-          const existing = prev.find((e) => e.id === p.id);
-          if (existing && (existing.imageDataUrl || existing.imageUrl) && (!p.imageUrl && p.status === 'completed'))
-            return { ...p, imageDataUrl: existing.imageDataUrl, imageUrl: existing.imageUrl };
-          return p;
-        });
-        return [...filtered, ...merged];
+        // Use server data only: never reuse old imageUrl/imageDataUrl (avoids showing pre-rembg image)
+        return [...filtered, ...incoming];
       });
     });
     rpc.on('pose-completed', (data: { pose: any }) => {

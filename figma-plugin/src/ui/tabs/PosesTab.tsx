@@ -139,7 +139,7 @@ export const PosesTab: React.FC<PosesTabProps> = ({
                 aria-label={`Select ${mascot.name}`}
               >
                 <div className="mascot-selection-image">
-                  {(mascot.avatarImageUrl || mascot.imageUrl || mascot.fullBodyImageUrl) ? (
+                  {mascot.status === 'completed' && (mascot.avatarImageUrl || mascot.imageUrl || mascot.fullBodyImageUrl) ? (
                     <img
                       src={mascot.fullBodyImageUrl || mascot.avatarImageUrl || mascot.imageUrl}
                       alt={mascot.name}
@@ -149,7 +149,7 @@ export const PosesTab: React.FC<PosesTabProps> = ({
                     />
                   ) : (
                     <div className="mascot-selection-placeholder">
-                      {mascot.name.charAt(0).toUpperCase()}
+                      {mascot.status === 'completed' ? mascot.name.charAt(0).toUpperCase() : '…'}
                     </div>
                   )}
                 </div>
@@ -168,7 +168,7 @@ export const PosesTab: React.FC<PosesTabProps> = ({
       {/* Selected Mascot Preview */}
       <div className="selected-mascot-preview">
         <div className="selected-mascot-image">
-          {(selectedMascot.avatarImageUrl || selectedMascot.imageUrl || selectedMascot.fullBodyImageUrl) ? (
+          {selectedMascot.status === 'completed' && (selectedMascot.avatarImageUrl || selectedMascot.imageUrl || selectedMascot.fullBodyImageUrl) ? (
             <img
               src={selectedMascot.fullBodyImageUrl || selectedMascot.avatarImageUrl || selectedMascot.imageUrl}
               alt={selectedMascot.name}
@@ -178,7 +178,7 @@ export const PosesTab: React.FC<PosesTabProps> = ({
             />
           ) : (
             <div className="selected-mascot-placeholder">
-              {selectedMascot.name.charAt(0).toUpperCase()}
+              {selectedMascot.status === 'completed' && selectedMascot.name?.charAt(0) ? selectedMascot.name.charAt(0).toUpperCase() : '…'}
             </div>
           )}
         </div>
@@ -281,9 +281,9 @@ export const PosesTab: React.FC<PosesTabProps> = ({
             </button>
           </div>
           <div style={{ marginBottom: '12px' }}>
-            <div className="gallery-item" style={{ position: 'relative' }}>
+              <div className="gallery-item" style={{ position: 'relative' }}>
               <div className="gallery-item-image">
-                {(generatedPose.imageDataUrl || generatedPose.imageUrl) ? (
+                {generatedPose.status === 'completed' && (generatedPose.imageDataUrl || generatedPose.imageUrl) ? (
                   <img
                     src={generatedPose.imageDataUrl || generatedPose.imageUrl}
                     alt={generatedPose.prompt || 'Pose'}
@@ -292,7 +292,14 @@ export const PosesTab: React.FC<PosesTabProps> = ({
                   />
                 ) : (
                   <div className="gallery-placeholder" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                    {isGenerating ? <span className="spinner" /> : (generatedPose.prompt || 'Pose')}
+                    {isGenerating ? (
+                      <>
+                        <span className="spinner" />
+                        <span style={{ fontSize: 11, color: 'var(--color-text-secondary, #666)' }}>Pose + background removal…</span>
+                      </>
+                    ) : (
+                      (generatedPose.prompt || 'Pose')
+                    )}
                   </div>
                 )}
               </div>
@@ -304,7 +311,7 @@ export const PosesTab: React.FC<PosesTabProps> = ({
           </div>
           <button
             className="btn-primary"
-            disabled={isInserting || !(generatedPose?.imageDataUrl || generatedPose?.imageUrl)}
+            disabled={isInserting || generatedPose?.status !== 'completed' || !(generatedPose?.imageDataUrl || generatedPose?.imageUrl)}
             onClick={async () => {
               const imageUrl = generatedPose?.imageDataUrl || generatedPose?.imageUrl;
               if (!imageUrl) return;

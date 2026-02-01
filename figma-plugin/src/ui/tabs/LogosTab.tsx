@@ -115,7 +115,7 @@ export const LogosTab: React.FC<LogosTabProps> = ({
                 aria-label={`Select ${mascot.name}`}
               >
                 <div className="mascot-selection-image">
-                  {(mascot.avatarImageUrl || mascot.imageUrl || mascot.fullBodyImageUrl) ? (
+                  {mascot.status === 'completed' && (mascot.avatarImageUrl || mascot.imageUrl || mascot.fullBodyImageUrl) ? (
                     <img
                       src={mascot.fullBodyImageUrl || mascot.avatarImageUrl || mascot.imageUrl}
                       alt={mascot.name}
@@ -125,7 +125,7 @@ export const LogosTab: React.FC<LogosTabProps> = ({
                     />
                   ) : (
                     <div className="mascot-selection-placeholder">
-                      {mascot.name.charAt(0).toUpperCase()}
+                      {mascot.status === 'completed' ? mascot.name.charAt(0).toUpperCase() : '…'}
                     </div>
                   )}
                 </div>
@@ -144,7 +144,7 @@ export const LogosTab: React.FC<LogosTabProps> = ({
       {/* Selected Mascot Preview */}
       <div className="selected-mascot-preview logo-selected-preview">
         <div className="selected-mascot-image">
-          {(selectedMascot.avatarImageUrl || selectedMascot.imageUrl || selectedMascot.fullBodyImageUrl) ? (
+          {selectedMascot.status === 'completed' && (selectedMascot.avatarImageUrl || selectedMascot.imageUrl || selectedMascot.fullBodyImageUrl) ? (
             <img
               src={selectedMascot.fullBodyImageUrl || selectedMascot.avatarImageUrl || selectedMascot.imageUrl}
               alt={selectedMascot.name}
@@ -154,7 +154,7 @@ export const LogosTab: React.FC<LogosTabProps> = ({
             />
           ) : (
             <div className="selected-mascot-placeholder">
-              {selectedMascot.name.charAt(0).toUpperCase()}
+              {selectedMascot.status === 'completed' && selectedMascot.name?.charAt(0) ? selectedMascot.name.charAt(0).toUpperCase() : '…'}
             </div>
           )}
         </div>

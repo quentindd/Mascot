@@ -74,7 +74,7 @@ export class BillingService {
             unit_amount: pack.amountCents,
             product_data: {
               name: `Mascot — ${pack.credits} credits`,
-              description: `One-time purchase of ${pack.credits} credits for mascot, poses, animations, and logos.`,
+              description: `One-time purchase of ${pack.credits} credits for mascot, poses, and animations.`,
               images: undefined,
             },
           },

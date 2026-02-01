@@ -9,8 +9,6 @@ export class JobsService {
     private mascotQueue: Queue,
     @InjectQueue('animation-generation')
     private animationQueue: Queue,
-    @InjectQueue('logo-pack-generation')
-    private logoPackQueue: Queue,
     @InjectQueue('pose-generation')
     private poseQueue: Queue,
   ) {}
@@ -38,10 +36,6 @@ export class JobsService {
         `Animation queue unavailable. Check Redis (REDIS_URL or REDIS_HOST) on the server. ${msg}`,
       );
     }
-  }
-
-  async enqueueLogoPackGeneration(logoPackId: string, mascotId: string, data: any) {
-    await this.logoPackQueue.add('generate', { logoPackId, mascotId, ...data });
   }
 
   async enqueuePoseGeneration(poseId: string, mascotId: string, data: any) {

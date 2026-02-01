@@ -4,7 +4,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { JobsService } from './jobs.service';
 import { MascotGenerationProcessor } from './processors/mascot-generation.processor';
 import { AnimationGenerationProcessor } from './processors/animation-generation.processor';
-import { LogoPackGenerationProcessor } from './processors/logo-pack-generation.processor';
 import { PoseGenerationProcessor } from './processors/pose-generation.processor';
 import { AIModule } from '../ai/ai.module';
 import { StorageModule } from '../storage/storage.module';
@@ -12,7 +11,6 @@ import { CreditsModule } from '../credits/credits.module';
 import { Mascot } from '../../entities/mascot.entity';
 import { AnimationJob } from '../../entities/animation-job.entity';
 import { Pose } from '../../entities/pose.entity';
-import { LogoPack } from '../../entities/logo-pack.entity';
 
 @Module({
   imports: [
@@ -38,9 +36,6 @@ import { LogoPack } from '../../entities/logo-pack.entity';
         },
       },
       { 
-        name: 'logo-pack-generation' 
-      },
-      { 
         name: 'pose-generation',
         defaultJobOptions: {
           attempts: 3,
@@ -51,7 +46,7 @@ import { LogoPack } from '../../entities/logo-pack.entity';
         },
       },
     ),
-    TypeOrmModule.forFeature([Mascot, AnimationJob, Pose, LogoPack]),
+    TypeOrmModule.forFeature([Mascot, AnimationJob, Pose]),
     AIModule,
     StorageModule,
     CreditsModule,
@@ -60,7 +55,6 @@ import { LogoPack } from '../../entities/logo-pack.entity';
     JobsService,
     MascotGenerationProcessor,
     AnimationGenerationProcessor,
-    LogoPackGenerationProcessor,
     PoseGenerationProcessor,
   ],
   exports: [JobsService],

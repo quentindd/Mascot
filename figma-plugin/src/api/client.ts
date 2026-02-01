@@ -100,37 +100,6 @@ export interface AnimationStatusResponse {
   errorMessage?: string;
 }
 
-export type LogoImageSource = 'fullBody' | 'avatar' | 'squareIcon';
-
-export interface CreateLogoPackRequest {
-  brandColors?: string[];
-  imageSource?: LogoImageSource;
-  /** Platform for dimensions: App Store, Google Play, Web. */
-  platform?: string;
-  /** Text inspiration for style, e.g. "like Royal Match app". */
-  stylePrompt?: string;
-  /** Direct image URL (PNG/JPEG/WebP). AI adapts mascot logo to this style. */
-  referenceLogoUrl?: string;
-  figmaFileId?: string;
-}
-
-export interface LogoPackResponse {
-  id: string;
-  mascotId: string;
-  status: string;
-  brandColors: string[] | null;
-  sizes: Array<{
-    name: string;
-    width: number;
-    height: number;
-    url: string;
-  }>;
-  zipFileUrl: string | null;
-  errorMessage: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface PaginatedResponse<T> {
   data: T[];
   meta: {
@@ -371,27 +340,6 @@ export class MascotAPI {
     return response && response.data ? response.data : [];
   }
 
-  async createLogoPack(
-    mascotId: string,
-    data: CreateLogoPackRequest
-  ): Promise<LogoPackResponse> {
-    return this.request<LogoPackResponse>(`/mascots/${mascotId}/logo-packs`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async getLogoPack(id: string): Promise<LogoPackResponse> {
-    return this.request<LogoPackResponse>(`/logo-packs/${id}`);
-  }
-
-  async getMascotLogoPacks(mascotId: string): Promise<LogoPackResponse[]> {
-    const response = await this.request<{ data: LogoPackResponse[] }>(
-      `/mascots/${mascotId}/logo-packs`
-    );
-    return response && response.data ? response.data : [];
-  }
-
   async createPose(mascotId: string, data: { prompt: string; figmaFileId?: string }): Promise<any> {
     return this.request<any>(`/mascots/${mascotId}/poses`, {
       method: 'POST',
@@ -457,12 +405,6 @@ export class MascotAPI {
 
   async deleteAnimation(id: string): Promise<void> {
     return this.request<void>(`/animations/${id}`, {
-      method: 'DELETE',
-    });
-  }
-
-  async deleteLogoPack(id: string): Promise<void> {
-    return this.request<void>(`/logo-packs/${id}`, {
       method: 'DELETE',
     });
   }

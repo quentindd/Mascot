@@ -6,7 +6,6 @@ export const CREDIT_COSTS = {
   mascot: 1,
   pose: 4,
   animation: 20,
-  logo: 10,
 } as const;
 
 /** Buy Credits packs: credits → price (USD). */
@@ -84,10 +83,6 @@ export const AccountTab: React.FC<AccountTabProps> = ({ credits, onLogout, rpc }
           <div className="account-usage-row">
             <span>Animation</span>
             <span className="account-usage-value">{CREDIT_COSTS.animation} cr</span>
-          </div>
-          <div className="account-usage-row">
-            <span>Logo</span>
-            <span className="account-usage-value">{CREDIT_COSTS.logo} cr</span>
           </div>
         </div>
       </div>

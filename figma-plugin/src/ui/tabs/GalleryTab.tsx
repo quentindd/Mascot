@@ -13,13 +13,12 @@ interface GalleryTabProps {
   rpc: RPCClient;
   mascots: any[];
   animations: any[];
-  logos: any[];
   poses: any[];
   selectedMascot: any;
   onSelectMascot: (mascot: any) => void;
 }
 
-type GalleryFilter = 'all' | 'mascots' | 'animations' | 'logos' | 'poses';
+type GalleryFilter = 'all' | 'mascots' | 'animations' | 'poses';
 
 const TrashIcon: React.FC<{ size?: number; className?: string }> = ({ size = 14, className }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
@@ -46,7 +45,6 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
   rpc,
   mascots,
   animations,
-  logos,
   poses,
   selectedMascot,
   onSelectMascot,
@@ -54,7 +52,6 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
   const [filter, setFilter] = useState<GalleryFilter>('all');
   const sortedMascots = useMemo(() => sortByCreatedAtDesc(mascots), [mascots]);
   const sortedAnimations = useMemo(() => sortByCreatedAtDesc(animations), [animations]);
-  const sortedLogos = useMemo(() => sortByCreatedAtDesc(logos), [logos]);
   const sortedPoses = useMemo(() => sortByCreatedAtDesc(poses), [poses]);
   const [loading, setLoading] = useState(false);
   const [animationModal, setAnimationModal] = useState<any | null>(null);
@@ -65,7 +62,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
   const [integrationTab, setIntegrationTab] = useState<'web' | 'ios' | 'android' | 'flutter' | 'react-native'>('web');
   const [codeCopied, setCodeCopied] = useState<string | null>(null);
 
-  // Animations/logos are stored in App and updated via RPC; only UI-only events here
+  // Animations are stored in App and updated via RPC; only UI-only events here
 
   rpc.on('animation-inserted', () => {
     setInsertError(null);
@@ -354,128 +351,6 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
     );
   };
 
-  const handleDeleteLogoPack = (e: React.MouseEvent, logoPackId: string) => {
-    e.stopPropagation();
-    if (confirm('Are you sure you want to delete this logo? This action cannot be undone.')) {
-      rpc.send('delete-logo-pack', { id: logoPackId });
-    }
-  };
-
-  rpc.on('logo-pack-deleted', (data: { id: string }) => {
-    console.log('[GalleryTab] Logo pack deleted:', data.id);
-  });
-
-  const renderLogos = () => {
-    if (sortedLogos.length === 0) {
-      return (
-        <div className="empty-state-content">
-          <div className="empty-state-icon">Logos</div>
-          <h3 className="empty-state-title">No logos yet</h3>
-          <p className="empty-state-text">
-            Create logos from the Logos tab.
-          </p>
-        </div>
-      );
-    }
-
-    return (
-      <div className="gallery-grid">
-        {sortedLogos.map((logoPack) => (
-          <div
-            key={logoPack.id}
-            className="gallery-item"
-            style={{
-              position: 'relative',
-              cursor: logoPack.status === 'completed' && logoPack.sizes?.length > 0 ? 'pointer' : 'default',
-            }}
-            onClick={(e) => {
-              if ((e.target as HTMLElement).closest('.delete-btn') || (e.target as HTMLElement).closest('.download-btn')) return;
-              // Insert the largest logo (1024x1024) into Figma
-              if (logoPack.status === 'completed' && logoPack.sizes?.length > 0) {
-                const largestSize = logoPack.sizes.find((s: any) => s.width === 1024) || logoPack.sizes[0];
-                const mascotName = getMascotName(logoPack.mascotId);
-                rpc.send('insert-image', { url: largestSize.url, name: `${mascotName} - Logo ${largestSize.width}x${largestSize.height}`, width: largestSize.width, height: largestSize.height });
-              }
-            }}
-          >
-            <button
-              type="button"
-              className="download-btn gallery-download-btn"
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                const url = logoPack.zipFileUrl || (logoPack.sizes?.[0]?.url);
-                if (url) openDownload(url);
-              }}
-              title="Download logo"
-              style={{
-                position: 'absolute',
-                top: '4px',
-                right: '28px',
-                width: '20px',
-                height: '20px',
-                borderRadius: '4px',
-                border: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 10,
-              }}
-            >
-              <DownloadIcon size={14} />
-            </button>
-            <button
-              type="button"
-              className="delete-btn gallery-delete-btn"
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => handleDeleteLogoPack(e, logoPack.id)}
-              title="Delete logo"
-              style={{
-                position: 'absolute',
-                top: '4px',
-                right: '4px',
-                width: '20px',
-                height: '20px',
-                borderRadius: '4px',
-                border: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 10,
-              }}
-            >
-              <TrashIcon size={14} />
-            </button>
-            <div className="gallery-item-image">
-              {logoPack.sizes && logoPack.sizes.length > 0 ? (
-                <img
-                  src={logoPack.sizes[0].url}
-                  alt="Logo"
-                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                />
-              ) : (logoPack.status === 'generating' || logoPack.status === 'pending') ? (
-                <div className="gallery-placeholder gallery-placeholder-loading">
-                  <span className="gallery-placeholder-text">Generating…</span>
-                  <span className="gallery-placeholder-name">{getMascotName(logoPack.mascotId)}</span>
-                </div>
-              ) : (
-                <div className="gallery-placeholder">
-                  {logoPack.status === 'completed' ? 'LOGO' : '...'}
-                </div>
-              )}
-            </div>
-            <div className="gallery-item-info">
-              <div className="gallery-item-title">Logo</div>
-              <div className="gallery-item-meta">
-                {getMascotName(logoPack.mascotId)} - 1024×1024
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  };
-
   const renderPoses = () => {
     if (sortedPoses.length === 0) {
       return (
@@ -588,7 +463,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
     <div className="gallery-tab">
       <h2 className="select-mascot-step-title">Gallery 🗂️</h2>
       <p className="section-description">
-        All your mascots, animations, logos, and poses in one place. Click to insert into Figma or download.
+        All your mascots, animations, and poses in one place. Click to insert into Figma or download.
       </p>
 
       <div className="gallery-tab-body">
@@ -610,12 +485,6 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
           onClick={() => setFilter('animations')}
         >
           Animations ({animations.length})
-        </button>
-        <button
-          className={`filter-btn ${filter === 'logos' ? 'active' : ''}`}
-          onClick={() => setFilter('logos')}
-        >
-          Logos ({logos.length})
         </button>
         <button
           className={`filter-btn ${filter === 'poses' ? 'active' : ''}`}
@@ -647,19 +516,13 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
                     {renderAnimations()}
                   </div>
                 )}
-                {logos.length > 0 && (
-                  <div className="gallery-section">
-                    <h3 className="gallery-section-title">Logos</h3>
-                    {renderLogos()}
-                  </div>
-                )}
                 {poses.length > 0 && (
                   <div className="gallery-section">
                     <h3 className="gallery-section-title">Poses</h3>
                     {renderPoses()}
                   </div>
                 )}
-                {mascots.length === 0 && animations.length === 0 && logos.length === 0 && poses.length === 0 && (
+                {mascots.length === 0 && animations.length === 0 && poses.length === 0 && (
                   <div className="empty-state-content">
                     <div className="empty-state-icon">Gallery</div>
                     <h3 className="empty-state-title">Your gallery is empty</h3>
@@ -672,7 +535,6 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
             )}
             {filter === 'mascots' && renderMascots()}
             {filter === 'animations' && renderAnimations()}
-            {filter === 'logos' && renderLogos()}
             {filter === 'poses' && renderPoses()}
           </>
         )}

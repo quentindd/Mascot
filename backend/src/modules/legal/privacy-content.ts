@@ -19,13 +19,13 @@ export const PRIVACY_HTML = `<!DOCTYPE html>
   <p class="updated">Last updated: February 2025</p>
 
   <h2>1. Who We Are</h2>
-  <p>Mascot is a Figma plugin that provides AI-generated mascots, poses, animations, and logo packs. This policy describes how we collect and use data when you use the Plugin.</p>
+  <p>Mascot is a Figma plugin that provides AI-generated mascots, poses, and animations. This policy describes how we collect and use data when you use the Plugin.</p>
 
   <h2>2. Data We Collect</h2>
   <p>We collect:</p>
   <ul>
     <li><strong>Account data:</strong> When you sign in (e.g. via “Continue with Figma” or email), we receive and store your email, name, and profile information necessary to provide the service.</li>
-    <li><strong>Usage data:</strong> We store information related to your use of the Plugin, such as credit balance, generation requests (mascots, poses, animations, logos), and associated metadata (e.g. prompts, file identifiers) to operate the service and improve it.</li>
+    <li><strong>Usage data:</strong> We store information related to your use of the Plugin, such as credit balance, generation requests (mascots, poses, animations), and associated metadata (e.g. prompts, file identifiers) to operate the service and improve it.</li>
     <li><strong>Payment data:</strong> When you buy credits, payment is processed by Stripe. We do not store your full card number; we receive and store only what is needed to link purchases to your account (e.g. transaction identifiers, credit amounts). Stripe’s privacy policy applies to payment data they process.</li>
   </ul>
 

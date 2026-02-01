@@ -3,13 +3,12 @@ import { CharacterTab } from './tabs/CharacterTab';
 import { AnimationsTab } from './tabs/AnimationsTab';
 import { AccountTab } from './tabs/AccountTab';
 import { GalleryTab } from './tabs/GalleryTab';
-import { LogosTab } from './tabs/LogosTab';
 import { PosesTab } from './tabs/PosesTab';
 import { AuthScreen } from './AuthScreen';
 import { RPCClient } from './rpc/client';
 import './App.css';
 
-type Tab = 'gallery' | 'character' | 'animations' | 'logos' | 'poses' | 'account';
+type Tab = 'gallery' | 'character' | 'animations' | 'poses' | 'account';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('character');
@@ -19,7 +18,6 @@ export const App: React.FC = () => {
   const [selectedMascot, setSelectedMascot] = useState<any>(null);
   const [mascots, setMascots] = useState<any[]>([]);
   const [animations, setAnimations] = useState<any[]>([]);
-  const [logos, setLogos] = useState<any[]>([]);
   const [poses, setPoses] = useState<any[]>([]);
   const [generatedVariations, setGeneratedVariations] = useState<any[]>([]);
   const [tokenInput, setTokenInput] = useState<string>('');
@@ -42,10 +40,9 @@ export const App: React.FC = () => {
   }
   const rpc = rpcRef.current;
 
-  // Request animations/logos/poses only once per mascot per session (persists across tab switches)
+  // Request animations/poses only once per mascot per session (persists across tab switches)
   // Throttled to avoid ERR_INSUFFICIENT_RESOURCES (max 3 concurrent requests, 200ms between batches)
   const requestedAnimationMascotIds = useRef<Set<string>>(new Set());
-  const requestedLogoMascotIds = useRef<Set<string>>(new Set());
   const requestedPoseMascotIds = useRef<Set<string>>(new Set());
   const assetLoadQueueRef = useRef<Array<{ type: string; mascotId: string }>>([]);
   const assetLoadingRef = useRef<boolean>(false);
@@ -57,7 +54,6 @@ export const App: React.FC = () => {
     const batch = assetLoadQueueRef.current.splice(0, 3);
     for (const item of batch) {
       if (item.type === 'animations') rpc.send('get-mascot-animations', { mascotId: item.mascotId });
-      else if (item.type === 'logos') rpc.send('get-mascot-logos', { mascotId: item.mascotId });
       else if (item.type === 'poses') rpc.send('get-mascot-poses', { mascotId: item.mascotId });
     }
     setTimeout(() => {
@@ -68,18 +64,14 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     if (mascots.length === 0) return;
-    const needAnimationsOrLogosOrPoses = activeTab === 'gallery';
+    const needAnimationsOrPoses = activeTab === 'gallery';
     const needPoses = activeTab === 'gallery' || activeTab === 'poses';
     const queue = assetLoadQueueRef.current;
     for (const mascot of mascots) {
       if (!mascot.id) continue;
-      if (needAnimationsOrLogosOrPoses && !requestedAnimationMascotIds.current.has(mascot.id)) {
+      if (needAnimationsOrPoses && !requestedAnimationMascotIds.current.has(mascot.id)) {
         requestedAnimationMascotIds.current.add(mascot.id);
         queue.push({ type: 'animations', mascotId: mascot.id });
-      }
-      if (needAnimationsOrLogosOrPoses && !requestedLogoMascotIds.current.has(mascot.id)) {
-        requestedLogoMascotIds.current.add(mascot.id);
-        queue.push({ type: 'logos', mascotId: mascot.id });
       }
       if (needPoses && !requestedPoseMascotIds.current.has(mascot.id)) {
         requestedPoseMascotIds.current.add(mascot.id);
@@ -157,23 +149,6 @@ export const App: React.FC = () => {
       // Error already shown via figma.notify in code.ts; handler avoids "No handlers registered"
     });
 
-    // Logo-pack events: register at App level so messages are handled even when LogosTab is not mounted (avoids "No handlers registered")
-    rpc.on('logo-pack-generation-started', () => {});
-    rpc.on('logo-pack-generated', (data: { logoPack?: { mascotId?: string } }) => {
-      loadCredits();
-      if (data?.logoPack?.mascotId) {
-        rpc.send('get-mascot-logos', { mascotId: data.logoPack.mascotId });
-      }
-    });
-    rpc.on('logo-pack-completed', (data: { logoPack?: { mascotId?: string } }) => {
-      if (data?.logoPack?.mascotId) {
-        rpc.send('get-mascot-logos', { mascotId: data.logoPack.mascotId });
-      }
-    });
-    rpc.on('logo-pack-generation-failed', () => {});
-    rpc.on('logo-pack-generation-timeout', () => {});
-    rpc.on('logo-pack-status-update', () => {});
-
     // Pose events: refetch poses for mascot when a pose is generated so Gallery shows it
     rpc.on('pose-generated', (data: { pose: any }) => {
       loadCredits();
@@ -191,17 +166,11 @@ export const App: React.FC = () => {
       }
     });
 
-    // Animations/logos at App level so they persist when user is on Animations tab (GalleryTab unmounted)
+    // Animations at App level so they persist when user is on Animations tab (GalleryTab unmounted)
     rpc.on('mascot-animations-loaded', (data: { mascotId: string; animations: any[] }) => {
       setAnimations((prev) => {
         const filtered = prev.filter((a) => a.mascotId !== data.mascotId);
         return [...filtered, ...(data.animations || [])];
-      });
-    });
-    rpc.on('mascot-logos-loaded', (data: { mascotId: string; logos: any[] }) => {
-      setLogos((prev) => {
-        const filtered = prev.filter((l) => l.mascotId !== data.mascotId);
-        return [...filtered, ...(data.logos || [])];
       });
     });
     rpc.on('animation-status-update', (data: { animationId: string; status: string; errorMessage?: string }) => {
@@ -229,10 +198,6 @@ export const App: React.FC = () => {
     rpc.on('animation-deleted', (data: { animationId: string }) => {
       setAnimations((prev) => prev.filter((a) => a.id !== data.animationId));
     });
-    rpc.on('logo-pack-deleted', (data: { id: string }) => {
-      setLogos((prev) => prev.filter((l) => l.id !== data.id));
-    });
-
     rpc.on('mascot-poses-loaded', (data: { mascotId: string; poses: any[] }) => {
       const incoming = data.poses || [];
       setPoses((prev) => {
@@ -470,17 +435,6 @@ export const App: React.FC = () => {
             📸 Animation
           </button>
           <button
-            className={`nav-item ${activeTab === 'logos' ? 'active' : ''}`}
-            onClick={() => {
-              if (isAuthenticated) {
-                loadMascots();
-              }
-              setActiveTab('logos');
-            }}
-          >
-            🎨 Logo
-          </button>
-          <button
             className={`nav-item ${activeTab === 'gallery' ? 'active' : ''}`}
             onClick={() => {
               if (isAuthenticated) {
@@ -514,7 +468,6 @@ export const App: React.FC = () => {
               rpc={rpc}
               mascots={mascots}
               animations={animations}
-              logos={logos}
               poses={poses}
               selectedMascot={selectedMascot}
               onSelectMascot={setSelectedMascot}
@@ -539,14 +492,6 @@ export const App: React.FC = () => {
                 console.log('[App] Setting selected mascot in AnimationsTab:', mascot?.id || 'null');
                 setSelectedMascot(mascot);
               }}
-              mascots={mascots}
-            />
-          </div>
-          <div style={{ display: activeTab === 'logos' ? 'block' : 'none' }} className="tab-panel">
-            <LogosTab
-              rpc={rpc}
-              selectedMascot={selectedMascot}
-              onSelectMascot={setSelectedMascot}
               mascots={mascots}
             />
           </div>

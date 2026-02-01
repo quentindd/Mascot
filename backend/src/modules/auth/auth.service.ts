@@ -63,7 +63,7 @@ export class AuthService {
       passwordHash,
       name: registerDto.name,
       plan: UserPlan.FREE,
-      creditBalance: 15, // Onboarding: 15 credits (mascot 1 cr, pose 4 cr, animation 20 cr, logo 10 cr)
+      creditBalance: 15, // Onboarding: 15 credits (mascot 1 cr, pose 4 cr, animation 20 cr)
     });
 
     const saved = await this.userRepository.save(user);

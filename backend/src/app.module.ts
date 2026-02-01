@@ -9,7 +9,6 @@ import { UsersModule } from './modules/users/users.module';
 import { WorkspacesModule } from './modules/workspaces/workspaces.module';
 import { MascotsModule } from './modules/mascots/mascots.module';
 import { AnimationsModule } from './modules/animations/animations.module';
-import { LogosModule } from './modules/logos/logos.module';
 import { PosesModule } from './modules/poses/poses.module';
 import { CreditsModule } from './modules/credits/credits.module';
 import { BillingModule } from './modules/billing/billing.module';
@@ -40,7 +39,6 @@ import { RedisConfig } from './config/redis.config';
     WorkspacesModule,
     MascotsModule,
     AnimationsModule,
-    LogosModule,
     PosesModule,
     CreditsModule,
     BillingModule,

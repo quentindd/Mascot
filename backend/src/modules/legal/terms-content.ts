@@ -22,7 +22,7 @@ export const TERMS_HTML = `<!DOCTYPE html>
   <p>By signing in to or using Mascot (the “Plugin”), you agree to these Terms of Service (“Terms”). If you do not agree, do not use the Plugin. Mascot is a third-party plugin for Figma; use of Figma is subject to Figma’s terms and policies.</p>
 
   <h2>2. Description of Service</h2>
-  <p>Mascot is a Figma plugin that lets you create and manage AI-generated mascots, poses, animations, and logo packs. The service is provided on a credit-based model: certain actions consume credits, and you may purchase additional credit packs.</p>
+  <p>Mascot is a Figma plugin that lets you create and manage AI-generated mascots, poses, and animations. The service is provided on a credit-based model: certain actions consume credits, and you may purchase additional credit packs.</p>
 
   <h2>3. Account and Eligibility</h2>
   <p>You must create an account (e.g. via “Continue with Figma” or email) to use the Plugin. You are responsible for keeping your credentials secure and for all activity under your account. You must be at least 16 years old (or the age of consent in your country) to use the service.</p>

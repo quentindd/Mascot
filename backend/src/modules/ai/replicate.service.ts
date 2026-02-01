@@ -202,7 +202,8 @@ export class ReplicateService {
     mascotDetails?: string,
   ): string {
     let p =
-      'Generate icon app for iOS (1024x1024) with this mascot (the image provided). ' +
+      'IMPORTANT: The image shows the mascot to use. Turn ONLY this exact mascot into an app icon. Do NOT replace it with anything else. ' +
+      'Generate icon app for iOS (1024x1024) using the mascot from the image. ' +
       'Square, sharp corners, no rounded corners. Only the mascot, nothing else. ' +
       'Transparent background, no solid background, no border, no black outline, no stroke. ' +
       'Keep the mascot centered. No text, no letters. ';

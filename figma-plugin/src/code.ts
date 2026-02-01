@@ -150,9 +150,6 @@ figma.ui.onmessage = async (msg) => {
         await handleGeneratePose(msg.data);
         break;
 
-      case 'generate-logo-pack':
-        await handleGenerateLogoPack(msg.data);
-        break;
 
       case 'insert-image':
         await handleInsertImage(msg.data);
@@ -194,9 +191,6 @@ figma.ui.onmessage = async (msg) => {
         await handleGetMascotAnimations(msg.data);
         break;
 
-      case 'get-mascot-logos':
-        await handleGetMascotLogos(msg.data);
-        break;
 
       case 'get-mascot-poses':
         await handleGetMascotPoses(msg.data);
@@ -222,9 +216,6 @@ figma.ui.onmessage = async (msg) => {
         await handleDeleteAnimation(msg.data);
         break;
 
-      case 'delete-logo-pack':
-        await handleDeleteLogoPack(msg.data);
-        break;
 
       case 'delete-pose':
         await handleDeletePose(msg.data);
@@ -234,9 +225,6 @@ figma.ui.onmessage = async (msg) => {
         await handleCreateCheckout(msg.data);
         break;
 
-      case 'upload-logo-reference-image':
-        await handleUploadLogoReferenceImage(msg.data);
-        break;
 
       default:
         rpc.send('error', { message: `Unknown message type: ${msg.type}` });
@@ -566,93 +554,6 @@ async function pollPoseStatus(poseId: string) {
       handleError(error, 'poll-pose-status');
       attempts++;
       setTimeout(poll, 5000);
-    }
-  };
-
-  poll();
-}
-
-async function handleGenerateLogoPack(data: {
-  mascotId: string;
-  brandColors?: string[];
-  imageSource?: 'fullBody' | 'avatar' | 'squareIcon';
-  platform?: string;
-  stylePrompt?: string;
-  referenceLogoUrl?: string;
-}) {
-  if (!data?.mascotId) {
-    rpc.send('logo-pack-generation-failed', { error: 'No mascot selected.' });
-    return;
-  }
-
-  // Require auth: tell UI so it resets the button and shows error
-  if (!apiClient) {
-    rpc.send('logo-pack-generation-started', { mascotId: data.mascotId });
-    rpc.send('logo-pack-generation-failed', {
-      error: 'Please sign in to generate logo packs. Use the Account tab to sign in.',
-    });
-    figma.notify('Sign in to generate logo packs');
-    return;
-  }
-
-  const figmaFileId = figma.fileKey || 'local';
-
-  rpc.send('logo-pack-generation-started', { mascotId: data.mascotId });
-
-  try {
-    const logoPack = await apiClient.createLogoPack(data.mascotId, {
-      brandColors: data.brandColors,
-      imageSource: data.imageSource,
-      platform: data.platform,
-      stylePrompt: data.stylePrompt,
-      referenceLogoUrl: data.referenceLogoUrl,
-      figmaFileId,
-    });
-
-    rpc.send('logo-pack-generated', { logoPack });
-
-    // Poll for completion
-    pollLogoPackStatus(logoPack.id);
-  } catch (error) {
-    handleError(error, 'generate-logo-pack');
-    rpc.send('logo-pack-generation-failed', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
-  }
-}
-
-async function pollLogoPackStatus(logoPackId: string) {
-  if (!apiClient) return;
-
-  const maxAttempts = 30; // 2.5 minutes max
-  let attempts = 0;
-
-  const poll = async () => {
-    if (attempts >= maxAttempts) {
-      rpc.send('logo-pack-generation-timeout', { logoPackId });
-      return;
-    }
-
-    try {
-      const logoPack = await apiClient!.getLogoPack(logoPackId);
-
-      rpc.send('logo-pack-status-update', {
-        logoPackId,
-        status: logoPack.status,
-      });
-
-      if (logoPack.status === 'completed') {
-        rpc.send('logo-pack-completed', { logoPack });
-      } else if (logoPack.status === 'failed') {
-        rpc.send('logo-pack-generation-failed', {
-          error: logoPack.errorMessage || 'Generation failed',
-        });
-      } else {
-        setTimeout(poll, 5000);
-        attempts++;
-      }
-    } catch (error) {
-      handleError(error, 'poll-logo-pack-status');
     }
   };
 
@@ -1037,26 +938,6 @@ async function handleCreateCheckout(data: { plan?: string }) {
   }
 }
 
-async function handleUploadLogoReferenceImage(data: { base64?: string }) {
-  if (!apiClient) {
-    rpc.send('logo-reference-error', { message: 'Please sign in to upload a reference image.' });
-    return;
-  }
-  const base64 = (data?.base64 && typeof data.base64 === 'string') ? data.base64.trim() : '';
-  if (!base64) {
-    rpc.send('logo-reference-error', { message: 'No image data.' });
-    return;
-  }
-  try {
-    const { url } = await apiClient.uploadImage(base64);
-    rpc.send('logo-reference-url', { url });
-    figma.notify('Reference image uploaded');
-  } catch (error) {
-    const msg = getErrorMessage(error);
-    rpc.send('logo-reference-error', { message: msg });
-  }
-}
-
 async function handleGetMascotAnimations(data: { mascotId: string }) {
   if (!apiClient) {
     rpc.send('error', { message: 'Not authenticated' });
@@ -1093,26 +974,6 @@ async function handleDeleteAnimation(data: { animationId: string; id?: string })
     handleError(error, 'delete-animation');
     figma.notify(`Delete failed: ${msg}`, { error: true });
     rpc.send('delete-failed', { id: data.animationId ?? data.id, type: 'animation', message: msg });
-  }
-}
-
-async function handleGetMascotLogos(data: { mascotId: string }) {
-  if (!apiClient) {
-    rpc.send('error', { message: 'Not authenticated' });
-    return;
-  }
-
-  try {
-    console.log('[Mascot Code] Fetching logos for mascot:', data.mascotId);
-    const logos = await apiClient.getMascotLogoPacks(data.mascotId);
-    // Ensure logos is an array
-    const logosArray = Array.isArray(logos) ? logos : [];
-    console.log('[Mascot Code] Received logos:', logosArray.length);
-    rpc.send('mascot-logos-loaded', { mascotId: data.mascotId, logos: logosArray });
-  } catch (error) {
-    console.error('[Mascot Code] Error loading logos:', error);
-    handleError(error, 'get-mascot-logos');
-    rpc.send('mascot-logos-loaded', { mascotId: data.mascotId, logos: [] });
   }
 }
 
@@ -1153,25 +1014,6 @@ async function handleDeleteMascot(data: { id: string }) {
     handleError(error, 'delete-mascot');
     figma.notify(`Delete failed: ${msg}`, { error: true });
     rpc.send('delete-failed', { id: data.id, type: 'mascot', message: msg });
-  }
-}
-
-async function handleDeleteLogoPack(data: { id: string }) {
-  if (!apiClient) {
-    rpc.send('error', { message: 'Not authenticated' });
-    return;
-  }
-
-  try {
-    console.log('[Mascot Code] Deleting logo pack:', data.id);
-    await apiClient.deleteLogoPack(data.id);
-    figma.notify('Logo pack deleted successfully');
-    rpc.send('logo-pack-deleted', { id: data.id });
-  } catch (error) {
-    const msg = getErrorMessage(error);
-    handleError(error, 'delete-logo-pack');
-    figma.notify(`Delete failed: ${msg}`, { error: true });
-    rpc.send('delete-failed', { id: data.id, type: 'logo-pack', message: msg });
   }
 }
 

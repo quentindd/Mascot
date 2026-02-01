@@ -234,6 +234,10 @@ figma.ui.onmessage = async (msg) => {
         await handleCreateCheckout(msg.data);
         break;
 
+      case 'upload-logo-reference-image':
+        await handleUploadLogoReferenceImage(msg.data);
+        break;
+
       default:
         rpc.send('error', { message: `Unknown message type: ${msg.type}` });
     }
@@ -1018,6 +1022,26 @@ async function handleCreateCheckout(data: { plan?: string }) {
     const msg = getErrorMessage(error);
     console.error('[Mascot Code] Checkout error:', msg);
     rpc.send('checkout-error', { message: msg });
+  }
+}
+
+async function handleUploadLogoReferenceImage(data: { base64?: string }) {
+  if (!apiClient) {
+    rpc.send('logo-reference-error', { message: 'Please sign in to upload a reference image.' });
+    return;
+  }
+  const base64 = (data?.base64 && typeof data.base64 === 'string') ? data.base64.trim() : '';
+  if (!base64) {
+    rpc.send('logo-reference-error', { message: 'No image data.' });
+    return;
+  }
+  try {
+    const { url } = await apiClient.uploadImage(base64);
+    rpc.send('logo-reference-url', { url });
+    figma.notify('Reference image uploaded');
+  } catch (error) {
+    const msg = getErrorMessage(error);
+    rpc.send('logo-reference-error', { message: msg });
   }
 }
 

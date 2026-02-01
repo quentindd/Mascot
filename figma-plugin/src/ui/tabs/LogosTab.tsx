@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { RPCClient } from '../rpc/client';
 import { UploadYourImage } from '../components/UploadYourImage';
 
@@ -30,6 +30,8 @@ export const LogosTab: React.FC<LogosTabProps> = ({
   const [tertiaryColor, setTertiaryColor] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isUploadingRef, setIsUploadingRef] = useState(false);
+  const logoRefInputRef = useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
     console.log('[LogosTab] Mascots available:', mascots.length);
@@ -62,6 +64,15 @@ export const LogosTab: React.FC<LogosTabProps> = ({
     setError('Logo pack generation timed out. Check the Gallery tab later.');
   });
 
+  rpc.on('logo-reference-url', (data: { url?: string }) => {
+    if (data?.url) setReferenceLogoUrl(data.url);
+    setIsUploadingRef(false);
+  });
+  rpc.on('logo-reference-error', (data: { message?: string }) => {
+    setError(data?.message ?? 'Reference image upload failed.');
+    setIsUploadingRef(false);
+  });
+
   const handleGenerate = () => {
     if (!selectedMascot) {
       setError('Please select a mascot first');
@@ -85,7 +96,7 @@ export const LogosTab: React.FC<LogosTabProps> = ({
     <div>
       <h2 className="select-mascot-step-title">Create a logo 🎨</h2>
       <p className="section-description">
-        Turn your mascot into app and web logos. Pick a platform for the right dimensions, then generate your pack.
+        Logos are created with the same model as your mascot. Paste an app/logo URL or upload a reference image for inspiration; the AI will use its style to create a unique logo. Pick a platform for dimensions, then generate your pack.
       </p>
 
       {/* Upload only on selection page (no mascot chosen yet) */}
@@ -198,19 +209,53 @@ export const LogosTab: React.FC<LogosTabProps> = ({
             Output: {PLATFORM_OPTIONS.find((o) => o.value === platform.trim())?.hint ?? ''}
           </p>
         )}
-        <label className="label">Paste a logo image URL to copy its style (optional)</label>
+        <label className="label">Inspiration for logo style (optional)</label>
+        <p className="field-hint">Paste an app/logo URL or upload an image. The AI will use its style to create a unique logo.</p>
         <input
           className="input"
           type="url"
-          placeholder="https://…"
+          placeholder="https://… (app or logo image URL)"
           value={referenceLogoUrl}
           onChange={(e) => setReferenceLogoUrl(e.target.value)}
           disabled={isGenerating}
-          style={{ marginBottom: '12px' }}
+          style={{ marginBottom: '8px' }}
         />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
+          <span className="field-hint" style={{ margin: 0 }}>or</span>
+          <input
+            ref={logoRefInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file || !file.type.startsWith('image/')) return;
+              setIsUploadingRef(true);
+              setError(null);
+              const reader = new FileReader();
+              reader.onload = () => {
+                const result = reader.result;
+                if (typeof result !== 'string') return;
+                const base64 = result.indexOf('base64,') >= 0 ? result.split('base64,')[1] : result;
+                rpc.send('upload-logo-reference-image', { base64 });
+              };
+              reader.readAsDataURL(file);
+              e.target.value = '';
+            }}
+          />
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={isGenerating || isUploadingRef}
+            onClick={() => logoRefInputRef.current?.click()}
+            style={{ fontSize: '11px', padding: '6px 10px' }}
+          >
+            {isUploadingRef ? 'Uploading…' : 'Upload reference image'}
+          </button>
+        </div>
 
-        <label className="label">Image source</label>
-        <p className="field-hint">Which mascot image to use for the logo</p>
+        <label className="label">Logo style</label>
+        <p className="field-hint">Style of the logo, e.g. Avatar, Full body, Square icon</p>
         <select
           className="input"
           value={imageSource}
@@ -218,8 +263,8 @@ export const LogosTab: React.FC<LogosTabProps> = ({
           disabled={isGenerating}
           style={{ marginBottom: '12px' }}
         >
-          <option value="fullBody">Full body</option>
           <option value="avatar">Avatar (portrait)</option>
+          <option value="fullBody">Full body</option>
           <option value="squareIcon">Square icon</option>
         </select>
 

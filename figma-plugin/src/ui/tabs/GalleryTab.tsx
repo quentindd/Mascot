@@ -394,7 +394,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
               if (logoPack.status === 'completed' && logoPack.sizes?.length > 0) {
                 const largestSize = logoPack.sizes.find((s: any) => s.width === 1024) || logoPack.sizes[0];
                 const mascotName = getMascotName(logoPack.mascotId);
-                rpc.send('insert-image', { url: largestSize.url, name: `${mascotName} - Logo ${largestSize.width}x${largestSize.height}` });
+                rpc.send('insert-image', { url: largestSize.url, name: `${mascotName} - Logo ${largestSize.width}x${largestSize.height}`, width: largestSize.width, height: largestSize.height });
               }
             }}
           >

@@ -659,9 +659,9 @@ async function pollLogoPackStatus(logoPackId: string) {
   poll();
 }
 
-async function handleInsertImage(data: { url: string; name: string }) {
+async function handleInsertImage(data: { url: string; name: string; width?: number; height?: number }) {
   try {
-    await insertImageFromUrl(data.url, data.name);
+    await insertImageFromUrl(data.url, data.name, data.width, data.height);
     rpc.send('image-inserted', { url: data.url });
   } catch (_) {
     // Error already sent by insertImageFromUrl
@@ -722,15 +722,18 @@ async function handleInsertAnimation(data: { animationId: string; animation: any
   }
 }
 
-async function insertImageFromUrl(url: string, name: string) {
+async function insertImageFromUrl(url: string, name: string, width?: number, height?: number) {
   try {
     console.log('[Mascot] Inserting image from URL:', url.substring(0, 100) + (url.length > 100 ? '...' : ''));
-    console.log('[Mascot] Image name:', name);
+    console.log('[Mascot] Image name:', name, 'size:', width ?? 512, 'x', height ?? 512);
     
     // Check if we're on a page
     if (!figma.currentPage) {
       throw new Error('No page available. Please open a page in Figma.');
     }
+    
+    const w = width ?? 512;
+    const h = height ?? 512;
     
     // Load image from URL (data URLs or regular URLs)
     const image = await figma.createImageAsync(url);
@@ -738,13 +741,13 @@ async function insertImageFromUrl(url: string, name: string) {
     
     const node = figma.createRectangle();
     node.name = name;
-    node.resize(512, 512); // Default size, user can resize
+    node.resize(w, h);
     node.fills = [{ type: 'IMAGE', imageHash: image.hash, scaleMode: 'FIT' }];
 
     // Center on viewport
     const viewport = figma.viewport.center;
-    node.x = viewport.x - 256;
-    node.y = viewport.y - 256;
+    node.x = viewport.x - w / 2;
+    node.y = viewport.y - h / 2;
 
     figma.currentPage.appendChild(node);
     figma.currentPage.selection = [node];

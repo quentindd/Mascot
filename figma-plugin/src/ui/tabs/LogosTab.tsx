@@ -77,7 +77,7 @@ export const LogosTab: React.FC<LogosTabProps> = ({
 
   const handleInsertLogo = () => {
     if (generatedLogo?.url) {
-      rpc.send('insert-image', { url: generatedLogo.url, name: 'Logo 1024x1024' });
+      rpc.send('insert-image', { url: generatedLogo.url, name: 'Logo 1024x1024', width: 1024, height: 1024 });
     }
   };
 

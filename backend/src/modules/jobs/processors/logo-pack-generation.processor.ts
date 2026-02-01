@@ -8,7 +8,6 @@ import { LogoPack, LogoPackStatus, LogoSize } from '../../../entities/logo-pack.
 import { StorageService } from '../../storage/storage.service';
 import { ReplicateService } from '../../ai/replicate.service';
 import * as sharp from 'sharp';
-import axios from 'axios';
 
 type SizeSpec = { name: string; width: number; height: number };
 
@@ -28,16 +27,6 @@ const APP_STORE_SIZES: SizeSpec[] = [
   { name: 'ios-29', width: 29, height: 29 },
   { name: 'ios-20', width: 20, height: 20 },
 ];
-
-/** App Store / Google Play require opaque backgrounds. Returns RGB for white or first valid brand hex. */
-function getOpaqueBackground(brandColors?: string[]): { r: number; g: number; b: number } {
-  const hex = Array.isArray(brandColors) ? brandColors.find((c) => /^#[0-9A-Fa-f]{6}$/.test(c)) : undefined;
-  if (hex) {
-    const n = parseInt(hex.slice(1), 16);
-    return { r: (n >> 16) & 0xff, g: (n >> 8) & 0xff, b: n & 0xff };
-  }
-  return { r: 255, g: 255, b: 255 };
-}
 
 @Processor('logo-pack-generation')
 export class LogoPackGenerationProcessor extends WorkerHost {
@@ -84,30 +73,15 @@ export class LogoPackGenerationProcessor extends WorkerHost {
         .toBuffer();
 
       const sizeSpecs = APP_STORE_SIZES;
-      const opaqueBg = getOpaqueBackground(brandColors);
       const sizes: LogoSize[] = [];
       const timestamp = Date.now();
 
-      // Flatten onto opaque background so output has no transparency (App Store / Google Play requirement)
-      const meta = await sharp(imageBuffer).metadata();
-      const width = meta.width ?? 1024;
-      const height = meta.height ?? 1024;
-      const backgroundBuffer = await sharp({
-        create: { width, height, channels: 3, background: opaqueBg },
-      })
-        .png()
-        .toBuffer();
-      imageBuffer = await sharp(backgroundBuffer)
-        .composite([{ input: imageBuffer, left: 0, top: 0 }])
-        .flatten({ background: opaqueBg })
-        .png({ compressionLevel: 9, force: true })
-        .toBuffer();
-
+      // Keep transparency - no opaque background (just the logo)
       for (const spec of sizeSpecs) {
         const resized = await sharp(imageBuffer)
           .resize(spec.width, spec.height, {
             fit: 'contain',
-            background: opaqueBg,
+            background: { r: 0, g: 0, b: 0, alpha: 0 },
             withoutEnlargement: false,
           })
           .png({ compressionLevel: 9, force: true })
@@ -152,13 +126,10 @@ export class LogoPackGenerationProcessor extends WorkerHost {
     this.logger.log(`[LogoPack] getSourceUrl: imageSource=${imageSource}, available: fullBody=${!!mascot.fullBodyImageUrl}, avatar=${!!mascot.avatarImageUrl}, squareIcon=${!!mascot.squareIconUrl}`);
     const sourceUrl = this.getSourceUrl(mascot, imageSource);
     if (!sourceUrl) throw new Error(`Mascot has no image for selected source "${imageSource}" (fullBody, avatar or squareIcon)`);
-    this.logger.log(`[LogoPack] Using mascot image: ${sourceUrl.substring(0, 80)}...`);
-    const mascotRes = await axios.get<ArrayBuffer>(sourceUrl, { responseType: 'arraybuffer', timeout: 20000 });
-    const mascotBuffer = Buffer.from(mascotRes.data as ArrayBuffer);
-    const mascotPng = await sharp(mascotBuffer).ensureAlpha().png({ force: true }).toBuffer();
+    this.logger.log(`[LogoPack] Passing mascot image URL to Replicate: ${sourceUrl.substring(0, 80)}...`);
 
-    this.logger.log(`[LogoPack] Calling Replicate openai/gpt-image-1.5 (imageSource: ${imageSource ?? 'auto'}, ${mascotPng.length} bytes)...`);
-    const generated = await this.replicateService.generateLogoGptImageReplicate(mascotPng, {
+    // Pass the HTTPS URL directly to Replicate (preferred over base64 data URIs)
+    const generated = await this.replicateService.generateLogoGptImageReplicate(sourceUrl, {
       referenceAppPrompt: stylePrompt?.trim() || undefined,
       brandColors: Array.isArray(brandColors) ? brandColors : undefined,
       mascotDetails: mascot.prompt || undefined,

@@ -105,10 +105,11 @@ export class ReplicateService {
 
   /**
    * Generate a logo from a mascot image using OpenAI GPT Image 1.5 via Replicate (openai/gpt-image-1.5).
-   * Same flow as ChatGPT: image + prompt → edited image (app icon). Use when you prefer Replicate over OpenAI API.
+   * Same flow as ChatGPT: image + prompt → edited image (app icon).
+   * Replicate prefers HTTPS URLs over data URIs - pass imageUrl when available.
    */
   async generateLogoGptImageReplicate(
-    mascotImageBuffer: Buffer,
+    mascotImageBufferOrUrl: Buffer | string,
     config: {
       platform?: string;
       referenceAppPrompt?: string;
@@ -128,18 +129,24 @@ export class ReplicateService {
       config.mascotDetails,
     );
 
-    const dataUri = `data:image/png;base64,${mascotImageBuffer.toString('base64')}`;
+    // Replicate prefers HTTPS URLs for image input (data URIs can be ignored by some models)
+    const imageInput: string =
+      typeof mascotImageBufferOrUrl === 'string' && mascotImageBufferOrUrl.startsWith('http')
+        ? mascotImageBufferOrUrl
+        : `data:image/png;base64,${(mascotImageBufferOrUrl as Buffer).toString('base64')}`;
+
     const size = options?.size ?? '1024x1024';
     const quality = options?.quality ?? 'high';
 
     try {
       this.logger.log('[Replicate] openai/gpt-image-1.5: generating logo from mascot image + prompt...');
+      this.logger.log('[Replicate] gpt-image-1.5 image: ' + (typeof mascotImageBufferOrUrl === 'string' ? mascotImageBufferOrUrl.substring(0, 80) + '...' : `${(mascotImageBufferOrUrl as Buffer).length} bytes base64`));
       this.logger.log('[Replicate] gpt-image-1.5 prompt: ' + prompt);
       const version = await this.getModelVersion(GPT_IMAGE_15_MODEL);
 
       const input: Record<string, unknown> = {
         prompt: prompt.trim(),
-        image: dataUri,
+        image: imageInput,
         size,
         quality,
       };
@@ -192,12 +199,16 @@ export class ReplicateService {
     _platform?: string, // unused, kept for backward compatibility
     referenceAppName?: string,
     brandColors?: string[],
-    _mascotDetails?: string, // unused
+    mascotDetails?: string,
   ): string {
     let p =
-      'Generate icon app for iOS (1024x1024) with this mascot. ' +
-      'Square app icon with sharp corners, no rounded corners. ' +
-      'Keep the mascot centered, filling most of the frame. No text, no letters. ';
+      'Generate icon app for iOS (1024x1024) with this mascot (the image provided). ' +
+      'Square, sharp corners, no rounded corners. Only the mascot, nothing else. ' +
+      'Transparent background, no solid background, no border, no black outline, no stroke. ' +
+      'Keep the mascot centered. No text, no letters. ';
+    if (mascotDetails?.trim()) {
+      p += `Mascot context: ${mascotDetails.trim()}. `;
+    }
     if (referenceAppName?.trim()) {
       p += `Style inspiration: the "${referenceAppName.trim()}" app icon style. `;
     }
@@ -205,7 +216,7 @@ export class ReplicateService {
       const hexList = brandColors.slice(0, 3).filter((c) => /^#[0-9A-Fa-f]{6}$/.test(c));
       if (hexList.length) p += `Use these brand colors: ${hexList.join(', ')}. `;
     }
-    p += 'Opaque background (no transparency). Professional quality.';
+    p += 'Professional quality, clean edges.';
     return p;
   }
 

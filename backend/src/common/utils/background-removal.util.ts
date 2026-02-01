@@ -8,9 +8,12 @@ import * as sharp from 'sharp';
  * Use eraseSemiTransparentBorder: true to remove glow/halo at edges (alpha < threshold connected to border).
  * Use eraseWhiteOutline: true to erode semi-transparent white pixels adjacent to transparent (removes white outline).
  * Use secondPass: true to remove thin strips left after first pass (better detouring).
+ * Use whitenNearWhite: true to set almost-white pixels (e.g. gray-stained eye whites) to pure white (255,255,255).
  * Uses 8-neighbor connectivity so diagonal border pixels are also removed.
  */
 const DEFAULT_BORDER_ALPHA_THRESHOLD = 120;
+/** Min brightness for "near white" pixels to be whitened (only affects very light gray, e.g. eye whites). */
+const WHITEN_MIN_BRIGHTNESS = 232;
 
 /** 8-neighbor offsets (4 cardinal + 4 diagonal) for fuller border connectivity. */
 const NEIGHBOR_8 = [
@@ -29,6 +32,8 @@ export async function removeBackground(
     eraseWhiteOutline?: boolean;
     /** Second pass from transparent pixels to remove thin strips and leftover halo. */
     secondPass?: boolean;
+    /** Set almost-white pixels (e.g. gray-stained eye whites) to pure white. Use for mascots. */
+    whitenNearWhite?: boolean;
   },
 ): Promise<Buffer> {
   const aggressive = options?.aggressive ?? false;
@@ -36,6 +41,7 @@ export async function removeBackground(
   const borderAlphaThreshold = options?.borderAlphaThreshold ?? DEFAULT_BORDER_ALPHA_THRESHOLD;
   const eraseWhiteOutline = options?.eraseWhiteOutline ?? false;
   const secondPass = options?.secondPass ?? false;
+  const whitenNearWhite = options?.whitenNearWhite ?? false;
   try {
     let processed = sharp(imageBuffer).ensureAlpha();
     processed = processed.unflatten();
@@ -200,6 +206,24 @@ export async function removeBackground(
       }
       for (let i = 0; i < pixels.length; i += channels) {
         if (toErode[i / channels]) pixels[i + 3] = 0;
+      }
+    }
+
+    // Optional: whiten near-white pixels (fix gray stains in eyes, teeth, etc. from generation/rembg)
+    if (whitenNearWhite) {
+      for (let i = 0; i < pixels.length; i += channels) {
+        const a = pixels[i + 3];
+        if (a < 180) continue; // only opaque/semi-opaque
+        const r = pixels[i];
+        const g = pixels[i + 1];
+        const b = pixels[i + 2];
+        const brightness = (r + g + b) / 3;
+        if (brightness < WHITEN_MIN_BRIGHTNESS) continue; // only almost-white
+        if (r >= 255 && g >= 255 && b >= 255) continue; // already pure white
+        // Slight gray in a light area: set to pure white
+        pixels[i] = 255;
+        pixels[i + 1] = 255;
+        pixels[i + 2] = 255;
       }
     }
 

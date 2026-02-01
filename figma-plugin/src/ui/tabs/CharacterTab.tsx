@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { RPCClient } from '../rpc/client';
 
 /** Art style options with emoji (value = backend enum). */
@@ -90,6 +90,35 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
       console.log('[CharacterTab] First 3 mascot IDs:', mascots.slice(0, 3).map(m => ({ id: m.id, name: m.name })));
     }
   }, [mascots]);
+
+  // Sync variations with mascots list: when Gallery (or any refetch) has loaded mascots with images,
+  // use those URLs so the Mascot tab shows images instead of spinners.
+  const displayVariations = useMemo(() => {
+    return generatedVariations.map((v) => {
+      const fromList = mascots.find((m) => m.id === v.id);
+      if (fromList && (fromList.fullBodyImageUrl || fromList.avatarImageUrl || fromList.squareIconUrl)) {
+        return {
+          ...v,
+          fullBodyImageUrl: fromList.fullBodyImageUrl ?? v.fullBodyImageUrl,
+          avatarImageUrl: fromList.avatarImageUrl ?? v.avatarImageUrl,
+          squareIconUrl: fromList.squareIconUrl ?? v.squareIconUrl,
+        };
+      }
+      return v;
+    });
+  }, [generatedVariations, mascots]);
+
+  // When mascots list brings in images for our variations, update success/error
+  useEffect(() => {
+    if (displayVariations.length === 0) return;
+    const allHaveImages = displayVariations.every(
+      (v) => v.fullBodyImageUrl || v.avatarImageUrl || v.imageUrl
+    );
+    if (allHaveImages && (success?.includes('generating') || success?.includes('Waiting for images'))) {
+      setSuccess(`Created ${displayVariations.length} variations! Select one below.`);
+      setError(null);
+    }
+  }, [displayVariations, success]);
 
   rpc.on('mascot-generation-started', () => {
     setIsGenerating(true);
@@ -536,7 +565,7 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
             Choose one of the {generatedVariations.length} created variations to add to your library.
           </p>
           <div className="variations-grid">
-            {generatedVariations.map((variation, index) => (
+            {displayVariations.map((variation, index) => (
               <div
                 key={variation.id || index}
                 className={`variation-card ${selectedMascot?.id === variation.id ? 'selected' : ''}`}

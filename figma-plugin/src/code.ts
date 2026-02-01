@@ -574,6 +574,7 @@ async function handleGenerateLogoPack(data: {
   mascotId: string;
   brandColors?: string[];
   imageSource?: 'fullBody' | 'avatar' | 'squareIcon';
+  platform?: string;
   stylePrompt?: string;
   referenceLogoUrl?: string;
 }) {
@@ -600,6 +601,7 @@ async function handleGenerateLogoPack(data: {
     const logoPack = await apiClient.createLogoPack(data.mascotId, {
       brandColors: data.brandColors,
       imageSource: data.imageSource,
+      platform: data.platform,
       stylePrompt: data.stylePrompt,
       referenceLogoUrl: data.referenceLogoUrl,
       figmaFileId,

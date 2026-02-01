@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CharacterTab } from './tabs/CharacterTab';
 import { AnimationsTab } from './tabs/AnimationsTab';
-import { LogosTab } from './tabs/LogosTab';
 import { AccountTab } from './tabs/AccountTab';
 import { GalleryTab } from './tabs/GalleryTab';
 import { PosesTab } from './tabs/PosesTab';
@@ -9,7 +8,7 @@ import { AuthScreen } from './AuthScreen';
 import { RPCClient } from './rpc/client';
 import './App.css';
 
-type Tab = 'gallery' | 'character' | 'animations' | 'logos' | 'poses' | 'account';
+type Tab = 'gallery' | 'character' | 'animations' | 'poses' | 'account';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('character');
@@ -19,7 +18,6 @@ export const App: React.FC = () => {
   const [selectedMascot, setSelectedMascot] = useState<any>(null);
   const [mascots, setMascots] = useState<any[]>([]);
   const [animations, setAnimations] = useState<any[]>([]);
-  const [logos, setLogos] = useState<any[]>([]);
   const [poses, setPoses] = useState<any[]>([]);
   const [generatedVariations, setGeneratedVariations] = useState<any[]>([]);
   const [tokenInput, setTokenInput] = useState<string>('');
@@ -267,49 +265,30 @@ export const App: React.FC = () => {
     });
 
     rpc.on('mascot-generated', (data: { mascot: any; variations?: any[] }) => {
-      console.log('[App] Mascot generated:', data.mascot?.id);
-      
-      // Store variations in global state so they persist across tab changes
+      console.log('[App] Mascot generated:', data.mascot?.id, 'variations:', data.variations?.length ?? 0);
+
+      // Single state update: store variations and add all of them to mascots list (avoid race / overwrite)
       if (data.variations && data.variations.length > 0) {
-        console.log('[App] Storing', data.variations.length, 'variations in global state');
+        console.log('[App] Storing', data.variations.length, 'variations in global state and mascots list');
         setGeneratedVariations(data.variations);
-        
-        // Also add all variations to mascots list immediately
         setMascots((prev) => {
-          const newMascots = [...prev];
-          (data.variations ?? []).forEach((variation) => {
-            const exists = newMascots.some(m => m.id === variation.id);
-            if (!exists) {
-              newMascots.push(variation);
-            } else {
-              // Update existing mascot with latest data
-              const index = newMascots.findIndex(m => m.id === variation.id);
-              if (index >= 0) {
-                newMascots[index] = { ...newMascots[index], ...variation };
-              }
-            }
-          });
-          console.log('[App] Added variations to mascots list. Total:', newMascots.length);
+          const variationIds = new Set((data.variations ?? []).map(v => v.id));
+          const others = prev.filter(m => !variationIds.has(m.id));
+          const newMascots = [...(data.variations ?? []), ...others];
+          console.log('[App] Mascots list after generation:', newMascots.length, '(3 variations at top)');
           return newMascots;
         });
-      }
-      
-      if (data.mascot) {
-        console.log('[App] Adding mascot to list:', data.mascot.id);
+        setSelectedMascot(data.variations[0] ?? data.mascot);
+      } else if (data.mascot) {
+        setGeneratedVariations([data.mascot]);
         setMascots((prev) => {
-          // Check if mascot already exists to avoid duplicates
           const exists = prev.some(m => m.id === data.mascot.id);
-          if (exists) {
-            console.log('[App] Mascot already in list, updating instead');
-            return prev.map(m => m.id === data.mascot.id ? data.mascot : m);
-          }
-          const newList = [data.mascot, ...prev];
-          console.log('[App] Updated mascots list:', newList.length);
-          return newList;
+          if (exists) return prev.map(m => m.id === data.mascot.id ? data.mascot : m);
+          return [data.mascot, ...prev];
         });
         setSelectedMascot(data.mascot);
       }
-      
+
       loadCredits();
       // Reload mascots from API after a delay to ensure backend has processed them
       setTimeout(() => {

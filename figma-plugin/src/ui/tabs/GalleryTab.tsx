@@ -202,14 +202,22 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
                   }}
                 />
               ) : (
-                <div className="gallery-placeholder">
-                  {mascot.name.charAt(0).toUpperCase()}
+                <div className="gallery-placeholder gallery-placeholder-loading">
+                  <span className="spinner" style={{ marginBottom: '4px' }} />
+                  <span className="gallery-placeholder-text">Generating…</span>
+                  {mascot.name && mascot.name.trim() && (
+                    <span className="gallery-placeholder-name">{mascot.name.charAt(0).toUpperCase()}</span>
+                  )}
                 </div>
               )}
             </div>
             <div className="gallery-item-info">
-              <div className="gallery-item-title">{mascot.name}</div>
-              <div className="gallery-item-meta">Mascot - {mascot.style || 'default'}</div>
+              <div className="gallery-item-title">{mascot.name || 'Mascot'}</div>
+              <div className="gallery-item-meta">
+                {mascot.fullBodyImageUrl || mascot.avatarImageUrl || mascot.imageUrl
+                  ? `Mascot - ${mascot.style || 'default'}`
+                  : `Variation ${mascot.variationIndex ?? ''} - generating`}
+              </div>
             </div>
           </div>
         ))}

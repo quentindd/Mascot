@@ -295,6 +295,7 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
       personality,
       negativePrompt: negativePrompt || undefined,
       brandColors: Object.keys(brandColors).length > 0 ? brandColors : undefined,
+      numVariations: 3,
     });
   };
 

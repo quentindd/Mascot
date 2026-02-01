@@ -397,6 +397,104 @@ export class GeminiFlashService implements OnModuleInit {
     return p;
   }
 
+  /**
+   * Generate an app icon from the mascot only (no reference image).
+   * Uses platform, text inspiration (e.g. "like Royal Match app") and brand colors to build the best logo.
+   */
+  async generateLogoFromMascotOnly(config: {
+    mascotImage: { data: Buffer; mimeType: string };
+    platform?: string;
+    referenceAppPrompt?: string;
+    brandColors?: string[];
+    mascotDetails?: string;
+  }): Promise<Buffer> {
+    if (this.initializationPromise && !this.initialized) {
+      await this.initializationPromise;
+    }
+    if (!this.initialized) {
+      throw new Error('Gemini Flash service not initialized.');
+    }
+
+    const prompt = this.buildLogoFromMascotOnlyPrompt(
+      config.platform,
+      config.referenceAppPrompt,
+      config.brandColors,
+      config.mascotDetails,
+    );
+
+    const parts: any[] = [
+      {
+        inlineData: {
+          mimeType: config.mascotImage.mimeType,
+          data: config.mascotImage.data.toString('base64'),
+        },
+      },
+      { text: prompt },
+    ];
+
+    const model = this.vertexAI.preview.getGenerativeModel({
+      model: 'gemini-2.5-flash-image',
+    });
+
+    const request = {
+      contents: [{ role: 'user', parts }],
+      generationConfig: {
+        temperature: 0.4,
+        topK: 32,
+        topP: 1,
+        maxOutputTokens: 1024,
+      },
+    };
+
+    this.logger.log('[generateLogoFromMascotOnly] Sending request (mascot + text prompt)...');
+    const response = await this.sendGenerateContentWithRetry(model, request);
+    return this.extractImageFromResponse(response);
+  }
+
+  private buildLogoFromMascotOnlyPrompt(
+    platform?: string,
+    referenceAppPrompt?: string,
+    brandColors?: string[],
+    mascotDetails?: string,
+  ): string {
+    let p =
+      'The image is a mascot character. Generate a single square app icon (1024x1024 pixels) showing ONLY this mascot, ' +
+      'optimized for use as a mobile or web app icon. The mascot must be the sole focus, centered, recognizable at small sizes. ';
+
+    if (platform?.trim()) {
+      const plat = platform.trim().toLowerCase();
+      if (plat.includes('app store') || plat.includes('ios')) {
+        p += 'Style for App Store: polished, premium, clear silhouette. ';
+      } else if (plat.includes('google') || plat.includes('play') || plat.includes('android')) {
+        p += 'Style for Google Play: clean, modern, vibrant. ';
+      } else if (plat.includes('web')) {
+        p += 'Style for web/PWA: sharp, scalable, professional. ';
+      }
+    }
+
+    if (referenceAppPrompt?.trim()) {
+      p += `The user wants the logo to feel like: "${referenceAppPrompt.trim()}". ` +
+        'Match that app\'s visual quality and style (e.g. polished game icon, casual app, premium brand)—same level of finish, lighting, and appeal. ' +
+        'Do NOT copy any specific character or artwork; keep the mascot from the image as the only subject. ';
+    }
+
+    if (brandColors?.length) {
+      const hexList = brandColors.slice(0, 3).filter((c) => /^#[0-9A-Fa-f]{6}$/.test(c));
+      if (hexList.length) {
+        p += `Use these brand colors where it fits the design: ${hexList.join(', ')}. Apply them to accents, background glow, or details while keeping the mascot recognizable. `;
+      }
+    }
+
+    if (mascotDetails?.trim()) {
+      p += `Mascot context: ${mascotDetails.trim()}. `;
+    }
+
+    p +=
+      'The output MUST have a completely transparent background. No text, no words, no letters anywhere. ' +
+      'CRITICAL: Transparent background only. High quality, clean edges, suitable for store submission.';
+    return p;
+  }
+
   private async sendGenerateContentWithRetry(model: any, request: any): Promise<any> {
     let response: any;
     let retries = 0;

@@ -105,7 +105,9 @@ export type LogoImageSource = 'fullBody' | 'avatar' | 'squareIcon';
 export interface CreateLogoPackRequest {
   brandColors?: string[];
   imageSource?: LogoImageSource;
-  /** Style of known app (e.g. App Store, Google Play, web). AI adapts logo to this style. */
+  /** Platform for dimensions: App Store, Google Play, Web. */
+  platform?: string;
+  /** Text inspiration for style, e.g. "like Royal Match app". */
   stylePrompt?: string;
   /** Direct image URL (PNG/JPEG/WebP). AI adapts mascot logo to this style. */
   referenceLogoUrl?: string;

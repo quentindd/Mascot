@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { RPCClient } from '../rpc/client';
 import { UploadYourImage } from '../components/UploadYourImage';
 
@@ -22,16 +22,13 @@ export const LogosTab: React.FC<LogosTabProps> = ({
   onSelectMascot,
   mascots,
 }) => {
-  const [imageSource, setImageSource] = useState<'fullBody' | 'avatar' | 'squareIcon'>('avatar');
   const [platform, setPlatform] = useState<string>('');
-  const [referenceLogoUrl, setReferenceLogoUrl] = useState('');
+  const [referenceAppPrompt, setReferenceAppPrompt] = useState('');
   const [primaryColor, setPrimaryColor] = useState('');
   const [secondaryColor, setSecondaryColor] = useState('');
   const [tertiaryColor, setTertiaryColor] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isUploadingRef, setIsUploadingRef] = useState(false);
-  const logoRefInputRef = useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
     console.log('[LogosTab] Mascots available:', mascots.length);
@@ -64,15 +61,6 @@ export const LogosTab: React.FC<LogosTabProps> = ({
     setError('Logo pack generation timed out. Check the Gallery tab later.');
   });
 
-  rpc.on('logo-reference-url', (data: { url?: string }) => {
-    if (data?.url) setReferenceLogoUrl(data.url);
-    setIsUploadingRef(false);
-  });
-  rpc.on('logo-reference-error', (data: { message?: string }) => {
-    setError(data?.message ?? 'Reference image upload failed.');
-    setIsUploadingRef(false);
-  });
-
   const handleGenerate = () => {
     if (!selectedMascot) {
       setError('Please select a mascot first');
@@ -86,9 +74,9 @@ export const LogosTab: React.FC<LogosTabProps> = ({
     rpc.send('generate-logo-pack', {
       mascotId: selectedMascot.id,
       brandColors: brandColors.length > 0 ? brandColors : undefined,
-      imageSource,
+      imageSource: 'avatar',
       platform: platform.trim() || undefined,
-      referenceLogoUrl: referenceLogoUrl.trim() || undefined,
+      stylePrompt: referenceAppPrompt.trim() || undefined,
     });
   };
 
@@ -96,7 +84,7 @@ export const LogosTab: React.FC<LogosTabProps> = ({
     <div>
       <h2 className="select-mascot-step-title">Create a logo 🎨</h2>
       <p className="section-description">
-        Logos are created with the same model as your mascot. Paste an app/logo URL or upload a reference image for inspiration; the AI will use its style to create a unique logo. Pick a platform for dimensions, then generate your pack.
+        Pick a platform for dimensions, add an app style inspiration (e.g. &quot;like Royal Match app&quot;) and optional brand colors. The AI will create the best logo from your mascot.
       </p>
 
       {/* Upload only on selection page (no mascot chosen yet) */}
@@ -154,7 +142,7 @@ export const LogosTab: React.FC<LogosTabProps> = ({
       {mascots.length > 0 && selectedMascot && (
         <>
       {/* Selected Mascot Preview */}
-      <div className="selected-mascot-preview">
+      <div className="selected-mascot-preview logo-selected-preview">
         <div className="selected-mascot-image">
           {(selectedMascot.avatarImageUrl || selectedMascot.imageUrl || selectedMascot.fullBodyImageUrl) ? (
             <img
@@ -183,20 +171,19 @@ export const LogosTab: React.FC<LogosTabProps> = ({
       </div>
 
       {error && (
-        <div className="error" style={{ marginBottom: '16px' }}>
+        <div className="error logo-error-spacing">
           {error}
         </div>
       )}
 
-      <div className="card" style={{ marginBottom: '16px' }}>
+      <div className="card logo-section-card">
         <label className="label">Platform (logo dimensions)</label>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '4px' }}>
+        <div className="logo-platform-buttons">
           {PLATFORM_OPTIONS.map((opt) => (
             <button
               key={opt.value}
               type="button"
               className={platform.trim() === opt.value ? 'quick-pose-btn active' : 'quick-pose-btn'}
-              style={{ fontSize: '11px', padding: '8px 12px' }}
               onClick={() => setPlatform(opt.value)}
               disabled={isGenerating}
             >
@@ -205,70 +192,26 @@ export const LogosTab: React.FC<LogosTabProps> = ({
           ))}
         </div>
         {platform.trim() && (
-          <p className="field-hint" style={{ marginTop: '4px', marginBottom: '12px' }}>
+          <p className="field-hint logo-hint">
             Output: {PLATFORM_OPTIONS.find((o) => o.value === platform.trim())?.hint ?? ''}
           </p>
         )}
-        <label className="label">Inspiration for logo style (optional)</label>
-        <p className="field-hint">Paste an app/logo URL or upload an image. The AI will use its style to create a unique logo.</p>
-        <input
-          className="input"
-          type="url"
-          placeholder="https://… (app or logo image URL)"
-          value={referenceLogoUrl}
-          onChange={(e) => setReferenceLogoUrl(e.target.value)}
-          disabled={isGenerating}
-          style={{ marginBottom: '8px' }}
-        />
-        <div className="logo-ref-upload-row">
-          <span className="field-hint" style={{ margin: 0 }}>or</span>
+
+        <div className="logo-block-spaced">
+          <label className="label">Inspiration (optional)</label>
+          <p className="field-hint">Example of an app style, e.g. &quot;like Royal Match app&quot;. The AI will create a logo in that style with your mascot.</p>
           <input
-            ref={logoRefInputRef}
-            type="file"
-            accept="image/*"
-            style={{ display: 'none' }}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (!file || !file.type.startsWith('image/')) return;
-              setIsUploadingRef(true);
-              setError(null);
-              const reader = new FileReader();
-              reader.onload = () => {
-                const result = reader.result;
-                if (typeof result !== 'string') return;
-                const base64 = result.indexOf('base64,') >= 0 ? result.split('base64,')[1] : result;
-                rpc.send('upload-logo-reference-image', { base64 });
-              };
-              reader.readAsDataURL(file);
-              e.target.value = '';
-            }}
+            className="input"
+            type="text"
+            placeholder="e.g. like Royal Match app"
+            value={referenceAppPrompt}
+            onChange={(e) => setReferenceAppPrompt(e.target.value)}
+            disabled={isGenerating}
           />
-          <button
-            type="button"
-            className="btn-secondary logo-ref-upload-btn"
-            disabled={isGenerating || isUploadingRef}
-            onClick={() => logoRefInputRef.current?.click()}
-          >
-            {isUploadingRef ? 'Uploading…' : 'Upload image'}
-          </button>
         </div>
 
-        <label className="label">Logo style</label>
-        <p className="field-hint">Style of the logo, e.g. Avatar, Full body, Square icon</p>
-        <select
-          className="input"
-          value={imageSource}
-          onChange={(e) => setImageSource(e.target.value as 'fullBody' | 'avatar' | 'squareIcon')}
-          disabled={isGenerating}
-          style={{ marginBottom: '12px' }}
-        >
-          <option value="avatar">Avatar (portrait)</option>
-          <option value="fullBody">Full body</option>
-          <option value="squareIcon">Square icon</option>
-        </select>
-
-        <label className="label" style={{ marginTop: '12px' }}>Brand Colors (Optional)</label>
-        <p className="field-hint">Same as mascot creation — Primary, Secondary, Tertiary.</p>
+        <label className="label logo-label-spaced">Brand colors (optional)</label>
+        <p className="field-hint">Primary, secondary, tertiary. Applied to the logo when possible.</p>
         <div className="color-picker-group">
           <div className="color-picker-item">
             <div className="color-picker-header">
@@ -381,10 +324,9 @@ export const LogosTab: React.FC<LogosTabProps> = ({
         </div>
 
         <button
-          className="btn-primary"
+          className="btn-primary logo-generate-btn"
           onClick={handleGenerate}
           disabled={isGenerating || !selectedMascot}
-          style={{ width: '100%', marginTop: '8px' }}
         >
           {isGenerating ? <span className="spinner" /> : 'Generate Logo Pack (10 credits)'}
         </button>

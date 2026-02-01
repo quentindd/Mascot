@@ -75,9 +75,9 @@ export class LogoPackGenerationProcessor extends WorkerHost {
   }
 
   async process(job: Job<any, any, string>): Promise<any> {
-    const { logoPackId, mascotId, imageSource, brandColors, referenceLogoUrl, platform } = job.data;
+    const { logoPackId, mascotId, imageSource, brandColors, referenceLogoUrl, platform, stylePrompt } = job.data;
 
-    this.logger.log(`[LogoPack] Starting logo pack ${logoPackId} for mascot ${mascotId} (platform: ${platform ?? 'all'}, refLogo: ${referenceLogoUrl ? 'yes' : 'no'})`);
+    this.logger.log(`[LogoPack] Starting logo pack ${logoPackId} for mascot ${mascotId} (platform: ${platform ?? 'all'}, refLogo: ${referenceLogoUrl ? 'yes' : 'no'}, stylePrompt: ${stylePrompt ? 'yes' : 'no'})`);
 
     try {
       await this.logoPackRepository.update(logoPackId, { status: LogoPackStatus.GENERATING });
@@ -89,6 +89,8 @@ export class LogoPackGenerationProcessor extends WorkerHost {
 
       if (referenceLogoUrl && referenceLogoUrl.trim()) {
         imageBuffer = await this.generateLogoWithStyleReference(mascot, imageSource, referenceLogoUrl, platform);
+      } else if (this.geminiFlashService.isAvailable()) {
+        imageBuffer = await this.generateLogoFromMascotOnly(mascot, imageSource, platform, stylePrompt, brandColors);
       } else {
         const sourceUrl = this.getSourceUrl(mascot, imageSource);
         if (!sourceUrl) throw new Error('Mascot has no image for selected source (fullBody, avatar or squareIcon)');
@@ -130,6 +132,7 @@ export class LogoPackGenerationProcessor extends WorkerHost {
           imageSource: imageSource ?? 'auto',
           referenceLogoUrl: referenceLogoUrl || null,
           platform: platform || null,
+          stylePrompt: stylePrompt || null,
         } as Record<string, any>,
         errorMessage: null,
       });
@@ -144,6 +147,46 @@ export class LogoPackGenerationProcessor extends WorkerHost {
       });
       throw error;
     }
+  }
+
+  private async generateLogoFromMascotOnly(
+    mascot: Mascot,
+    imageSource: string | undefined,
+    platform?: string,
+    stylePrompt?: string,
+    brandColors?: string[],
+  ): Promise<Buffer> {
+    const sourceUrl = this.getSourceUrl(mascot, imageSource);
+    if (!sourceUrl) throw new Error('Mascot has no image for selected source (fullBody, avatar or squareIcon)');
+    const mascotRes = await axios.get<ArrayBuffer>(sourceUrl, { responseType: 'arraybuffer', timeout: 20000 });
+    const mascotBuffer = Buffer.from(mascotRes.data as ArrayBuffer);
+    const mascotPng = await sharp(mascotBuffer).ensureAlpha().png({ force: true }).toBuffer();
+
+    this.logger.log('[LogoPack] Calling AI to generate logo from mascot + text (platform, inspiration, colors)...');
+    let generated = await this.geminiFlashService.generateLogoFromMascotOnly({
+      mascotImage: { data: mascotPng, mimeType: 'image/png' },
+      platform: platform?.trim() || undefined,
+      referenceAppPrompt: stylePrompt?.trim() || undefined,
+      brandColors: Array.isArray(brandColors) ? brandColors : undefined,
+      mascotDetails: mascot.prompt || undefined,
+    });
+    this.logger.log('[LogoPack] Removing background from AI-generated logo (rembg-enhance then local)...');
+    try {
+      generated = await this.replicateService.removeBackgroundReplicate(generated);
+      this.logger.log('[LogoPack] Background removal (rembg-enhance) completed');
+    } catch (rembgErr) {
+      this.logger.warn(
+        '[LogoPack] rembg-enhance failed (REPLICATE_API_TOKEN or API error), using local removal only:',
+        rembgErr instanceof Error ? rembgErr.message : rembgErr,
+      );
+    }
+    generated = await removeBackground(generated, {
+      aggressive: false,
+      eraseSemiTransparentBorder: true,
+      borderAlphaThreshold: 100,
+      eraseWhiteOutline: true,
+    });
+    return generated;
   }
 
   private async generateLogoWithStyleReference(

@@ -787,6 +787,22 @@
   font-weight: 500;
 }
 
+.gallery-placeholder-loading {
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gallery-placeholder-text {
+  font-size: 11px;
+  color: #888;
+}
+
+.gallery-placeholder-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: #999;
+}
+
 .gallery-item-info {
   padding: 8px;
   border-top: 1px solid #f0f0f0;
@@ -1655,7 +1671,65 @@
   letter-spacing: 0.02em;
 }
 
-/* Logo tab: inspiration upload row – compact, button not full width */
+/* Logo tab: section spacing */
+.logo-section-card {
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.logo-section-card .label {
+  margin-bottom: 8px;
+}
+
+.logo-block-spaced {
+  margin-top: 24px;
+}
+
+.logo-label-spaced {
+  margin-top: 24px;
+  display: block;
+}
+
+.logo-platform-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.logo-platform-buttons .quick-pose-btn {
+  font-size: 11px;
+  padding: 10px 14px;
+}
+
+.logo-hint {
+  margin-top: 4px;
+  margin-bottom: 16px;
+}
+
+.logo-section-card .field-hint {
+  margin-top: 4px;
+  margin-bottom: 10px;
+}
+
+.logo-section-card .input {
+  margin-bottom: 4px;
+}
+
+.logo-generate-btn {
+  width: 100%;
+  margin-top: 24px;
+  padding: 12px;
+}
+
+.logo-selected-preview {
+  margin-bottom: 20px;
+}
+
+.logo-error-spacing {
+  margin-bottom: 20px;
+}
+
 .logo-ref-upload-row {
   display: flex;
   align-items: center;

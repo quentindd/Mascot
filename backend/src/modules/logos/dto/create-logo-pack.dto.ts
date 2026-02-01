@@ -37,6 +37,13 @@ export class CreateLogoPackDto {
   @IsUrl({ require_tld: true, protocols: ['https'] })
   referenceLogoUrl?: string;
 
+  @ApiPropertyOptional({
+    description: 'Text inspiration for logo style, e.g. "like Royal Match app". AI will create a logo in that style using only the mascot (no reference image).',
+  })
+  @IsOptional()
+  @IsString()
+  stylePrompt?: string;
+
   @ApiPropertyOptional({ description: 'Figma file ID where logo pack will be used' })
   @IsOptional()
   @IsString()

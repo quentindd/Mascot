@@ -349,41 +349,30 @@ export const LogosTab: React.FC<LogosTabProps> = ({
         </button>
       </div>
 
-      {/* Logo Preview Section */}
-      {(isGenerating || generatedLogo) && (
+      {/* Logo Preview Section - only show when logo is ready */}
+      {generatedLogo && (
         <div className="card logo-preview-card" style={{ marginTop: '16px' }}>
           <label className="label">Generated Logo</label>
-          {isGenerating ? (
-            <div className="logo-preview-loading">
-              <div className="logo-preview-placeholder">
-                <span className="spinner" style={{ width: '32px', height: '32px' }} />
-              </div>
-              <p className="field-hint" style={{ textAlign: 'center', marginTop: '12px' }}>
-                Generating logo… This may take a minute.
-              </p>
+          <div className="logo-preview-result">
+            <div
+              className="logo-preview-image"
+              onClick={handleInsertLogo}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === 'Enter' && handleInsertLogo()}
+              title="Click to insert in Figma"
+              style={{ cursor: 'pointer' }}
+            >
+              <img
+                src={generatedLogo.url}
+                alt="Generated Logo"
+                style={{ width: '100%', maxWidth: '200px', borderRadius: '8px', border: '1px solid #e0e0e0' }}
+              />
             </div>
-          ) : generatedLogo ? (
-            <div className="logo-preview-result">
-              <div
-                className="logo-preview-image"
-                onClick={handleInsertLogo}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && handleInsertLogo()}
-                title="Click to insert in Figma"
-                style={{ cursor: 'pointer' }}
-              >
-                <img
-                  src={generatedLogo.url}
-                  alt="Generated Logo"
-                  style={{ width: '100%', maxWidth: '200px', borderRadius: '8px', border: '1px solid #e0e0e0' }}
-                />
-              </div>
-              <p className="field-hint" style={{ textAlign: 'center', marginTop: '8px' }}>
-                Click to insert in Figma (1024×1024)
-              </p>
-            </div>
-          ) : null}
+            <p className="field-hint" style={{ textAlign: 'center', marginTop: '8px' }}>
+              Click to insert in Figma (1024×1024)
+            </p>
+          </div>
         </div>
       )}
         </>

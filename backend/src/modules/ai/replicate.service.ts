@@ -56,7 +56,8 @@ export class ReplicateService {
 
   /**
    * Remove background from an image using Replicate smoretalk/rembg-enhance (real cutout, transparent).
-   * Use after pose generation / mascot / logos to get a clean detouré without gray/white background.
+   * Must be used as the first step for all generated images: mascot, logo pack, poses.
+   * Each processor should try this first, then fall back to local removeBackground() on error (e.g. missing REPLICATE_API_TOKEN).
    */
   async removeBackgroundReplicate(imageBuffer: Buffer): Promise<Buffer> {
     if (!this.token) {

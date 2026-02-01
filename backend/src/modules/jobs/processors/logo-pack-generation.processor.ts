@@ -184,14 +184,15 @@ export class LogoPackGenerationProcessor extends WorkerHost {
       mascotDetails: mascot.prompt || undefined,
       stylePrompt: platform?.trim() ? `Platform: ${platform.trim()}` : undefined,
     });
-    this.logger.log('[LogoPack] Removing background from AI-generated logo...');
-    if (this.replicateService.isAvailable()) {
-      try {
-        generated = await this.replicateService.removeBackgroundReplicate(generated);
-        this.logger.log('[LogoPack] Background removal (rembg-enhance) completed');
-      } catch (rembgErr) {
-        this.logger.warn('[LogoPack] rembg-enhance failed, using local removal only:', rembgErr);
-      }
+    this.logger.log('[LogoPack] Removing background from AI-generated logo (rembg-enhance then local)...');
+    try {
+      generated = await this.replicateService.removeBackgroundReplicate(generated);
+      this.logger.log('[LogoPack] Background removal (rembg-enhance) completed');
+    } catch (rembgErr) {
+      this.logger.warn(
+        '[LogoPack] rembg-enhance failed (REPLICATE_API_TOKEN or API error), using local removal only:',
+        rembgErr instanceof Error ? rembgErr.message : rembgErr,
+      );
     }
     generated = await removeBackground(generated, {
       aggressive: false,

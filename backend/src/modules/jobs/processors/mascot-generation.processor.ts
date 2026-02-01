@@ -103,15 +103,16 @@ export class MascotGenerationProcessor extends WorkerHost {
       const generationTime = Date.now() - generationStartTime;
       this.logger.log(`[MascotGenerationProcessor] Gemini Flash API completed for variation ${variationIndex || 1} in ${generationTime}ms`);
 
-      // Remove background: Replicate rembg-enhance (smoretalk/rembg-enhance) then local cleanup
-      this.logger.log('Removing background from generated image...');
-      if (this.replicateService.isAvailable()) {
-        try {
-          imageBuffer = await this.replicateService.removeBackgroundReplicate(imageBuffer);
-          this.logger.log('Background removal (rembg-enhance) completed');
-        } catch (rembgErr) {
-          this.logger.warn('[MascotGenerationProcessor] rembg-enhance failed, using local removal only:', rembgErr);
-        }
+      // Remove background: always try Replicate rembg-enhance first, then local cleanup
+      this.logger.log('Removing background from generated image (rembg-enhance then local)...');
+      try {
+        imageBuffer = await this.replicateService.removeBackgroundReplicate(imageBuffer);
+        this.logger.log('[MascotGenerationProcessor] Background removal (rembg-enhance) completed');
+      } catch (rembgErr) {
+        this.logger.warn(
+          '[MascotGenerationProcessor] rembg-enhance failed (REPLICATE_API_TOKEN or API error), using local removal only:',
+          rembgErr instanceof Error ? rembgErr.message : rembgErr,
+        );
       }
       imageBuffer = await removeBackground(imageBuffer, {
         aggressive: false, // preserve fur/hair edges

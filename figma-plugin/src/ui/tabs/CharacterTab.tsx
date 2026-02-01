@@ -562,7 +562,7 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
         <div style={{ marginTop: '24px' }}>
           <h3 className="section-title">Select a Variation</h3>
           <p className="section-description">
-            Choose one of the {generatedVariations.length} created variations to add to your library.
+            The {generatedVariations.length} variations are in your Gallery. Select one to insert into your design or use in Animations, Logos or Poses.
           </p>
           <div className="variations-grid">
             {displayVariations.map((variation, index) => (

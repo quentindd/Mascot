@@ -41,6 +41,8 @@ export async function removeBackground(
     whitenNearWhite?: boolean;
     /** Fill small transparent holes (e.g. eyes removed by rembg) with white. Use for mascots. */
     fillSmallTransparentHoles?: boolean;
+    /** Preserve small colorful regions (e.g. confetti) that would otherwise be removed as background. Use for celebration animations. */
+    preserveSmallColorfulRegions?: boolean;
   },
 ): Promise<Buffer> {
   const aggressive = options?.aggressive ?? false;
@@ -50,6 +52,7 @@ export async function removeBackground(
   const secondPass = options?.secondPass ?? false;
   const whitenNearWhite = options?.whitenNearWhite ?? false;
   const fillSmallTransparentHoles = options?.fillSmallTransparentHoles ?? false;
+  const preserveSmallColorfulRegions = options?.preserveSmallColorfulRegions ?? false;
   try {
     let processed = sharp(imageBuffer).ensureAlpha();
     processed = processed.unflatten();
@@ -143,6 +146,47 @@ export async function removeBackground(
       toRemove[i] = 1;
       for (const [dx, dy] of NEIGHBOR_8) {
         stack.push([x + dx, y + dy]);
+      }
+    }
+
+    // Optional: unmark small connected components that are colorful (confetti) so they are not removed
+    if (preserveSmallColorfulRegions) {
+      const maxConfettiPixels = Math.min(1200, Math.floor((width * height) * 0.002));
+      const minSaturation = 35; // max(r,g,b)-min(r,g,b) to consider "colorful"
+      const visitedCc = new Uint8Array(width * height);
+      const component: number[] = [];
+      const stackCc: [number, number][] = [];
+      for (let sy = 0; sy < height; sy++) {
+        for (let sx = 0; sx < width; sx++) {
+          const si = sy * width + sx;
+          if (!toRemove[si] || visitedCc[si]) continue;
+          component.length = 0;
+          stackCc.length = 0;
+          stackCc.push([sx, sy]);
+          let sumSat = 0;
+          let count = 0;
+          while (stackCc.length > 0) {
+            const [x, y] = stackCc.pop()!;
+            if (x < 0 || x >= width || y < 0 || y >= height) continue;
+            const i = y * width + x;
+            if (!toRemove[i] || visitedCc[i]) continue;
+            visitedCc[i] = 1;
+            component.push(i);
+            const idx = getIdx(x, y);
+            const r = pixels[idx];
+            const g = pixels[idx + 1];
+            const b = pixels[idx + 2];
+            const sat = Math.max(r, g, b) - Math.min(r, g, b);
+            sumSat += sat;
+            count++;
+            for (const [dx, dy] of NEIGHBOR_8) {
+              stackCc.push([x + dx, y + dy]);
+            }
+          }
+          if (count > 0 && count <= maxConfettiPixels && sumSat / count >= minSaturation) {
+            for (const i of component) toRemove[i] = 0;
+          }
+        }
       }
     }
 

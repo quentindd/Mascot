@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { CharacterTab } from './tabs/CharacterTab';
-import { AnimationsTab } from './tabs/AnimationsTab';
 import { AccountTab } from './tabs/AccountTab';
 import { GalleryTab } from './tabs/GalleryTab';
 import { PosesTab } from './tabs/PosesTab';
@@ -8,7 +7,7 @@ import { AuthScreen } from './AuthScreen';
 import { RPCClient } from './rpc/client';
 import './App.css';
 
-type Tab = 'gallery' | 'character' | 'animations' | 'poses' | 'account';
+type Tab = 'gallery' | 'character' | 'poses' | 'account';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('character');
@@ -17,7 +16,6 @@ export const App: React.FC = () => {
   const [credits, setCredits] = useState<number | null>(null);
   const [selectedMascot, setSelectedMascot] = useState<any>(null);
   const [mascots, setMascots] = useState<any[]>([]);
-  const [animations, setAnimations] = useState<any[]>([]);
   const [poses, setPoses] = useState<any[]>([]);
   const [generatedVariations, setGeneratedVariations] = useState<any[]>([]);
   const [tokenInput, setTokenInput] = useState<string>('');
@@ -40,9 +38,7 @@ export const App: React.FC = () => {
   }
   const rpc = rpcRef.current;
 
-  // Request animations/poses only once per mascot per session (persists across tab switches)
-  // Throttled to avoid ERR_INSUFFICIENT_RESOURCES (max 3 concurrent requests, 200ms between batches)
-  const requestedAnimationMascotIds = useRef<Set<string>>(new Set());
+  // Request poses only once per mascot per session (persists across tab switches)
   const requestedPoseMascotIds = useRef<Set<string>>(new Set());
   const assetLoadQueueRef = useRef<Array<{ type: string; mascotId: string }>>([]);
   const assetLoadingRef = useRef<boolean>(false);
@@ -50,11 +46,9 @@ export const App: React.FC = () => {
   const processAssetLoadQueue = useCallback(() => {
     if (assetLoadingRef.current || assetLoadQueueRef.current.length === 0) return;
     assetLoadingRef.current = true;
-    // Process 3 requests at a time, then wait 300ms
     const batch = assetLoadQueueRef.current.splice(0, 3);
     for (const item of batch) {
-      if (item.type === 'animations') rpc.send('get-mascot-animations', { mascotId: item.mascotId });
-      else if (item.type === 'poses') rpc.send('get-mascot-poses', { mascotId: item.mascotId });
+      if (item.type === 'poses') rpc.send('get-mascot-poses', { mascotId: item.mascotId });
     }
     setTimeout(() => {
       assetLoadingRef.current = false;
@@ -64,15 +58,10 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     if (mascots.length === 0) return;
-    const needAnimationsOrPoses = activeTab === 'gallery';
     const needPoses = activeTab === 'gallery' || activeTab === 'poses';
     const queue = assetLoadQueueRef.current;
     for (const mascot of mascots) {
       if (!mascot.id) continue;
-      if (needAnimationsOrPoses && !requestedAnimationMascotIds.current.has(mascot.id)) {
-        requestedAnimationMascotIds.current.add(mascot.id);
-        queue.push({ type: 'animations', mascotId: mascot.id });
-      }
       if (needPoses && !requestedPoseMascotIds.current.has(mascot.id)) {
         requestedPoseMascotIds.current.add(mascot.id);
         queue.push({ type: 'poses', mascotId: mascot.id });
@@ -150,46 +139,6 @@ export const App: React.FC = () => {
     });
     rpc.on('pose-status-update', () => {});
 
-    // Animation created: refetch animations for that mascot so Gallery shows the new item (and no "No handlers registered")
-    rpc.on('animation-generated', (data: { animation: any }) => {
-      loadCredits();
-      if (data?.animation?.mascotId) {
-        rpc.send('get-mascot-animations', { mascotId: data.animation.mascotId });
-      }
-    });
-
-    // Animations at App level so they persist when user is on Animations tab (GalleryTab unmounted)
-    rpc.on('mascot-animations-loaded', (data: { mascotId: string; animations: any[] }) => {
-      setAnimations((prev) => {
-        const filtered = prev.filter((a) => a.mascotId !== data.mascotId);
-        return [...filtered, ...(data.animations || [])];
-      });
-    });
-    rpc.on('animation-status-update', (data: { animationId: string; status: string; errorMessage?: string }) => {
-      setAnimations((prev) =>
-        prev.map((a) =>
-          a.id === data.animationId
-            ? { ...a, status: data.status, errorMessage: data.errorMessage }
-            : a
-        )
-      );
-    });
-    rpc.on('animation-completed', (data: { animation: any }) => {
-      const anim = data.animation;
-      if (!anim?.id) return;
-      setAnimations((prev) => {
-        const idx = prev.findIndex((a) => a.id === anim.id);
-        if (idx >= 0) {
-          const next = [...prev];
-          next[idx] = { ...next[idx], ...anim };
-          return next;
-        }
-        return [...prev, anim];
-      });
-    });
-    rpc.on('animation-deleted', (data: { animationId: string }) => {
-      setAnimations((prev) => prev.filter((a) => a.id !== data.animationId));
-    });
     rpc.on('mascot-poses-loaded', (data: { mascotId: string; poses: any[] }) => {
       const incoming = data.poses || [];
       setPoses((prev) => {
@@ -423,17 +372,6 @@ export const App: React.FC = () => {
             🙂 Custom
           </button>
           <button
-            className={`nav-item ${activeTab === 'animations' ? 'active' : ''}`}
-            onClick={() => {
-              if (isAuthenticated) {
-                loadMascots();
-              }
-              setActiveTab('animations');
-            }}
-          >
-            📸 Animation
-          </button>
-          <button
             className={`nav-item ${activeTab === 'gallery' ? 'active' : ''}`}
             onClick={() => {
               if (isAuthenticated) {
@@ -466,7 +404,6 @@ export const App: React.FC = () => {
             <GalleryTab
               rpc={rpc}
               mascots={mascots}
-              animations={animations}
               poses={poses}
               selectedMascot={selectedMascot}
               onSelectMascot={setSelectedMascot}
@@ -481,17 +418,6 @@ export const App: React.FC = () => {
               onMascotGenerated={loadMascots}
               generatedVariations={generatedVariations}
               onVariationsChange={setGeneratedVariations}
-            />
-          </div>
-          <div style={{ display: activeTab === 'animations' ? 'block' : 'none' }} className="tab-panel">
-            <AnimationsTab
-              rpc={rpc}
-              selectedMascot={selectedMascot}
-              onSelectMascot={(mascot) => {
-                console.log('[App] Setting selected mascot in AnimationsTab:', mascot?.id || 'null');
-                setSelectedMascot(mascot);
-              }}
-              mascots={mascots}
             />
           </div>
           <div style={{ display: activeTab === 'poses' ? 'block' : 'none' }} className="tab-panel">

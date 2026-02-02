@@ -72,7 +72,10 @@ export class AnimationJob {
   webmVideoUrl: string; // CDN URL (VP9 with alpha)
 
   @Column({ type: 'text', nullable: true })
-  movVideoUrl: string; // CDN URL (HEVC with alpha)
+  movVideoUrl: string; // CDN URL (MP4 from Veo, opaque)
+
+  @Column({ type: 'text', nullable: true })
+  movAlphaUrl: string; // CDN URL (HEVC .mov with alpha, for Safari/iOS)
 
   @Column({ type: 'text', nullable: true })
   lottieUrl: string; // CDN URL

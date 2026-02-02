@@ -63,6 +63,7 @@ export class AnimationGenerationProcessor extends WorkerHost {
 
       let webmVideoUrl: string | null = null;
       let movVideoUrl: string | null = null;
+      let movAlphaUrl: string | null = null;
       let spriteSheetUrl: string | null = null;
       let lottieUrl: string | null = null;
       let frameUrls: string[] = [];
@@ -104,6 +105,9 @@ export class AnimationGenerationProcessor extends WorkerHost {
       this.logger.log(`[AnimationGenerationProcessor] Primary video uploaded: ${movVideoUrl}`);
 
       // Extract frames, remove background frame-by-frame, then build sprite/Lottie/WebM with transparency
+      const isCelebration =
+        action === AnimationAction.CELEBRATE ||
+        (action === AnimationAction.CUSTOM && customAction && /celebrat|party|confetti|fête|fete/i.test(customAction));
       try {
         const rawFrames = await this.extractFramesFromVideo(videoBuffer, frameCount);
         if (rawFrames.length > 0) {
@@ -116,6 +120,7 @@ export class AnimationGenerationProcessor extends WorkerHost {
                 borderAlphaThreshold: 160,
                 eraseWhiteOutline: true,
                 secondPass: true,
+                preserveSmallColorfulRegions: isCelebration,
               }),
             ),
           );
@@ -145,6 +150,19 @@ export class AnimationGenerationProcessor extends WorkerHost {
             this.logger.log(`[AnimationGenerationProcessor] WebM with alpha: ${webmVideoUrl}`);
           } catch (webmError) {
             this.logger.warn(`[AnimationGenerationProcessor] WebM with alpha failed (non-critical):`, webmError);
+          }
+
+          try {
+            movAlphaUrl = await this.generateMOVVideo(
+              framesWithNoBg,
+              resolution,
+              framesWithNoBg.length,
+              animationId,
+              timestamp,
+            );
+            this.logger.log(`[AnimationGenerationProcessor] MOV HEVC with alpha: ${movAlphaUrl}`);
+          } catch (movError) {
+            this.logger.warn(`[AnimationGenerationProcessor] MOV with alpha failed (non-critical):`, movError);
           }
         }
       } catch (frameError) {
@@ -187,6 +205,7 @@ export class AnimationGenerationProcessor extends WorkerHost {
         lottieUrl,
         webmVideoUrl,
         movVideoUrl,
+        movAlphaUrl,
         frameCount,
         durationMs,
         metadata: {
@@ -701,13 +720,18 @@ export class AnimationGenerationProcessor extends WorkerHost {
     const personality = mascot.personality || 'friendly';
 
     let actionDescription = '';
-    
+    let allowConfetti = false;
+
     if (action === AnimationAction.CUSTOM && customAction) {
       actionDescription = customAction;
+      allowConfetti = /celebrat|party|confetti|fête|fete/i.test(customAction);
+      if (allowConfetti) {
+        actionDescription = `${customAction}, with confetti and celebration effects around the mascot`;
+      }
     } else {
       const actionMap: Record<AnimationAction, string> = {
         [AnimationAction.WAVE]: 'waving hand, friendly gesture',
-        [AnimationAction.CELEBRATE]: 'celebrating, jumping with arms raised, joyful',
+        [AnimationAction.CELEBRATE]: 'celebrating, jumping with arms raised, joyful, with confetti and celebration effects around the mascot',
         [AnimationAction.THINK]: 'thinking pose, hand on chin, contemplative',
         [AnimationAction.SLEEP]: 'sleeping pose, eyes closed, peaceful',
         [AnimationAction.SAD]: 'sad expression, downcast eyes',
@@ -721,9 +745,14 @@ export class AnimationGenerationProcessor extends WorkerHost {
         [AnimationAction.CUSTOM]: customAction || 'animated movement',
       };
       actionDescription = actionMap[action] || 'animated movement';
+      allowConfetti = action === AnimationAction.CELEBRATE;
     }
 
-    return `Create a PERFECT LOOP video of mascot ${actionDescription}. First and last frame EXACTLY identical. Seamless cycle. Isolated character only, clean sharp edges. Plain solid single-color background only: pure white or light gray, no scenery, no environment, no gradient, no texture, no shadows on the ground.`;
+    const backgroundHint = allowConfetti
+      ? 'Plain solid single-color background (white or light gray). Confetti and small celebration effects around the character are allowed and should be visible.'
+      : 'Plain solid single-color background only: pure white or light gray, no scenery, no environment, no gradient, no texture, no shadows on the ground.';
+
+    return `Create a PERFECT LOOP video of mascot ${actionDescription}. First and last frame EXACTLY identical. Seamless cycle. Isolated character with clean sharp edges. ${backgroundHint}`;
   }
 
   /**

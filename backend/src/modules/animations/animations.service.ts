@@ -94,8 +94,9 @@ export class AnimationsService {
       animation.spriteSheetUrl,
       animation.webmVideoUrl,
       animation.movVideoUrl,
+      animation.movAlphaUrl,
       animation.lottieUrl,
-    ]);
+    ].filter(Boolean));
 
     await this.animationRepository.remove(animation);
   }

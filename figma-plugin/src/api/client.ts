@@ -71,35 +71,6 @@ export interface AutoFillResponse {
   };
 }
 
-export interface CreateAnimationRequest {
-  action: string;
-  customAction?: string;
-  figmaFileId?: string;
-}
-
-export interface AnimationJobResponse {
-  id: string;
-  mascotId: string;
-  action: string;
-  status: string;
-  spriteSheetUrl: string | null;
-  webmVideoUrl: string | null;
-  movVideoUrl: string | null;
-  lottieUrl: string | null;
-  frameCount: number | null;
-  durationMs: number | null;
-  createdAt: string;
-  updatedAt: string;
-  metadata?: { replicatePredictionUrl?: string; [key: string]: unknown };
-}
-
-export interface AnimationStatusResponse {
-  id: string;
-  status: string;
-  progress?: number;
-  errorMessage?: string;
-}
-
 export interface PaginatedResponse<T> {
   data: T[];
   meta: {
@@ -329,31 +300,6 @@ export class MascotAPI {
     return this.request<MascotResponse>(`/mascots/${id}`);
   }
 
-  async createAnimation(
-    mascotId: string,
-    data: CreateAnimationRequest
-  ): Promise<AnimationJobResponse> {
-    return this.request<AnimationJobResponse>(`/mascots/${mascotId}/animations`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async getAnimation(id: string): Promise<AnimationJobResponse> {
-    return this.request<AnimationJobResponse>(`/animations/${id}`);
-  }
-
-  async getAnimationStatus(id: string): Promise<AnimationStatusResponse> {
-    return this.request<AnimationStatusResponse>(`/animations/${id}/status`);
-  }
-
-  async getMascotAnimations(mascotId: string): Promise<AnimationJobResponse[]> {
-    const response = await this.request<{ data: AnimationJobResponse[] }>(
-      `/mascots/${mascotId}/animations`
-    );
-    return response && response.data ? response.data : [];
-  }
-
   async createPose(mascotId: string, data: { prompt: string; figmaFileId?: string }): Promise<any> {
     return this.request<any>(`/mascots/${mascotId}/poses`, {
       method: 'POST',
@@ -413,12 +359,6 @@ export class MascotAPI {
 
   async deleteMascot(id: string): Promise<void> {
     return this.request<void>(`/mascots/${id}`, {
-      method: 'DELETE',
-    });
-  }
-
-  async deleteAnimation(id: string): Promise<void> {
-    return this.request<void>(`/animations/${id}`, {
       method: 'DELETE',
     });
   }

@@ -318,7 +318,7 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
     onSelectMascot(variation);
     
     // Notify App.tsx to add this mascot to the list
-    // This ensures it appears in "Existing Mascots" and can be used in Animations tab
+    // This ensures it appears in "Existing Mascots" and can be used in Gallery or Poses
     console.log('[CharacterTab] Sending add-mascot-to-list for variation:', variation.id);
     rpc.send('add-mascot-to-list', { mascot: variation });
     
@@ -340,7 +340,7 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
     setPrimaryColor('');
     setSecondaryColor('');
     setTertiaryColor('');
-    setSuccess(imageUrl ? 'Mascot selected and added to Existing Mascots! You can now use it in Animations tab. Other variations are still generating...' : 'Mascot selected and added to Existing Mascots! Image is still generating, but you can use it in Animations tab. Other variations are still generating...');
+    setSuccess(imageUrl ? 'Mascot selected and added to Existing Mascots! You can now use it in Gallery or Poses. Other variations are still generating...' : 'Mascot selected and added to Existing Mascots! Image is still generating, but you can use it in Gallery or Poses. Other variations are still generating...');
   };
 
   return (
@@ -562,7 +562,7 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
         <div style={{ marginTop: '24px' }}>
           <h3 className="section-title">Select a Variation</h3>
           <p className="section-description">
-            The {generatedVariations.length} variations are in your Gallery. Select one to insert into your design or use in Animations or Poses.
+            The {generatedVariations.length} variations are in your Gallery. Select one to insert into your design or use in Poses.
           </p>
           <div className="variations-grid">
             {displayVariations.map((variation, index) => (

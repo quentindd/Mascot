@@ -142,10 +142,6 @@ figma.ui.onmessage = async (msg) => {
         await handleAutoFill(msg.data);
         break;
 
-      case 'generate-animation':
-        await handleGenerateAnimation(msg.data);
-        break;
-
       case 'generate-pose':
         await handleGeneratePose(msg.data);
         break;
@@ -153,10 +149,6 @@ figma.ui.onmessage = async (msg) => {
 
       case 'insert-image':
         await handleInsertImage(msg.data);
-        break;
-
-      case 'insert-animation':
-        await handleInsertAnimation(msg.data);
         break;
 
       case 'insert-frames':
@@ -187,11 +179,6 @@ figma.ui.onmessage = async (msg) => {
         }
         break;
 
-      case 'get-mascot-animations':
-        await handleGetMascotAnimations(msg.data);
-        break;
-
-
       case 'get-mascot-poses':
         await handleGetMascotPoses(msg.data);
         break;
@@ -211,11 +198,6 @@ figma.ui.onmessage = async (msg) => {
       case 'delete-mascot':
         await handleDeleteMascot(msg.data);
         break;
-
-      case 'delete-animation':
-        await handleDeleteAnimation(msg.data);
-        break;
-
 
       case 'delete-pose':
         await handleDeletePose(msg.data);
@@ -381,98 +363,6 @@ async function handleAutoFill(data: { url: string }) {
   }
 }
 
-async function handleGenerateAnimation(data: {
-  mascotId: string;
-  action: string;
-}) {
-  // Demo mode: show message
-  if (!apiClient) {
-    rpc.send('animation-generation-started', {
-      mascotId: data.mascotId,
-      action: data.action,
-    });
-    
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    rpc.send('error', { 
-      message: 'Demo mode: Animation generation requires authentication. Sign in to generate real animations.' 
-    });
-    figma.notify('Demo mode: Sign in for real animation generation.');
-    return;
-  }
-
-  const figmaFileId = figma.fileKey || 'local';
-
-  rpc.send('animation-generation-started', {
-    mascotId: data.mascotId,
-    action: data.action,
-  });
-
-  try {
-    const animation = await apiClient.createAnimation(data.mascotId, {
-      action: data.action,
-      figmaFileId,
-    });
-
-    rpc.send('animation-generated', { animation });
-
-    // Poll for completion
-    pollAnimationStatus(animation.id);
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : 'Unknown error';
-    handleError(error, 'generate-animation');
-    rpc.send('animation-generation-failed', { error: msg });
-    figma.notify(`Animation failed: ${msg}`, { error: true });
-  }
-}
-
-async function pollAnimationStatus(animationId: string) {
-  if (!apiClient) return;
-
-  const maxAttempts = 60; // 5 minutes max
-  let attempts = 0;
-
-  const poll = async () => {
-    if (attempts >= maxAttempts) {
-      rpc.send('animation-generation-timeout', { animationId });
-      return;
-    }
-
-    try {
-      const status = await apiClient!.getAnimationStatus(animationId);
-
-      rpc.send('animation-status-update', {
-        animationId,
-        status: status.status,
-        progress: status.progress,
-        errorMessage: status.errorMessage,
-      });
-
-      if (status.status === 'completed') {
-        const animation = await apiClient!.getAnimation(animationId);
-        rpc.send('animation-completed', { animation });
-
-        // Optionally insert sprite sheet frames
-        if (animation.spriteSheetUrl) {
-          // Could insert frames here if needed
-        }
-      } else if (status.status === 'failed') {
-        const errMsg = status.errorMessage || 'Generation failed';
-        rpc.send('animation-generation-failed', { error: errMsg });
-        figma.notify(`Animation failed: ${errMsg}`, { error: true });
-      } else {
-        // Still processing, poll again
-        setTimeout(poll, 5000); // Poll every 5 seconds
-        attempts++;
-      }
-    } catch (error) {
-      handleError(error, 'poll-animation-status');
-    }
-  };
-
-  poll();
-}
-
 async function handleGeneratePose(data: { mascotId: string; prompt: string }) {
   if (!apiClient) {
     rpc.send('error', { 
@@ -566,60 +456,6 @@ async function handleInsertImage(data: { url: string; name: string; width?: numb
     rpc.send('image-inserted', { url: data.url });
   } catch (_) {
     // Error already sent by insertImageFromUrl
-  }
-}
-
-async function handleInsertAnimation(data: { animationId: string; animation: any }) {
-  const { animation } = data;
-  
-  console.log('[Mascot Code] Inserting animation:', animation.id, animation.action);
-  
-  try {
-    // Figma doesn't support videos directly, so we insert the sprite sheet
-    // or the first frame if sprite sheet is not available
-    
-    if (!figma.currentPage) {
-      throw new Error('No page available. Please open a page in Figma.');
-    }
-
-    let imageUrl: string | null = null;
-    let name = `Animation: ${animation.action || 'animation'}`;
-
-    // Use only first frame (small). Do NOT use sprite sheet — it often exceeds Figma's image size limit.
-    const hasFrame = animation.metadata && animation.metadata.frameUrls && animation.metadata.frameUrls.length > 0;
-    if (hasFrame) {
-      imageUrl = animation.metadata.frameUrls[0];
-      name = `${animation.action || 'Animation'} - Frame 1`;
-      console.log('[Mascot Code] Using first frame for animation (fits Figma limit)');
-    } else {
-      throw new Error('NO_PREVIEW_FRAME');
-    }
-
-    if (!imageUrl) {
-      throw new Error('No image URL available for animation');
-    }
-
-    await insertImageFromUrl(imageUrl, name);
-    figma.notify(`✅ Animation "${animation.action}" inserted!`);
-    rpc.send('animation-inserted', { animationId: animation.id });
-    
-  } catch (error) {
-    console.error('[Mascot Code] Failed to insert animation:', error);
-    const msg = error instanceof Error ? error.message : 'Unknown error';
-    handleError(error, 'insert-animation');
-    const isNoFrame = msg === 'NO_PREVIEW_FRAME';
-    const isTooLarge = msg && String(msg).toLowerCase().includes('too large');
-    const userMessage = isNoFrame
-      ? "No preview image for this animation. Use Download MP4 or WebM below."
-      : isTooLarge
-        ? "Animation image is too large for Figma. Use Download MP4 or WebM below."
-        : `Insert failed. Use Download MP4 or WebM below. (${msg})`;
-    rpc.send('error', {
-      message: userMessage,
-      context: 'insert-animation',
-      isImageTooLarge: isTooLarge,
-    });
-    figma.notify(userMessage);
   }
 }
 
@@ -938,45 +774,6 @@ async function handleCreateCheckout(data: { plan?: string }) {
     const msg = getErrorMessage(error);
     console.error('[Mascot Code] Checkout error:', msg);
     rpc.send('checkout-error', { message: msg });
-  }
-}
-
-async function handleGetMascotAnimations(data: { mascotId: string }) {
-  if (!apiClient) {
-    rpc.send('error', { message: 'Not authenticated' });
-    return;
-  }
-
-  try {
-    console.log('[Mascot Code] Fetching animations for mascot:', data.mascotId);
-    const animations = await apiClient.getMascotAnimations(data.mascotId);
-    // Ensure animations is an array
-    const animationsArray = Array.isArray(animations) ? animations : [];
-    console.log('[Mascot Code] Received animations:', animationsArray.length);
-    rpc.send('mascot-animations-loaded', { mascotId: data.mascotId, animations: animationsArray });
-  } catch (error) {
-    console.error('[Mascot Code] Error loading animations:', error);
-    handleError(error, 'get-mascot-animations');
-    rpc.send('mascot-animations-loaded', { mascotId: data.mascotId, animations: [] });
-  }
-}
-
-async function handleDeleteAnimation(data: { animationId: string; id?: string }) {
-  if (!apiClient) {
-    rpc.send('error', { message: 'Not authenticated' });
-    return;
-  }
-  const animationId = data.animationId ?? data.id;
-  if (!animationId) return;
-  try {
-    await apiClient.deleteAnimation(animationId);
-    figma.notify('Animation deleted successfully');
-    rpc.send('animation-deleted', { animationId });
-  } catch (error) {
-    const msg = getErrorMessage(error);
-    handleError(error, 'delete-animation');
-    figma.notify(`Delete failed: ${msg}`, { error: true });
-    rpc.send('delete-failed', { id: data.animationId ?? data.id, type: 'animation', message: msg });
   }
 }
 

@@ -105,7 +105,7 @@ export class MascotGenerationProcessor extends WorkerHost {
       // Remove background: only rembg-enhance. No image is saved or shown until rembg succeeds.
       this.logger.log('Removing background (rembg-enhance only)...');
       let imageBufferAfterRembg: Buffer | null = null;
-      for (let attempt = 1; attempt <= 2; attempt++) {
+      for (let attempt = 1; attempt <= 3; attempt++) {
         try {
           imageBufferAfterRembg = await this.replicateService.removeBackgroundReplicate(imageBuffer);
           this.logger.log(`[MascotGenerationProcessor] rembg-enhance completed (attempt ${attempt})`);
@@ -113,7 +113,7 @@ export class MascotGenerationProcessor extends WorkerHost {
         } catch (rembgErr) {
           const msg = rembgErr instanceof Error ? rembgErr.message : String(rembgErr);
           this.logger.warn(`[MascotGenerationProcessor] rembg-enhance attempt ${attempt} failed:`, msg);
-          if (attempt === 2) {
+          if (attempt === 3) {
             throw new Error(
               'Background removal (rembg-enhance) failed. No image will be shown. Please try again.',
             );

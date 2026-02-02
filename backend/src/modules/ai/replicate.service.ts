@@ -85,7 +85,7 @@ export class ReplicateService {
       if (predictionWebUrl) {
         this.logger.log(`[Replicate] rembg-enhance prediction (view in dashboard): ${predictionWebUrl}`);
       }
-      const output = await this.waitForPrediction(predictionId, 60000);
+      const output = await this.waitForPrediction(predictionId, 120000);
       const imageUrlOut = this.extractOutputUrl(output);
       if (!imageUrlOut) throw new Error('Replicate rembg-enhance did not return an image URL');
       const imageResponse = await axios.get<ArrayBuffer>(imageUrlOut, {

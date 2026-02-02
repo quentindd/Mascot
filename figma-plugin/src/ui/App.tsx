@@ -84,15 +84,7 @@ export const App: React.FC = () => {
   useEffect(() => {
     console.log('[Mascot] App component mounted');
     
-    // Load mascots when component mounts or when authenticated
-    if (isAuthenticated) {
-      loadMascots();
-    }
-    
-    // Request stored token from plugin code
-    rpc.send('get-stored-token');
-
-    // Listen for RPC messages
+    // Register all RPC handlers first so we never miss messages (fixes "No handlers" after OAuth)
     rpc.on('token-loaded', (data: { token: string }) => {
       console.log('[Mascot] Token loaded from storage');
       setToken(data.token);
@@ -311,7 +303,14 @@ export const App: React.FC = () => {
         loadMascots();
       }, 1000);
     });
-    
+
+    // Request stored token only after all handlers are registered (avoids "No handlers" after OAuth)
+    rpc.send('ui-ready', {});
+    rpc.send('get-stored-token');
+
+    if (isAuthenticated) {
+      loadMascots();
+    }
 
     return () => {
       rpc.cleanup();

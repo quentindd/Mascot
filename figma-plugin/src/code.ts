@@ -883,10 +883,12 @@ async function handleGetMascots() {
       });
     }
     
-    // Send mascots to UI - this should never fail
+    // Send mascots to UI on next tick so UI has registered handlers (avoids "No handlers" after OAuth)
     console.log('[Mascot Code] Sending mascots-loaded with', allMascots.length, 'mascots');
-    rpc.send('mascots-loaded', { mascots: allMascots });
-    console.log('[Mascot Code] Successfully sent mascots-loaded message');
+    setTimeout(() => {
+      rpc.send('mascots-loaded', { mascots: allMascots });
+      console.log('[Mascot Code] Successfully sent mascots-loaded message');
+    }, 0);
   } catch (error) {
     console.error('[Mascot Code] Error loading mascots:', error);
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -902,19 +904,20 @@ async function handleGetMascots() {
 
 async function handleGetCredits() {
   if (!apiClient) {
-    rpc.send('credits-balance', { balance: null });
+    setTimeout(() => rpc.send('credits-balance', { balance: null }), 0);
     return;
   }
   try {
     const result = await apiClient.getCredits();
-    rpc.send('credits-balance', {
+    const payload = {
       balance: result?.balance ?? null,
       plan: result?.plan,
       monthlyAllowance: result?.monthlyAllowance,
-    });
+    };
+    setTimeout(() => rpc.send('credits-balance', payload), 0);
   } catch (error) {
     console.error('[Mascot Code] Error loading credits:', error);
-    rpc.send('credits-balance', { balance: null });
+    setTimeout(() => rpc.send('credits-balance', { balance: null }), 0);
   }
 }
 

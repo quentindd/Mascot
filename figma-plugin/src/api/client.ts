@@ -235,10 +235,23 @@ export class MascotAPI {
   }
 
   async createMascot(data: CreateMascotRequest): Promise<MascotResponse[]> {
-    const { custom, ...rest } = data;
+    const body = {
+      name: data.name,
+      prompt: data.prompt,
+      style: data.custom,
+      type: data.type,
+      personality: data.personality,
+      negativePrompt: data.negativePrompt,
+      accessories: data.accessories,
+      brandColors: data.brandColors,
+      autoFillUrl: data.autoFillUrl,
+      referenceImageUrl: data.referenceImageUrl,
+      figmaFileId: data.figmaFileId,
+      numVariations: data.numVariations,
+    };
     return this.request<MascotResponse[]>('/mascots', {
       method: 'POST',
-      body: JSON.stringify({ ...rest, style: custom }),
+      body: JSON.stringify(body),
     });
   }
 

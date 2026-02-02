@@ -5,7 +5,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
-import { getConnection } from 'typeorm';
+import { DataSource } from 'typeorm';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -15,8 +15,8 @@ async function bootstrap() {
 
   // Fix batchId column type on startup (one-time migration)
   try {
-    const connection = getConnection();
-    const result = await connection.query(`
+    const dataSource = app.get(DataSource);
+    const result = await dataSource.query(`
       SELECT data_type 
       FROM information_schema.columns 
       WHERE table_name = 'mascots' 
@@ -25,7 +25,7 @@ async function bootstrap() {
     
     if (result.length > 0 && result[0].data_type === 'uuid') {
       console.log('[Startup] Fixing batchId column type from uuid to text...');
-      await connection.query(`
+      await dataSource.query(`
         ALTER TABLE mascots 
         ALTER COLUMN "batchId" TYPE text USING "batchId"::text
       `);

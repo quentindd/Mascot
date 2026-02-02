@@ -379,7 +379,7 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
             onChange={(e) => setCustom(e.target.value)}
             disabled={isGenerating}
           >
-            {CUSTOM_OPTIONS.map((s) => (
+            {ART_STYLES.map((s) => (
               <option key={s.value} value={s.value}>
                 {s.emoji} {s.label}
               </option>

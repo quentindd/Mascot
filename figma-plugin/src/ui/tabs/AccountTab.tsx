@@ -77,7 +77,7 @@ export const AccountTab: React.FC<AccountTabProps> = ({ credits, onLogout, rpc }
             <span className="account-usage-value">{CREDIT_COSTS.mascot} cr</span>
           </div>
           <div className="account-usage-row">
-            <span>Pose</span>
+            <span>Custom</span>
             <span className="account-usage-value">{CREDIT_COSTS.pose} cr</span>
           </div>
           <div className="account-usage-row">

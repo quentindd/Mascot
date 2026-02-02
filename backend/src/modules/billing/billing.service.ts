@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -15,6 +15,7 @@ export const CREDIT_PACKS: Record<string, { credits: number; amountCents: number
 
 @Injectable()
 export class BillingService {
+  private readonly logger = new Logger(BillingService.name);
   private stripe: Stripe | null = null;
 
   constructor(
@@ -135,6 +136,8 @@ export class BillingService {
       userId,
       credits,
       `Stripe purchase: ${credits} credits (session ${session.id})`,
+      session.id, // idempotency: same session won't be credited twice
     );
+    this.logger.log(`Credits added: userId=${userId} credits=${credits} session=${session.id}`);
   }
 }

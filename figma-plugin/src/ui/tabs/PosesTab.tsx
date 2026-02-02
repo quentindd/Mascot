@@ -106,7 +106,7 @@ export const PosesTab: React.FC<PosesTabProps> = ({
 
   return (
     <div>
-      <h2 className="select-mascot-step-title">Create a custom 🙂</h2>
+      <h2 className="select-mascot-step-title">Customize your mascot 🙂</h2>
       <p className="section-description">
         Give your mascot a pose or expression. Pick a quick custom below or describe your own in the prompt.
       </p>

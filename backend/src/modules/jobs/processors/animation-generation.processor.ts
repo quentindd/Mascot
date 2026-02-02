@@ -13,6 +13,7 @@ import * as ffmpeg from 'fluent-ffmpeg';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { removeBackground } from '../../../common/utils/background-removal.util';
 
 @Processor('animation-generation')
 export class AnimationGenerationProcessor extends WorkerHost {
@@ -92,31 +93,62 @@ export class AnimationGenerationProcessor extends WorkerHost {
       movVideoUrl = await this.storageService.uploadVideo(movKey, videoBuffer, ext);
       this.logger.log(`[AnimationGenerationProcessor] Primary video uploaded: ${movVideoUrl}`);
 
+      // Extract frames, remove background frame-by-frame, then build sprite/Lottie/WebM with transparency
       try {
-        webmVideoUrl = await this.convertMP4ToWebM(videoBuffer, animationId, timestamp);
-        this.logger.log(`[AnimationGenerationProcessor] WebM converted: ${webmVideoUrl}`);
-      } catch (convertError) {
-        this.logger.warn(`[AnimationGenerationProcessor] WebM conversion failed (non-critical):`, convertError);
-      }
+        const rawFrames = await this.extractFramesFromVideo(videoBuffer, frameCount);
+        if (rawFrames.length > 0) {
+          this.logger.log(`[AnimationGenerationProcessor] Removing background from ${rawFrames.length} frames...`);
+          const framesWithNoBg = await Promise.all(
+            rawFrames.map((frame) =>
+              removeBackground(frame, {
+                aggressive: true,
+                eraseSemiTransparentBorder: true,
+                borderAlphaThreshold: 160,
+                eraseWhiteOutline: true,
+                secondPass: true,
+              }),
+            ),
+          );
+          this.logger.log(`[AnimationGenerationProcessor] Background removed from all frames`);
 
-      try {
-        const frames = await this.extractFramesFromVideo(videoBuffer, frameCount);
-        if (frames.length > 0) {
-          spriteSheetUrl = await this.generateSpriteSheetFromFrames(frames, resolution, animationId, timestamp);
-          for (let i = 0; i < frames.length; i++) {
+          spriteSheetUrl = await this.generateSpriteSheetFromFrames(framesWithNoBg, resolution, animationId, timestamp);
+          for (let i = 0; i < framesWithNoBg.length; i++) {
             const frameKey = `animations/${animationId}/frame-${i + 1}-${timestamp}.png`;
-            frameUrls.push(await this.storageService.uploadImage(frameKey, frames[i]));
+            frameUrls.push(await this.storageService.uploadImage(frameKey, framesWithNoBg[i]));
           }
-          const lottieJson = this.generateLottieJson(frameUrls, resolution, frames.length);
+          const lottieJson = this.generateLottieJson(frameUrls, resolution, framesWithNoBg.length);
           const lottieKey = `animations/${animationId}/animation-${timestamp}.json`;
           lottieUrl = await this.storageService.uploadFile(
             lottieKey,
             Buffer.from(JSON.stringify(lottieJson, null, 2), 'utf-8'),
             'application/json',
           );
+
+          try {
+            webmVideoUrl = await this.generateWebMVideo(
+              framesWithNoBg,
+              resolution,
+              framesWithNoBg.length,
+              animationId,
+              timestamp,
+            );
+            this.logger.log(`[AnimationGenerationProcessor] WebM with alpha: ${webmVideoUrl}`);
+          } catch (webmError) {
+            this.logger.warn(`[AnimationGenerationProcessor] WebM with alpha failed (non-critical):`, webmError);
+          }
         }
       } catch (frameError) {
-        this.logger.warn(`[AnimationGenerationProcessor] Frame extraction failed (non-critical):`, frameError);
+        this.logger.warn(`[AnimationGenerationProcessor] Frame extraction/background removal failed (non-critical):`, frameError);
+      }
+
+      // Fallback WebM from raw MP4 if we have no transparent frames
+      if (!webmVideoUrl) {
+        try {
+          webmVideoUrl = await this.convertMP4ToWebM(videoBuffer, animationId, timestamp);
+          this.logger.log(`[AnimationGenerationProcessor] WebM (no alpha) fallback: ${webmVideoUrl}`);
+        } catch (convertError) {
+          this.logger.warn(`[AnimationGenerationProcessor] WebM conversion failed (non-critical):`, convertError);
+        }
       }
 
       // Fallback: ensure at least one frame URL for Figma (avoids "Image is too large" when sprite sheet is huge)
@@ -124,8 +156,13 @@ export class AnimationGenerationProcessor extends WorkerHost {
         try {
           const firstFrames = await this.extractFramesFromVideo(videoBuffer, 1);
           if (firstFrames.length > 0) {
+            const firstWithNoBg = await removeBackground(firstFrames[0], {
+              aggressive: true,
+              eraseSemiTransparentBorder: true,
+              secondPass: true,
+            });
             const firstFrameKey = `animations/${animationId}/frame-1-${timestamp}.png`;
-            frameUrls.push(await this.storageService.uploadImage(firstFrameKey, firstFrames[0]));
+            frameUrls.push(await this.storageService.uploadImage(firstFrameKey, firstWithNoBg));
             this.logger.log(`[AnimationGenerationProcessor] Uploaded fallback first frame for Figma`);
           }
         } catch (firstFrameError) {

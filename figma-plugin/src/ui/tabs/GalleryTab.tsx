@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { RPCClient } from '../rpc/client';
 
 function sortByCreatedAtDesc<T extends { createdAt?: string | Date | null; id?: string }>(items: T[]): T[] {
@@ -55,12 +55,22 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
   const sortedPoses = useMemo(() => sortByCreatedAtDesc(poses), [poses]);
   const [loading, setLoading] = useState(false);
   const [animationModal, setAnimationModal] = useState<any | null>(null);
-  const [linksCopied, setLinksCopied] = useState<'mp4' | 'webm' | null>(null);
   const [insertError, setInsertError] = useState<string | null>(null);
-  const [showGetLinks, setShowGetLinks] = useState(false);
   const [showIntegrationPanel, setShowIntegrationPanel] = useState(false);
   const [integrationTab, setIntegrationTab] = useState<'web' | 'ios' | 'android' | 'flutter' | 'react-native'>('web');
   const [codeCopied, setCodeCopied] = useState<string | null>(null);
+  const animationModalScrollRef = useRef<HTMLDivElement>(null);
+
+  // When Integration panel opens, scroll modal to bottom so it's visible
+  useEffect(() => {
+    if (showIntegrationPanel && animationModalScrollRef.current) {
+      const el = animationModalScrollRef.current;
+      const t = setTimeout(() => {
+        el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+      }, 80);
+      return () => clearTimeout(t);
+    }
+  }, [showIntegrationPanel]);
 
   // Animations are stored in App and updated via RPC; only UI-only events here
 
@@ -71,8 +81,6 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
 
   rpc.on('animation-deleted', (data: { animationId?: string; id?: string }) => {
     setAnimationModal(null);
-    setLinksCopied(null);
-    setShowGetLinks(false);
     setShowIntegrationPanel(false);
     console.log('[GalleryTab] Animation deleted:', data.animationId ?? data.id);
   });
@@ -253,8 +261,6 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
               if ((e.target as HTMLElement).closest('.delete-btn') || (e.target as HTMLElement).closest('.download-btn')) return;
               if (animation.status === 'completed') {
                 setInsertError(null);
-                setLinksCopied(null);
-                setShowGetLinks(false);
                 setShowIntegrationPanel(false);
                 setAnimationModal(animation);
               } else {
@@ -490,7 +496,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
           className={`filter-btn ${filter === 'poses' ? 'active' : ''}`}
           onClick={() => setFilter('poses')}
         >
-          Poses ({poses.length})
+          Custom ({poses.length})
         </button>
       </div>
 
@@ -518,7 +524,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
                 )}
                 {poses.length > 0 && (
                   <div className="gallery-section">
-                    <h3 className="gallery-section-title">Poses</h3>
+                    <h3 className="gallery-section-title">Custom</h3>
                     {renderPoses()}
                   </div>
                 )}
@@ -554,9 +560,10 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
             zIndex: 1000,
             padding: '16px',
           }}
-          onClick={() => { setAnimationModal(null); setLinksCopied(null); setInsertError(null); setShowGetLinks(false); setShowIntegrationPanel(false); }}
+          onClick={() => { setAnimationModal(null); setInsertError(null); setShowIntegrationPanel(false); }}
         >
           <div
+            ref={animationModalScrollRef}
             className="animation-modal"
             style={{
               background: '#fff',
@@ -586,7 +593,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
               </div>
               <button
                 type="button"
-                onClick={() => { setAnimationModal(null); setLinksCopied(null); setInsertError(null); setShowGetLinks(false); setShowIntegrationPanel(false); }}
+                onClick={() => { setAnimationModal(null); setInsertError(null); setShowIntegrationPanel(false); }}
                 style={{
                   border: 'none',
                   background: '#f3f4f6',
@@ -650,43 +657,12 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
                 borderRadius: '12px',
                 boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
               }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600, color: '#111' }}>
-                    <span style={{ opacity: 0.7 }}>⬇</span> Available Formats
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      style={{ fontSize: '11px', padding: '6px 10px' }}
-                      onClick={() => {
-                        const url = animationModal.movVideoUrl || animationModal.webmVideoUrl;
-                        if (url) rpc.send('open-url', { url });
-                      }}
-                    >
-                      Export
-                    </button>
-                    <button
-                      type="button"
-                      style={{
-                        fontSize: '11px',
-                        padding: '6px 10px',
-                        background: '#ea580c',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        fontWeight: 500,
-                      }}
-                      onClick={() => setShowGetLinks(!showGetLinks)}
-                    >
-                      Get Links
-                    </button>
-                  </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px', fontSize: '12px', fontWeight: 600, color: '#111' }}>
+                  <span style={{ opacity: 0.7 }}>⬇</span> Available Formats
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {animationModal.movVideoUrl && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: '#fff7ed', borderRadius: '8px', border: '1px solid #ffedd5' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
                       <div>
                         <div style={{ fontSize: '11px', fontWeight: 600, color: '#111' }}>Video</div>
                         <div style={{ fontSize: '10px', color: '#6b7280', marginTop: '2px' }}>Original MP4</div>
@@ -697,7 +673,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
                     </div>
                   )}
                   {animationModal.webmVideoUrl && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: '#fff7ed', borderRadius: '8px', border: '1px solid #ffedd5' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
                       <div>
                         <div style={{ fontSize: '11px', fontWeight: 600, color: '#111' }}>Transparent Video for Android/Chrome</div>
                         <div style={{ fontSize: '10px', color: '#6b7280', marginTop: '2px' }}>WebM VP9</div>
@@ -708,7 +684,7 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
                     </div>
                   )}
                   {animationModal.movVideoUrl && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: '#fff7ed', borderRadius: '8px', border: '1px solid #ffedd5' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
                       <div>
                         <div style={{ fontSize: '11px', fontWeight: 600, color: '#111' }}>Transparent Video for Safari/iOS</div>
                         <div style={{ fontSize: '10px', color: '#6b7280', marginTop: '2px' }}>HEVC .mov transparent video</div>
@@ -719,42 +695,6 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
                     </div>
                   )}
                 </div>
-                {showGetLinks && (
-                  <div style={{ marginTop: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    {animationModal.movVideoUrl && (
-                      <button
-                        type="button"
-                        className="btn-secondary"
-                        style={{ fontSize: '11px', padding: '8px 12px' }}
-                        onClick={() => {
-                          if (navigator.clipboard?.writeText) {
-                            navigator.clipboard.writeText(animationModal.movVideoUrl);
-                            setLinksCopied('mp4');
-                            setTimeout(() => setLinksCopied(null), 2000);
-                          }
-                        }}
-                      >
-                        {linksCopied === 'mp4' ? '✓ MP4 link copied' : 'Copy MP4 link'}
-                      </button>
-                    )}
-                    {animationModal.webmVideoUrl && (
-                      <button
-                        type="button"
-                        className="btn-secondary"
-                        style={{ fontSize: '11px', padding: '8px 12px' }}
-                        onClick={() => {
-                          if (navigator.clipboard?.writeText) {
-                            navigator.clipboard.writeText(animationModal.webmVideoUrl);
-                            setLinksCopied('webm');
-                            setTimeout(() => setLinksCopied(null), 2000);
-                          }
-                        }}
-                      >
-                        {linksCopied === 'webm' ? '✓ WebM link copied' : 'Copy WebM link'}
-                      </button>
-                    )}
-                  </div>
-                )}
               </div>
 
               {/* 3. Actions — third card, buttons in a row like reference */}
@@ -769,17 +709,6 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
                   Actions
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'row', gap: '8px', flexWrap: 'wrap' }}>
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', fontSize: '11px', padding: '10px 14px', flex: '1 1 auto', minWidth: 0 }}
-                    onClick={() => {
-                      const url = animationModal.movVideoUrl || animationModal.webmVideoUrl;
-                      if (url) rpc.send('open-url', { url });
-                    }}
-                  >
-                    <span>⬇</span> Download
-                  </button>
                   {animationModal.metadata?.frameUrls?.length ? (
                     <button
                       type="button"
@@ -800,30 +729,6 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
                     onClick={() => setShowIntegrationPanel(!showIntegrationPanel)}
                   >
                     <span style={{ fontSize: '12px' }}>&lt; / &gt;</span> Integration
-                  </button>
-                  <button
-                    type="button"
-                    className="gallery-download-btn"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      justifyContent: 'center',
-                      fontSize: '11px',
-                      padding: '10px 14px',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      flex: '1 1 auto',
-                      minWidth: 0,
-                      border: 'none',
-                    }}
-                    onClick={() => {
-                      const url = animationModal.movVideoUrl || animationModal.webmVideoUrl || animationModal.metadata?.movVideoUrl;
-                      if (url) openDownload(url);
-                    }}
-                  >
-                    <DownloadIcon size={12} />
-                    Download
                   </button>
                   <button
                     type="button"
@@ -861,23 +766,34 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
 
             {/* Integration panel: tabs Web / iOS / Android / Flutter / React Native + code snippets */}
             {showIntegrationPanel && (
-              <div style={{ padding: '0 16px 16px', borderTop: '1px solid #eee' }}>
-                <div style={{ display: 'flex', gap: '4px', marginBottom: '12px', flexWrap: 'wrap' }}>
+              <div
+                className="integration-panel"
+                style={{
+                  padding: '12px 16px 16px',
+                  borderTop: '1px solid #e5e5e5',
+                  background: '#ffffff',
+                  fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                  fontSize: '13px',
+                  color: '#111',
+                }}
+              >
+                <div style={{ display: 'flex', gap: '6px', marginBottom: '14px', flexWrap: 'wrap' }}>
                   {(['web', 'ios', 'android', 'flutter', 'react-native'] as const).map((tab) => (
                     <button
                       key={tab}
                       type="button"
                       onClick={() => { setIntegrationTab(tab); setCodeCopied(null); }}
                       style={{
-                        padding: '6px 10px',
-                        fontSize: '10px',
-                        fontWeight: 500,
+                        padding: '8px 14px',
+                        fontSize: '13px',
+                        fontWeight: 600,
                         border: '1px solid #e5e7eb',
-                        borderRadius: '6px',
+                        borderRadius: '8px',
                         background: integrationTab === tab ? '#111' : '#fff',
                         color: integrationTab === tab ? '#fff' : '#374151',
                         cursor: 'pointer',
                         textTransform: 'capitalize',
+                        fontFamily: 'inherit',
                       }}
                     >
                       {tab === 'react-native' ? 'React Native' : tab === 'ios' ? 'iOS' : tab === 'android' ? 'Android' : tab === 'web' ? 'Web' : 'Flutter'}
@@ -886,8 +802,8 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
                 </div>
                 {integrationTab === 'web' && (
                   <>
-                    <div style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280', marginBottom: '6px' }}>React (TSX)</div>
-                    <pre style={{ background: '#1f2937', color: '#e5e7eb', padding: '10px', borderRadius: '8px', fontSize: '10px', overflow: 'auto', maxHeight: '140px', margin: '0 0 12px', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '8px', fontFamily: 'inherit' }}>React (TSX)</div>
+                    <pre style={{ background: '#f5f5f5', color: '#111', padding: '12px', borderRadius: '8px', fontSize: '12px', overflow: 'auto', maxHeight: '160px', margin: '0 0 14px', whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontFamily: 'Inter, "SF Mono", Monaco, monospace', border: '1px solid #e5e5e5' }}>
                       {`export function TransparentVideo() {
   return (
     <video autoPlay loop muted playsInline>
@@ -898,58 +814,58 @@ export const GalleryTab: React.FC<GalleryTabProps> = ({
   );
 }`}
                     </pre>
-                    <button type="button" className="btn-secondary" style={{ fontSize: '10px', padding: '6px 10px', marginBottom: '12px' }} onClick={() => { if (navigator.clipboard?.writeText) { const code = `export function TransparentVideo() {\n  return (\n    <video autoPlay loop muted playsInline>\n      <source src="${animationModal.movVideoUrl || ''}" type="video/mp4" />\n      <source src="${animationModal.webmVideoUrl || ''}" type="video/webm" />\n    </video>\n  );\n}`; navigator.clipboard.writeText(code); setCodeCopied('web-react'); setTimeout(() => setCodeCopied(null), 2000); } }}>
+                    <button type="button" className="btn-secondary" style={{ fontSize: '13px', padding: '8px 14px', marginBottom: '14px', fontFamily: 'inherit' }} onClick={() => { if (navigator.clipboard?.writeText) { const code = `export function TransparentVideo() {\n  return (\n    <video autoPlay loop muted playsInline>\n      <source src="${animationModal.movVideoUrl || ''}" type="video/mp4" />\n      <source src="${animationModal.webmVideoUrl || ''}" type="video/webm" />\n    </video>\n  );\n}`; navigator.clipboard.writeText(code); setCodeCopied('web-react'); setTimeout(() => setCodeCopied(null), 2000); } }}>
                       {codeCopied === 'web-react' ? '✓ Copied' : 'Copy'}
                     </button>
-                    <div style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280', marginBottom: '6px' }}>Vanilla HTML</div>
-                    <pre style={{ background: '#1f2937', color: '#e5e7eb', padding: '10px', borderRadius: '8px', fontSize: '10px', overflow: 'auto', maxHeight: '120px', margin: '0 0 12px', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '8px', fontFamily: 'inherit' }}>Vanilla HTML</div>
+                    <pre style={{ background: '#f5f5f5', color: '#111', padding: '12px', borderRadius: '8px', fontSize: '12px', overflow: 'auto', maxHeight: '140px', margin: '0 0 14px', whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontFamily: 'Inter, "SF Mono", Monaco, monospace', border: '1px solid #e5e5e5' }}>
                       {`<video autoplay loop muted playsinline>\n  <source src="${animationModal.movVideoUrl || ''}" type="video/mp4" />\n  <source src="${animationModal.webmVideoUrl || ''}" type="video/webm" />\n</video>`}
                     </pre>
-                    <button type="button" className="btn-secondary" style={{ fontSize: '10px', padding: '6px 10px' }} onClick={() => { if (navigator.clipboard?.writeText) { const code = `<video autoplay loop muted playsinline>\n  <source src="${animationModal.movVideoUrl || ''}" type="video/mp4" />\n  <source src="${animationModal.webmVideoUrl || ''}" type="video/webm" />\n</video>`; navigator.clipboard.writeText(code); setCodeCopied('web-html'); setTimeout(() => setCodeCopied(null), 2000); } }}>
+                    <button type="button" className="btn-secondary" style={{ fontSize: '13px', padding: '8px 14px', fontFamily: 'inherit' }} onClick={() => { if (navigator.clipboard?.writeText) { const code = `<video autoplay loop muted playsinline>\n  <source src="${animationModal.movVideoUrl || ''}" type="video/mp4" />\n  <source src="${animationModal.webmVideoUrl || ''}" type="video/webm" />\n</video>`; navigator.clipboard.writeText(code); setCodeCopied('web-html'); setTimeout(() => setCodeCopied(null), 2000); } }}>
                       {codeCopied === 'web-html' ? '✓ Copied' : 'Copy'}
                     </button>
                   </>
                 )}
                 {integrationTab === 'ios' && (
                   <>
-                    <div style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280', marginBottom: '6px' }}>Swift (AVPlayer)</div>
-                    <pre style={{ background: '#1f2937', color: '#e5e7eb', padding: '10px', borderRadius: '8px', fontSize: '10px', overflow: 'auto', maxHeight: '200px', margin: '0 0 12px', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '8px', fontFamily: 'inherit' }}>Swift (AVPlayer)</div>
+                    <pre style={{ background: '#f5f5f5', color: '#111', padding: '12px', borderRadius: '8px', fontSize: '12px', overflow: 'auto', maxHeight: '220px', margin: '0 0 14px', whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontFamily: 'Inter, "SF Mono", Monaco, monospace', border: '1px solid #e5e5e5' }}>
                       {`import AVFoundation\nimport AVKit\n\nclass TransparentVideoView: UIView {\n  private var player: AVPlayer?\n  private var playerLayer: AVPlayerLayer?\n\n  func play(url: URL) {\n    // HEVC with alpha is natively supported on iOS\n    player = AVPlayer(url: url)\n    playerLayer = AVPlayerLayer(player: player)\n    playerLayer?.videoGravity = .resizeAspect\n    playerLayer?.frame = bounds\n    layer.addSublayer(playerLayer!)\n    player?.play()\n  }\n}\n\n// Usage: use MP4/HEVC URL for Safari/iOS\n// ${animationModal.movVideoUrl || 'YOUR_VIDEO_URL'}`}
                     </pre>
-                    <button type="button" className="btn-secondary" style={{ fontSize: '10px', padding: '6px 10px' }} onClick={() => { if (navigator.clipboard?.writeText) { const code = `import AVFoundation\nimport AVKit\n\nclass TransparentVideoView: UIView {\n  private var player: AVPlayer?\n  private var playerLayer: AVPlayerLayer?\n\n  func play(url: URL) {\n    player = AVPlayer(url: url)\n    playerLayer = AVPlayerLayer(player: player)\n    playerLayer?.videoGravity = .resizeAspect\n    playerLayer?.frame = bounds\n    layer.addSublayer(playerLayer!)\n    player?.play()\n  }\n}\n// URL: ${animationModal.movVideoUrl || ''}`; navigator.clipboard.writeText(code); setCodeCopied('ios'); setTimeout(() => setCodeCopied(null), 2000); } }}>
+                    <button type="button" className="btn-secondary" style={{ fontSize: '13px', padding: '8px 14px', fontFamily: 'inherit' }} onClick={() => { if (navigator.clipboard?.writeText) { const code = `import AVFoundation\nimport AVKit\n\nclass TransparentVideoView: UIView {\n  private var player: AVPlayer?\n  private var playerLayer: AVPlayerLayer?\n\n  func play(url: URL) {\n    player = AVPlayer(url: url)\n    playerLayer = AVPlayerLayer(player: player)\n    playerLayer?.videoGravity = .resizeAspect\n    playerLayer?.frame = bounds\n    layer.addSublayer(playerLayer!)\n    player?.play()\n  }\n}\n// URL: ${animationModal.movVideoUrl || ''}`; navigator.clipboard.writeText(code); setCodeCopied('ios'); setTimeout(() => setCodeCopied(null), 2000); } }}>
                       {codeCopied === 'ios' ? '✓ Copied' : 'Copy'}
                     </button>
                   </>
                 )}
                 {integrationTab === 'android' && (
                   <>
-                    <div style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280', marginBottom: '6px' }}>Kotlin (ExoPlayer)</div>
-                    <pre style={{ background: '#1f2937', color: '#e5e7eb', padding: '10px', borderRadius: '8px', fontSize: '10px', overflow: 'auto', maxHeight: '160px', margin: '0 0 12px', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '8px', fontFamily: 'inherit' }}>Kotlin (ExoPlayer)</div>
+                    <pre style={{ background: '#f5f5f5', color: '#111', padding: '12px', borderRadius: '8px', fontSize: '12px', overflow: 'auto', maxHeight: '180px', margin: '0 0 14px', whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontFamily: 'Inter, "SF Mono", Monaco, monospace', border: '1px solid #e5e5e5' }}>
                       {`// Use WebM VP9 for Android (transparent)\n// URL: ${animationModal.webmVideoUrl || 'YOUR_WEBM_URL'}\n\n// ExoPlayer with alpha support - use build.gradle:\n// implementation "com.google.android.exoplayer:exoplayer:2.x.x"\n// In your View: PlayerView + MediaItem.fromUri(videoUrl)`}
                     </pre>
-                    <button type="button" className="btn-secondary" style={{ fontSize: '10px', padding: '6px 10px' }} onClick={() => { if (navigator.clipboard?.writeText) { const code = `// WebM VP9 URL for Android: ${animationModal.webmVideoUrl || ''}`; navigator.clipboard.writeText(code); setCodeCopied('android'); setTimeout(() => setCodeCopied(null), 2000); } }}>
+                    <button type="button" className="btn-secondary" style={{ fontSize: '13px', padding: '8px 14px', fontFamily: 'inherit' }} onClick={() => { if (navigator.clipboard?.writeText) { const code = `// WebM VP9 URL for Android: ${animationModal.webmVideoUrl || ''}`; navigator.clipboard.writeText(code); setCodeCopied('android'); setTimeout(() => setCodeCopied(null), 2000); } }}>
                       {codeCopied === 'android' ? '✓ Copied' : 'Copy'}
                     </button>
                   </>
                 )}
                 {integrationTab === 'flutter' && (
                   <>
-                    <div style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280', marginBottom: '6px' }}>Dart (video_player)</div>
-                    <pre style={{ background: '#1f2937', color: '#e5e7eb', padding: '10px', borderRadius: '8px', fontSize: '10px', overflow: 'auto', maxHeight: '160px', margin: '0 0 12px', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '8px', fontFamily: 'inherit' }}>Dart (video_player)</div>
+                    <pre style={{ background: '#f5f5f5', color: '#111', padding: '12px', borderRadius: '8px', fontSize: '12px', overflow: 'auto', maxHeight: '180px', margin: '0 0 14px', whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontFamily: 'Inter, "SF Mono", Monaco, monospace', border: '1px solid #e5e5e5' }}>
                       {`// MP4: ${animationModal.movVideoUrl || ''}\n// WebM: ${animationModal.webmVideoUrl || ''}\n\n// Use video_player or chewie. Platform: iOS -> MP4, Android -> WebM\nVideoPlayer(controller)\n  ..setLooping(true)\n  ..play();`}
                     </pre>
-                    <button type="button" className="btn-secondary" style={{ fontSize: '10px', padding: '6px 10px' }} onClick={() => { if (navigator.clipboard?.writeText) { const code = `// MP4 (iOS): ${animationModal.movVideoUrl || ''}\n// WebM (Android): ${animationModal.webmVideoUrl || ''}`; navigator.clipboard.writeText(code); setCodeCopied('flutter'); setTimeout(() => setCodeCopied(null), 2000); } }}>
+                    <button type="button" className="btn-secondary" style={{ fontSize: '13px', padding: '8px 14px', fontFamily: 'inherit' }} onClick={() => { if (navigator.clipboard?.writeText) { const code = `// MP4 (iOS): ${animationModal.movVideoUrl || ''}\n// WebM (Android): ${animationModal.webmVideoUrl || ''}`; navigator.clipboard.writeText(code); setCodeCopied('flutter'); setTimeout(() => setCodeCopied(null), 2000); } }}>
                       {codeCopied === 'flutter' ? '✓ Copied' : 'Copy'}
                     </button>
                   </>
                 )}
                 {integrationTab === 'react-native' && (
                   <>
-                    <div style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280', marginBottom: '6px' }}>Streaming from URL</div>
-                    <pre style={{ background: '#1f2937', color: '#e5e7eb', padding: '10px', borderRadius: '8px', fontSize: '10px', overflow: 'auto', maxHeight: '200px', margin: '0 0 12px', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '8px', fontFamily: 'inherit' }}>Streaming from URL</div>
+                    <pre style={{ background: '#f5f5f5', color: '#111', padding: '12px', borderRadius: '8px', fontSize: '12px', overflow: 'auto', maxHeight: '220px', margin: '0 0 14px', whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontFamily: 'Inter, "SF Mono", Monaco, monospace', border: '1px solid #e5e5e5' }}>
                       {`import { Platform, StyleSheet, View } from 'react-native';\nimport Video from 'react-native-video';\n\nexport function TransparentVideo() {\n  const videoUrl = Platform.select({\n    ios: '${animationModal.movVideoUrl || ''}',\n    android: '${animationModal.webmVideoUrl || ''}',\n  });\n  return (\n    <View style={styles.container}>\n      <Video source={{ uri: videoUrl }} style={styles.video} repeat resizeMode="contain" />\n    </View>\n  );\n}`}
                     </pre>
-                    <button type="button" className="btn-secondary" style={{ fontSize: '10px', padding: '6px 10px' }} onClick={() => { if (navigator.clipboard?.writeText) { const code = `import { Platform, StyleSheet, View } from 'react-native';\nimport Video from 'react-native-video';\n\nexport function TransparentVideo() {\n  const videoUrl = Platform.select({\n    ios: '${animationModal.movVideoUrl || ''}',\n    android: '${animationModal.webmVideoUrl || ''}',\n  });\n  return (\n    <View style={styles.container}>\n      <Video source={{ uri: videoUrl }} style={styles.video} repeat resizeMode="contain" />\n    </View>\n  );\n}`; navigator.clipboard.writeText(code); setCodeCopied('rn'); setTimeout(() => setCodeCopied(null), 2000); } }}>
+                    <button type="button" className="btn-secondary" style={{ fontSize: '13px', padding: '8px 14px', fontFamily: 'inherit' }} onClick={() => { if (navigator.clipboard?.writeText) { const code = `import { Platform, StyleSheet, View } from 'react-native';\nimport Video from 'react-native-video';\n\nexport function TransparentVideo() {\n  const videoUrl = Platform.select({\n    ios: '${animationModal.movVideoUrl || ''}',\n    android: '${animationModal.webmVideoUrl || ''}',\n  });\n  return (\n    <View style={styles.container}>\n      <Video source={{ uri: videoUrl }} style={styles.video} repeat resizeMode="contain" />\n    </View>\n  );\n}`; navigator.clipboard.writeText(code); setCodeCopied('rn'); setTimeout(() => setCodeCopied(null), 2000); } }}>
                       {codeCopied === 'rn' ? '✓ Copied' : 'Copy'}
                     </button>
                   </>

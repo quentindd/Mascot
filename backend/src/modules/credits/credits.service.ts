@@ -77,22 +77,38 @@ export class CreditsService {
   }
 
   /**
-   * Add credits to a user (admin function)
+   * Add credits to a user (purchase, admin, etc.).
+   * @param referenceId Optional idempotency key (e.g. Stripe session id) – if set and already exists, no-op.
    */
-  async addCredits(userId: string, amount: number, description?: string): Promise<void> {
+  async addCredits(
+    userId: string,
+    amount: number,
+    description?: string,
+    referenceId?: string,
+  ): Promise<void> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new Error('User not found');
     }
 
+    if (referenceId) {
+      const existing = await this.ledgerRepository.findOne({
+        where: { userId, referenceId, type: CreditTransactionType.PURCHASE },
+      });
+      if (existing) {
+        return; // Already processed (idempotent)
+      }
+    }
+
     // Create ledger entry
     const ledger = this.ledgerRepository.create({
       userId,
-      type: CreditTransactionType.PURCHASE, // or MANUAL
+      type: CreditTransactionType.PURCHASE,
       amount: amount,
       balanceAfter: user.creditBalance + amount,
       status: CreditTransactionStatus.COMPLETED,
       description: description || `Added ${amount} credits manually`,
+      referenceId: referenceId ?? undefined,
     });
 
     await this.ledgerRepository.save(ledger);

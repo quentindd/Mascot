@@ -9,7 +9,6 @@ import { StorageService } from '../../storage/storage.service';
 import { CreditsService } from '../../credits/credits.service';
 import { Logger } from '@nestjs/common';
 import * as sharp from 'sharp';
-import { removeBackground } from '../../../common/utils/background-removal.util';
 
 @Processor('mascot-generation', {
   concurrency: 3, // Process up to 3 jobs in parallel (one per variation)
@@ -103,26 +102,31 @@ export class MascotGenerationProcessor extends WorkerHost {
       const generationTime = Date.now() - generationStartTime;
       this.logger.log(`[MascotGenerationProcessor] Gemini Flash API completed for variation ${variationIndex || 1} in ${generationTime}ms`);
 
-      // Remove background: always try Replicate rembg-enhance first, then local cleanup
-      this.logger.log('Removing background from generated image (rembg-enhance then local)...');
-      try {
-        imageBuffer = await this.replicateService.removeBackgroundReplicate(imageBuffer);
-        this.logger.log('[MascotGenerationProcessor] Background removal (rembg-enhance) completed');
-      } catch (rembgErr) {
-        this.logger.warn(
-          '[MascotGenerationProcessor] rembg-enhance failed (REPLICATE_API_TOKEN or API error), using local removal only:',
-          rembgErr instanceof Error ? rembgErr.message : rembgErr,
-        );
+      // Remove background: only rembg-enhance. No image is saved or shown until rembg succeeds.
+      this.logger.log('Removing background (rembg-enhance only)...');
+      let imageBufferAfterRembg: Buffer | null = null;
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          imageBufferAfterRembg = await this.replicateService.removeBackgroundReplicate(imageBuffer);
+          this.logger.log(`[MascotGenerationProcessor] rembg-enhance completed (attempt ${attempt})`);
+          break;
+        } catch (rembgErr) {
+          this.logger.warn(
+            `[MascotGenerationProcessor] rembg-enhance attempt ${attempt} failed:`,
+            rembgErr instanceof Error ? rembgErr.message : rembgErr,
+          );
+          if (attempt === 2) {
+            throw new Error(
+              'Background removal (rembg-enhance) failed. No image will be shown. Please try again.',
+            );
+          }
+          await new Promise((r) => setTimeout(r, 2000));
+        }
       }
-      imageBuffer = await removeBackground(imageBuffer, {
-        aggressive: false, // preserve fur/hair edges
-        eraseSemiTransparentBorder: true,
-        borderAlphaThreshold: 100, // only clear halo, not semi-transparent fur
-        eraseWhiteOutline: true,
-        whitenNearWhite: true, // fix gray stains in eye whites / near-white areas from generation or rembg
-        fillSmallTransparentHoles: true, // fill eyes (or other small holes) removed by rembg with white
-      });
-      this.logger.log('Background removal completed');
+      if (!imageBufferAfterRembg) {
+        throw new Error('Background removal (rembg-enhance) failed. No image will be shown.');
+      }
+      imageBuffer = imageBufferAfterRembg;
 
       // Generate different sizes (full body, avatar, square icon)
       const transparentBackground = { r: 0, g: 0, b: 0, alpha: 0 };

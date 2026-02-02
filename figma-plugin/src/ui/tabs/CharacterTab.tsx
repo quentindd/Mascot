@@ -154,8 +154,8 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
           setSuccess(`Created ${data.variations.length} variations! Select one below.`);
         } else {
           setSuccess(`Created ${data.variations.length} variations! Mascot + background removal…`);
-          // Start polling after a short delay so backend has time to process
-          setTimeout(() => pollForVariationImages(batchId), 1500);
+          // Start polling soon so we pick up completed variations quickly (backend: rembg + upload)
+          setTimeout(() => pollForVariationImages(batchId), 800);
         }
       } else {
         if (hasImages) {
@@ -182,7 +182,7 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
   const currentBatchIdRef = useRef<string | null>(null);
   const pollingStoppedRef = useRef<boolean>(false);
 
-  // Poll for variation images (max 60 attempts = 5 minutes with 5s interval)
+  // Poll for variation images every 2s so we show results soon after rembg + upload (max 90 attempts = 3 min)
   const pollForVariationImages = (batchId: string) => {
     // Prevent duplicate polling for the same batch
     if (currentBatchIdRef.current === batchId && pollingTimeoutRef.current) {
@@ -190,12 +190,13 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
       return;
     }
     stopPolling(); // Clear any existing polling
-    const maxAttempts = 60; // 5 minutes max (60 × 5s)
+    const maxAttempts = 90; // 3 min max (90 × 2s)
+    const pollIntervalMs = 2000; // Check every 2s so completed variations appear quickly
     pollingAttemptsRef.current = 0;
     currentBatchIdRef.current = batchId;
     pollingStoppedRef.current = false;
 
-    console.log('[Mascot] Starting to poll for batch variations:', batchId);
+    console.log('[Mascot] Starting to poll for batch variations (every', pollIntervalMs / 1000, 's):', batchId);
 
     const poll = () => {
       // Check if polling was stopped or batch changed
@@ -214,9 +215,9 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
       console.log(`[Mascot] Polling attempt ${pollingAttemptsRef.current + 1}/${maxAttempts} for batch:`, batchId);
       rpc.send('get-batch-variations', { batchId });
       pollingAttemptsRef.current++;
-      
-      // Continue polling after 5 seconds
-      pollingTimeoutRef.current = setTimeout(poll, 5000);
+
+      // Next poll in 2s so we pick up completed state soon after backend finishes (rembg + upload)
+      pollingTimeoutRef.current = setTimeout(poll, pollIntervalMs);
     };
 
     // Start after initial delay (1.5s already set in mascot-generated handler)
@@ -233,53 +234,45 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
     currentBatchIdRef.current = null;
   };
 
-  useEffect(() => {
-    return () => {
+  // Single listener for batch-variations-loaded (avoid duplicate handlers per render = fewer logs, stop polling once)
+  const onBatchVariationsLoaded = React.useCallback((data: { variations: any[] }) => {
+    if (!data.variations || data.variations.length === 0) return;
+    const allTerminal = data.variations.every(v =>
+      v.status === 'completed' || v.status === 'failed'
+    );
+    const readyCount = data.variations.filter(v =>
+      v.status === 'completed' && (v.fullBodyImageUrl || v.avatarImageUrl || v.imageUrl)
+    ).length;
+    const failedCount = data.variations.filter(v => v.status === 'failed').length;
+    const allHaveImages = data.variations.every(v =>
+      v.status === 'completed' && !!(v.fullBodyImageUrl || v.avatarImageUrl || v.imageUrl)
+    );
+
+    setGeneratedVariations(data.variations);
+
+    if (allTerminal) {
       stopPolling();
-    };
+      if (failedCount > 0) {
+        setSuccess(`Created ${data.variations.length} variations! ${readyCount} ready, ${failedCount} failed.`);
+      } else if (allHaveImages) {
+        setSuccess(`Created ${data.variations.length} variations! Select one below.`);
+      } else {
+        setSuccess(`Created ${data.variations.length} variations! ${readyCount} ready.`);
+      }
+    } else if (readyCount > 0) {
+      setSuccess(`Created ${data.variations.length} variations! ${readyCount}/${data.variations.length} ready...`);
+    } else {
+      setSuccess(`Created ${data.variations.length} variations! Mascot + background removal…`);
+    }
   }, []);
 
-  // Listen for batch variations updates
-  rpc.on('batch-variations-loaded', (data: { variations: any[] }) => {
-    console.log('[Mascot] Batch variations loaded:', data.variations ? data.variations.length : 0);
-    if (data.variations && data.variations.length > 0) {
-      // Terminal states: completed or failed (no more processing expected)
-      const allTerminal = data.variations.every(v =>
-        v.status === 'completed' || v.status === 'failed'
-      );
-      // Only consider images when status is completed (after rembg)
-      const allHaveImages = data.variations.every(v =>
-        v.status === 'completed' && !!(v.fullBodyImageUrl || v.avatarImageUrl || v.imageUrl)
-      );
-      const readyCount = data.variations.filter(v =>
-        v.status === 'completed' && (v.fullBodyImageUrl || v.avatarImageUrl || v.imageUrl)
-      ).length;
-      const failedCount = data.variations.filter(v => v.status === 'failed').length;
-      
-      console.log(`[Mascot] Variations: ${readyCount} ready, ${failedCount} failed, allTerminal=${allTerminal}`);
-      
-      // Always update the variations (even if images aren't ready yet)
-      setGeneratedVariations(data.variations);
-      
-      if (allTerminal) {
-        // All variations are in terminal state - stop polling
-        stopPolling();
-        if (failedCount > 0) {
-          setSuccess(`Created ${data.variations.length} variations! ${readyCount} ready, ${failedCount} failed.`);
-        } else if (allHaveImages) {
-          setSuccess(`Created ${data.variations.length} variations! Select one below.`);
-        } else {
-          setSuccess(`Created ${data.variations.length} variations! ${readyCount} ready.`);
-        }
-      } else if (readyCount > 0) {
-        // Some have images - show progress
-        setSuccess(`Created ${data.variations.length} variations! ${readyCount}/${data.variations.length} ready...`);
-      } else {
-        // Still waiting for images - continue polling
-        setSuccess(`Created ${data.variations.length} variations! Mascot + background removal…`);
-      }
-    }
-  });
+  useEffect(() => {
+    rpc.on('batch-variations-loaded', onBatchVariationsLoaded);
+    return () => {
+      rpc.off('batch-variations-loaded', onBatchVariationsLoaded);
+      stopPolling();
+    };
+  }, [rpc, onBatchVariationsLoaded]);
 
   const handleGenerate = () => {
     if (!name.trim() || !prompt.trim()) {

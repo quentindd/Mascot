@@ -128,88 +128,43 @@ export class MascotGenerationProcessor extends WorkerHost {
       }
       imageBuffer = imageBufferAfterRembg;
 
-      // Generate different sizes (full body, avatar, square icon)
+      // Single size: full body 1024x1024 (plugin only shows this; pose/animation use same URL as fallback)
       const transparentBackground = { r: 0, g: 0, b: 0, alpha: 0 };
-      
       const fullBodyBuffer = await sharp(imageBuffer)
         .ensureAlpha()
-        .resize(1024, 1024, { 
-          fit: 'contain', 
+        .resize(1024, 1024, {
+          fit: 'contain',
           background: transparentBackground,
-          withoutEnlargement: true 
+          withoutEnlargement: true,
         })
-        .png({ 
-          compressionLevel: 9, 
-          quality: 100, 
-          palette: false, 
+        .png({
+          compressionLevel: 9,
+          quality: 100,
+          palette: false,
           adaptiveFiltering: true,
-          force: true 
+          force: true,
         })
         .toBuffer();
 
-      const avatarBuffer = await sharp(imageBuffer)
-        .ensureAlpha()
-        .resize(512, 512, { 
-          fit: 'cover', 
-          background: transparentBackground,
-          withoutEnlargement: true 
-        })
-        .png({ 
-          compressionLevel: 9, 
-          quality: 100, 
-          palette: false, 
-          adaptiveFiltering: true,
-          force: true 
-        })
-        .toBuffer();
-
-      const squareIconBuffer = await sharp(imageBuffer)
-        .ensureAlpha()
-        .resize(256, 256, { 
-          fit: 'cover', 
-          background: transparentBackground,
-          withoutEnlargement: true 
-        })
-        .png({ 
-          compressionLevel: 9, 
-          quality: 100, 
-          palette: false, 
-          adaptiveFiltering: true,
-          force: true 
-        })
-        .toBuffer();
-
-      // Upload to S3/CDN
       const timestamp = Date.now();
       const baseKey = `mascots/${mascotId}`;
-
       let fullBodyUrl: string | null = null;
-      let avatarUrl: string | null = null;
-      let squareIconUrl: string | null = null;
 
       try {
         fullBodyUrl = await this.storageService.uploadImage(
           `${baseKey}/full-body-${timestamp}.png`,
           fullBodyBuffer,
         );
-
-        avatarUrl = await this.storageService.uploadImage(
-          `${baseKey}/avatar-${timestamp}.png`,
-          avatarBuffer,
-        );
-
-        squareIconUrl = await this.storageService.uploadImage(
-          `${baseKey}/square-icon-${timestamp}.png`,
-          squareIconBuffer,
-        );
-
-        this.logger.log(`Successfully uploaded images for mascot ${mascotId}`);
+        this.logger.log(`Successfully uploaded full-body image for mascot ${mascotId}`);
       } catch (uploadError) {
-        this.logger.error(`Failed to upload images for mascot ${mascotId}:`, uploadError);
+        this.logger.error(`Failed to upload image for mascot ${mascotId}:`, uploadError);
         this.logger.error('Upload error:', uploadError instanceof Error ? uploadError.message : String(uploadError));
-        // Continue anyway - images are generated, just not uploaded
-        // The URLs will be null, but the generation succeeded
+        throw uploadError;
       }
+
+      // Same URL for avatar/squareIcon so pose & animation backends keep working
+      const avatarUrl = fullBodyUrl;
+      const squareIconUrl = fullBodyUrl;
 
       // Update mascot record
       await this.mascotRepository.update(mascotId, {

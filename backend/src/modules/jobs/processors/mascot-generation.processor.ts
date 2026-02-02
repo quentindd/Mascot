@@ -11,7 +11,7 @@ import { Logger } from '@nestjs/common';
 import * as sharp from 'sharp';
 
 @Processor('mascot-generation', {
-  concurrency: 3, // Process up to 3 jobs in parallel (one per variation)
+  concurrency: 1, // One at a time to avoid Gemini 429 and Replicate rate limit (6/min when <$5)
 })
 export class MascotGenerationProcessor extends WorkerHost {
   private readonly logger = new Logger(MascotGenerationProcessor.name);
@@ -111,16 +111,18 @@ export class MascotGenerationProcessor extends WorkerHost {
           this.logger.log(`[MascotGenerationProcessor] rembg-enhance completed (attempt ${attempt})`);
           break;
         } catch (rembgErr) {
-          this.logger.warn(
-            `[MascotGenerationProcessor] rembg-enhance attempt ${attempt} failed:`,
-            rembgErr instanceof Error ? rembgErr.message : rembgErr,
-          );
+          const msg = rembgErr instanceof Error ? rembgErr.message : String(rembgErr);
+          this.logger.warn(`[MascotGenerationProcessor] rembg-enhance attempt ${attempt} failed:`, msg);
           if (attempt === 2) {
             throw new Error(
               'Background removal (rembg-enhance) failed. No image will be shown. Please try again.',
             );
           }
-          await new Promise((r) => setTimeout(r, 2000));
+          // When throttled/rate limit, wait longer before retry (Replicate: "resets in ~6s")
+          const isThrottle = /throttled|rate limit|reset/i.test(msg);
+          const delayMs = isThrottle ? 10000 : 2000;
+          this.logger.log(`[MascotGenerationProcessor] Retrying rembg in ${delayMs / 1000}s...`);
+          await new Promise((r) => setTimeout(r, delayMs));
         }
       }
       if (!imageBufferAfterRembg) {

@@ -331,7 +331,7 @@ async function handleGenerateMascot(data: any) {
     const variations = await apiClient.createMascot({
       name: data.name,
       prompt: data.prompt,
-      style: data.style,
+      custom: data.style,
       type: data.type,
       personality: data.personality,
       negativePrompt: data.negativePrompt,

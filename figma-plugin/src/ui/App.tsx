@@ -421,7 +421,7 @@ export const App: React.FC = () => {
               setActiveTab('poses');
             }}
           >
-            🙂 Style
+            🙂 Custom
           </button>
           <button
             className={`nav-item ${activeTab === 'animations' ? 'active' : ''}`}

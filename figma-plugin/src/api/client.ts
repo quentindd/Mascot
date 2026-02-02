@@ -8,7 +8,7 @@ const API_BASE_URL = 'https://mascot-production.up.railway.app/api/v1';
 export interface CreateMascotRequest {
   name: string;
   prompt: string;
-  style: string;
+  custom: string;
   type?: string;
   personality?: string;
   negativePrompt?: string;
@@ -235,9 +235,10 @@ export class MascotAPI {
   }
 
   async createMascot(data: CreateMascotRequest): Promise<MascotResponse[]> {
+    const { custom, ...rest } = data;
     return this.request<MascotResponse[]>('/mascots', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify({ ...rest, style: custom }),
     });
   }
 

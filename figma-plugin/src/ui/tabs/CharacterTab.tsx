@@ -56,7 +56,7 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
   // Basic fields
   const [name, setName] = useState('');
   const [prompt, setPrompt] = useState('');
-  const [style, setStyle] = useState('kawaii');
+  const [custom, setCustom] = useState('kawaii');
   
   // New fields
   const [type, setType] = useState('auto');
@@ -288,7 +288,7 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
     rpc.send('generate-mascot', {
       name,
       prompt,
-      style,
+      style: custom,
       type,
       personality,
       negativePrompt: negativePrompt || undefined,
@@ -371,15 +371,15 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
         disabled={isGenerating}
       />
 
-      {/* Art Style */}
-          <label className="label">Art Style</label>
+      {/* Custom */}
+          <label className="label">Custom</label>
           <select
             className="select select-with-emoji"
-            value={style}
-            onChange={(e) => setStyle(e.target.value)}
+            value={custom}
+            onChange={(e) => setCustom(e.target.value)}
             disabled={isGenerating}
           >
-            {ART_STYLES.map((s) => (
+            {CUSTOM_OPTIONS.map((s) => (
               <option key={s.value} value={s.value}>
                 {s.emoji} {s.label}
               </option>

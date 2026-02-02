@@ -13,6 +13,7 @@ import * as ffmpeg from 'fluent-ffmpeg';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import axios from 'axios';
 import { removeBackground } from '../../../common/utils/background-removal.util';
 
 @Processor('animation-generation')
@@ -72,11 +73,20 @@ export class AnimationGenerationProcessor extends WorkerHost {
         );
       }
 
+      // Composite mascot onto a solid background so Veo keeps that color (video has no alpha, so transparent PNG becomes some fill color). We choose #F0F0F0 so our frame-by-frame removal can strip it reliably.
+      let imageUrlForVeo = mascotImageUrl;
+      try {
+        imageUrlForVeo = await this.compositeMascotOnSolidBackground(mascotImageUrl, animationId, timestamp);
+        this.logger.log(`[AnimationGenerationProcessor] Sending Veo image on solid background: ${imageUrlForVeo}`);
+      } catch (compositeErr) {
+        this.logger.warn(`[AnimationGenerationProcessor] Composite on solid background failed, using original image:`, compositeErr);
+      }
+
       this.logger.log(`[AnimationGenerationProcessor] Using Replicate Veo 3.1 Fast (only provider)...`);
       const animationPrompt = this.getAnimationPrompt(action, customAction, mascot) + ' seamless infinite loop';
       const { buffer: videoBuffer, predictionUrl: replicatePredictionUrl } =
         await this.replicateService.generateVideoVeo({
-          imageUrl: mascotImageUrl,
+          imageUrl: imageUrlForVeo,
           prompt: animationPrompt,
           duration: 4,
           resolution: '1080p',
@@ -649,6 +659,40 @@ export class AnimationGenerationProcessor extends WorkerHost {
   }
 
   /**
+   * Composite mascot image onto a solid background (#F0F0F0) so Veo receives an opaque image.
+   * Video models output RGB only (no alpha), so transparent areas become some fill color; using a known color lets our frame-by-frame removal strip it reliably.
+   */
+  private async compositeMascotOnSolidBackground(
+    mascotImageUrl: string,
+    animationId: string,
+    timestamp: number,
+  ): Promise<string> {
+    const response = await axios.get<ArrayBuffer>(mascotImageUrl, {
+      responseType: 'arraybuffer',
+      timeout: 15000,
+    });
+    const mascotBuffer = Buffer.from(response.data);
+    const VEO_WIDTH = 1920;
+    const VEO_HEIGHT = 1080;
+    const BG_R = 240;
+    const BG_G = 240;
+    const BG_B = 240;
+
+    const composited = await sharp(mascotBuffer)
+      .ensureAlpha()
+      .resize(VEO_WIDTH, VEO_HEIGHT, {
+        fit: 'contain',
+        position: 'center',
+        background: { r: BG_R, g: BG_G, b: BG_B, alpha: 1 },
+      })
+      .png({ compressionLevel: 9, force: true })
+      .toBuffer();
+
+    const key = `animations/${animationId}/veo-input-${timestamp}.png`;
+    return this.storageService.uploadImage(key, composited);
+  }
+
+  /**
    * Get animation prompt for Replicate Veo based on action
    */
   private getAnimationPrompt(action: AnimationAction, customAction: string | null, mascot: Mascot): string {
@@ -679,7 +723,7 @@ export class AnimationGenerationProcessor extends WorkerHost {
       actionDescription = actionMap[action] || 'animated movement';
     }
 
-    return `Create a PERFECT LOOP video of mascot ${actionDescription}. First and last frame EXACTLY identical. Seamless cycle, isolated character clean edges no background.`;
+    return `Create a PERFECT LOOP video of mascot ${actionDescription}. First and last frame EXACTLY identical. Seamless cycle. Isolated character only, clean sharp edges. Plain solid single-color background only: pure white or light gray, no scenery, no environment, no gradient, no texture, no shadows on the ground.`;
   }
 
   /**

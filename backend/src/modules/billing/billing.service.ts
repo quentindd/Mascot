@@ -63,7 +63,7 @@ export class BillingService {
     const baseUrl =
       this.configService.get<string>('FRONTEND_URL') ||
       this.configService.get<string>('APP_URL') ||
-      'https://mascot-production.up.railway.app';
+      'https://mascoty-production.up.railway.app';
 
     const session = await this.stripe.checkout.sessions.create({
       mode: 'payment',

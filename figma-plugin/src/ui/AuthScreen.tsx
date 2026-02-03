@@ -2,17 +2,11 @@ import React, { useState } from 'react';
 
 import figmaLogo from './assets/figma-logo.png';
 
-type AuthView = 'main' | 'api-token' | 'google-code';
+type AuthView = 'main' | 'google-code';
 
 export interface AuthScreenProps {
-  tokenInput: string;
-  setTokenInput: (value: string) => void;
-  onUseToken: () => void;
-  onBack: () => void;
   onGoogleLogin: () => void;
   onGoogleCodeSubmit: (code: string) => void;
-  onTokenSubmit: (e: React.FormEvent) => void;
-  onOpenGetTokenUrl?: () => void;
   onOpenTerms?: () => void;
   onOpenPrivacy?: () => void;
   authError?: string;
@@ -21,17 +15,11 @@ export interface AuthScreenProps {
 }
 
 /**
- * Page de connexion : uniquement Continue with Figma (Google) + option API token pour les devs.
+ * Page de connexion : Continue with Figma (Google OAuth).
  */
 export const AuthScreen: React.FC<AuthScreenProps> = ({
-  tokenInput,
-  setTokenInput,
-  onUseToken,
-  onBack,
   onGoogleLogin,
   onGoogleCodeSubmit,
-  onTokenSubmit,
-  onOpenGetTokenUrl,
   onOpenTerms,
   onOpenPrivacy,
   authError = '',
@@ -88,18 +76,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 {authError}
               </p>
             )}
-            <p className="auth-footer-link">
-              <button
-                type="button"
-                className="auth-link"
-                onClick={() => {
-                  setView('api-token');
-                  onUseToken();
-                }}
-              >
-                Developer? Use an API token
-              </button>
-            </p>
             <p className="auth-legal">
               By authenticating and using Mascoty you agree to our{' '}
               <button type="button" className="auth-link" onClick={onOpenTerms}>
@@ -155,64 +131,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               type="button"
               className="btn-secondary"
               onClick={goMain}
-              disabled={authLoading}
-            >
-              Back
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={onTokenSubmit} className="auth-form">
-            <label className="auth-form-label" htmlFor="auth-token-input">
-              API Token
-            </label>
-            <textarea
-              id="auth-token-input"
-              value={tokenInput}
-              onChange={(e) => setTokenInput(e.target.value)}
-              placeholder="Paste your API token (for developers)..."
-              className="token-input"
-              autoFocus
-              disabled={authLoading}
-              aria-invalid={!!authError}
-              aria-describedby={authError ? 'auth-error-msg' : undefined}
-            />
-            {authError && (
-              <p id="auth-error-msg" className="auth-error" role="alert">
-                {authError}
-              </p>
-            )}
-            {onOpenGetTokenUrl && (
-              <p className="auth-help">
-                <button
-                  type="button"
-                  className="auth-link"
-                  onClick={onOpenGetTokenUrl}
-                >
-                  Get your API token (developer)
-                </button>
-              </p>
-            )}
-            <button
-              type="submit"
-              className="btn-primary"
-              disabled={authLoading || !tokenInput.trim()}
-            >
-              {authLoading ? (
-                <>
-                  <span className="spinner" aria-hidden />
-                  Checking...
-                </>
-              ) : (
-                'Continue'
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setView('main');
-                onBack();
-              }}
-              className="btn-secondary"
               disabled={authLoading}
             >
               Back

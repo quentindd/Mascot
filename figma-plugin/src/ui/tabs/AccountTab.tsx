@@ -14,13 +14,20 @@ export const SUBSCRIPTION_PLANS = [
   { id: 'max' as const, credits: 100, price: '9.99', pricePerCredit: '$0.10', label: 'Max', save: 'Best value', plan: 'max' },
 ];
 
-interface AccountTabProps {
+export interface AccountTabProps {
   rpc: RPCClient;
   credits: number | null;
+  currentPlanId: string | null; // 'basic' | 'pro' | 'max' when subscribed
   onLogout: () => void;
 }
 
-export const AccountTab: React.FC<AccountTabProps> = ({ credits, onLogout, rpc }) => {
+function planIdToLabel(planId: string | null): string {
+  if (!planId) return 'None';
+  const plan = SUBSCRIPTION_PLANS.find((p) => p.plan === planId);
+  return plan ? plan.label : planId;
+}
+
+export const AccountTab: React.FC<AccountTabProps> = ({ credits, currentPlanId, onLogout, rpc }) => {
   const [selectedPlan, setSelectedPlan] = useState<string>('pro');
   const [buyLoading, setBuyLoading] = useState(false);
   const [buyError, setBuyError] = useState<string | null>(null);
@@ -80,6 +87,15 @@ export const AccountTab: React.FC<AccountTabProps> = ({ credits, onLogout, rpc }
       <p className="account-page-desc">
         Your balance, usage, and billing.
       </p>
+
+      {/* Current plan */}
+      <div className="account-card account-card-plan">
+        <div className="account-card-label">Current plan</div>
+        <div className="account-card-value account-card-plan-value">{planIdToLabel(currentPlanId)}</div>
+        <div className="account-card-meta">
+          {currentPlanId ? `${SUBSCRIPTION_PLANS.find((p) => p.plan === currentPlanId)?.credits ?? 0} credits per month` : 'Subscribe to get credits each month.'}
+        </div>
+      </div>
 
       {/* Balance */}
       <div className="account-card account-card-balance">

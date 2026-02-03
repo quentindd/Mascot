@@ -339,6 +339,7 @@ export class MascotAPI {
   async getCredits(): Promise<{
     balance: number;
     plan: string;
+    subscriptionPlanId: string | null;
     creditsLastResetAt: string | null;
     monthlyAllowance: number;
   }> {

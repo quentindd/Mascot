@@ -15,11 +15,11 @@ export const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [credits, setCredits] = useState<number | null>(null);
+  const [currentPlanId, setCurrentPlanId] = useState<string | null>(null); // 'basic' | 'pro' | 'max' when subscribed
   const [selectedMascot, setSelectedMascot] = useState<any>(null);
   const [mascots, setMascots] = useState<any[]>([]);
   const [poses, setPoses] = useState<any[]>([]);
   const [generatedVariations, setGeneratedVariations] = useState<any[]>([]);
-  const [tokenInput, setTokenInput] = useState<string>('');
   const [authError, setAuthError] = useState<string>('');
   const [authLoading, setAuthLoading] = useState(false);
   const [checkingStoredToken, setCheckingStoredToken] = useState(false);
@@ -113,9 +113,18 @@ export const App: React.FC = () => {
       setToken(null);
     });
 
-    rpc.on('credits-balance', (data: { balance: number | null }) => {
+    rpc.on('credits-balance', (data: { balance: number | null; subscriptionPlanId?: string | null }) => {
       setCredits(data.balance ?? null);
+      setCurrentPlanId(data.subscriptionPlanId ?? null);
     });
+
+    // Refresh credits when user returns to the plugin (e.g. after Stripe checkout in another tab)
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadCredits();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
 
     rpc.on('logout-complete', () => {
       setToken(null);
@@ -263,6 +272,7 @@ export const App: React.FC = () => {
     }
 
     return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
       rpc.cleanup();
     };
   }, []);
@@ -290,23 +300,6 @@ export const App: React.FC = () => {
     rpc.send('logout');
   };
 
-  const handleTokenSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!tokenInput.trim()) {
-      setAuthError('Please enter your API token.');
-      return;
-    }
-    setAuthError('');
-    setAuthLoading(true);
-    rpc.send('init', { token: tokenInput.trim() });
-  };
-
-  const openGetTokenUrl = () => {
-    rpc.send('open-url', {
-      url: `${API_ORIGIN}/api/v1/auth/google`,
-    });
-  };
-
   const legalBase = `${API_ORIGIN}/api/v1/legal`;
   const openTerms = () => rpc.send('open-url', { url: `${legalBase}/terms` });
   const openPrivacy = () => rpc.send('open-url', { url: `${legalBase}/privacy` });
@@ -314,17 +307,8 @@ export const App: React.FC = () => {
   if (!isAuthenticated) {
     return (
       <AuthScreen
-        tokenInput={tokenInput}
-        setTokenInput={setTokenInput}
-        onUseToken={() => {}}
-        onBack={() => {
-          setTokenInput('');
-          setAuthError('');
-        }}
         onGoogleLogin={handleGoogleLogin}
         onGoogleCodeSubmit={handleGoogleCodeSubmit}
-        onTokenSubmit={handleTokenSubmit}
-        onOpenGetTokenUrl={openGetTokenUrl}
         onOpenTerms={openTerms}
         onOpenPrivacy={openPrivacy}
         authError={authError}
@@ -388,7 +372,10 @@ export const App: React.FC = () => {
           <div className="nav-separator"></div>
           <button
             className={`nav-item nav-item-account ${activeTab === 'account' ? 'active' : ''}`}
-            onClick={() => setActiveTab('account')}
+            onClick={() => {
+              setActiveTab('account');
+              loadCredits(); // refresh balance when opening Account (e.g. after returning from Stripe)
+            }}
           >
             👤 Account
           </button>
@@ -428,7 +415,7 @@ export const App: React.FC = () => {
             />
           </div>
           <div style={{ display: activeTab === 'account' ? 'block' : 'none' }} className="tab-panel">
-            <AccountTab rpc={rpc} credits={credits} onLogout={handleLogout} />
+            <AccountTab rpc={rpc} credits={credits} currentPlanId={currentPlanId} onLogout={handleLogout} />
           </div>
         </div>
       </div>

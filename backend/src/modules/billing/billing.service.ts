@@ -74,6 +74,13 @@ export class BillingService {
     return null;
   }
 
+  getPlanIdForPriceId(priceId: string): SubscriptionPlanId | null {
+    for (const id of SUBSCRIPTION_PLAN_IDS) {
+      if (this.plans[id].priceId === priceId) return id;
+    }
+    return null;
+  }
+
   async getSubscription(userId: string) {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) return { plan: 'free', status: 'active' as const };
@@ -134,7 +141,7 @@ export class BillingService {
       client_reference_id: userId,
       metadata: { userId },
       subscription_data: {
-        metadata: { userId },
+        metadata: { userId, planId },
         trial_period_days: undefined,
       },
     };
@@ -344,8 +351,8 @@ export class BillingService {
       user.stripeCustomerId = typeof session.customer === 'string' ? session.customer : session.customer.id;
     }
     const subscriptionId = session.subscription ? (typeof session.subscription === 'string' ? session.subscription : session.subscription.id) : null;
-    if (subscriptionId && !user.stripeSubscriptionId) {
-      user.stripeSubscriptionId = subscriptionId;
+    if (subscriptionId) {
+      if (!user.stripeSubscriptionId) user.stripeSubscriptionId = subscriptionId;
     }
     await this.userRepository.save(user);
 
@@ -365,6 +372,11 @@ export class BillingService {
         return;
       }
       const credits = this.getCreditsForPriceId(priceId);
+      const planId = this.getPlanIdForPriceId(priceId) ?? subscription.metadata?.planId ?? null;
+      if (planId) {
+        user.stripeSubscriptionMetadata = { planId };
+        await this.userRepository.save(user);
+      }
       if (credits == null || credits <= 0) {
         const configured = SUBSCRIPTION_PLAN_IDS.map((id) => `${id}=${this.plans[id].priceId ? this.plans[id].priceId : 'NOT SET'}`).join(', ');
         this.logger.warn(`[Stripe] checkout.session.completed: unknown price id ${priceId}. Configured: ${configured}`);

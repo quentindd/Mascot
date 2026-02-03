@@ -745,7 +745,7 @@ async function handleGetMascots() {
 
 async function handleGetCredits() {
   if (!apiClient) {
-    setTimeout(() => rpc.send('credits-balance', { balance: null }), 0);
+    setTimeout(() => rpc.send('credits-balance', { balance: null, subscriptionPlanId: null }), 0);
     return;
   }
   try {
@@ -753,12 +753,13 @@ async function handleGetCredits() {
     const payload = {
       balance: result?.balance ?? null,
       plan: result?.plan,
+      subscriptionPlanId: result?.subscriptionPlanId ?? null,
       monthlyAllowance: result?.monthlyAllowance,
     };
     setTimeout(() => rpc.send('credits-balance', payload), 0);
   } catch (error) {
     console.error('[Mascoty Code] Error loading credits:', error);
-    setTimeout(() => rpc.send('credits-balance', { balance: null }), 0);
+    setTimeout(() => rpc.send('credits-balance', { balance: null, subscriptionPlanId: null }), 0);
   }
 }
 

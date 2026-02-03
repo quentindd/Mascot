@@ -55,9 +55,11 @@ export class CreditsService {
 
   async getBalance(userId: string) {
     const user = await this.userRepository.findOne({ where: { id: userId } });
+    const subscriptionPlanId = user.stripeSubscriptionMetadata?.planId ?? null;
     return {
       balance: user.creditBalance,
       plan: user.plan,
+      subscriptionPlanId: subscriptionPlanId as string | null, // 'basic' | 'pro' | 'max' when subscribed
       creditsLastResetAt: user.creditsLastResetAt,
       monthlyAllowance: this.getMonthlyAllowance(user.plan),
     };

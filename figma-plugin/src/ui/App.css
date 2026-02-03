@@ -264,8 +264,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100vh;
-  background: #f7f7f7;
+  min-height: 100%;
+  background: #E5F0F9;
   padding: 24px;
 }
 
@@ -395,6 +395,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+}
+
+.btn-figma-continue-icon img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
 }
 
 .auth-split-email-hint {

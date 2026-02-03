@@ -5,9 +5,6 @@ import { Repository, In } from 'typeorm';
 import { CreditLedger, CreditTransactionType, CreditTransactionStatus } from '../../entities/credit-ledger.entity';
 import { User } from '../../entities/user.entity';
 
-/** Emails that are exempt from credit deduction (e.g. owner account). Override with CREDITS_EXEMPT_EMAIL env. */
-const DEFAULT_EXEMPT_EMAIL = 'dimpre.quentin@gmail.com';
-
 @Injectable()
 export class CreditsService {
   constructor(
@@ -19,7 +16,8 @@ export class CreditsService {
   ) {}
 
   private isExemptFromCredits(user: User): boolean {
-    const exempt = this.configService.get<string>('CREDITS_EXEMPT_EMAIL') || DEFAULT_EXEMPT_EMAIL;
+    const exempt = this.configService.get<string>('CREDITS_EXEMPT_EMAIL');
+    if (!exempt || !exempt.trim()) return false;
     const emails = exempt.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
     return emails.includes((user.email || '').toLowerCase());
   }
@@ -28,7 +26,6 @@ export class CreditsService {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) return false;
 
-    // Exempt account: no deduction, always allow
     if (this.isExemptFromCredits(user)) {
       return true;
     }

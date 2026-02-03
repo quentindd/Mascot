@@ -232,10 +232,13 @@ export class BillingService {
 
   private async handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
     let subscriptionId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
-    if (!subscriptionId) {
-      // Webhook payload may not include subscription; fetch invoice with expand
-      const fullInvoice = await this.stripe!.invoices.retrieve(invoice.id, { expand: ['subscription'] });
-      subscriptionId = typeof fullInvoice.subscription === 'string' ? fullInvoice.subscription : fullInvoice.subscription?.id;
+    let invoiceLines = invoice.lines?.data;
+    if (!subscriptionId || !invoiceLines?.length) {
+      const fullInvoice = await this.stripe!.invoices.retrieve(invoice.id, {
+        expand: ['subscription', 'lines.data.price'],
+      });
+      subscriptionId = subscriptionId || (typeof fullInvoice.subscription === 'string' ? fullInvoice.subscription : fullInvoice.subscription?.id);
+      invoiceLines = fullInvoice.lines?.data ?? invoiceLines;
     }
     if (!subscriptionId) {
       this.logger.warn('[Stripe] invoice.paid: no subscription on invoice');
@@ -245,7 +248,7 @@ export class BillingService {
     const subscription = await this.stripe!.subscriptions.retrieve(subscriptionId, { expand: ['items.data.price'] });
     const userId = subscription.metadata?.userId;
     if (!userId) {
-      this.logger.warn('[Stripe] invoice.paid: no userId in subscription metadata');
+      this.logger.warn('[Stripe] invoice.paid: no userId in subscription metadata - check subscription_data.metadata in checkout');
       return;
     }
 
@@ -260,16 +263,24 @@ export class BillingService {
     user.stripeSubscriptionMetadata = { planId: subscription.metadata?.planId ?? null };
     await this.userRepository.save(user);
 
-    const line = invoice.lines?.data?.[0];
-    const priceId = line?.price?.id;
+    const line = invoiceLines?.[0];
+    let priceId: string | null = null;
+    if (line?.price) {
+      priceId = typeof line.price === 'string' ? line.price : (line.price as Stripe.Price).id;
+    }
+    if (!priceId && subscription.items?.data?.[0]?.price) {
+      const subPrice = subscription.items.data[0].price;
+      priceId = typeof subPrice === 'string' ? subPrice : subPrice.id;
+    }
     if (!priceId) {
-      this.logger.warn('[Stripe] invoice.paid: no price on first line');
+      this.logger.warn('[Stripe] invoice.paid: no price on first line or subscription item');
       return;
     }
 
     const credits = this.getCreditsForPriceId(priceId);
     if (credits == null || credits <= 0) {
-      this.logger.warn(`[Stripe] invoice.paid: unknown price id ${priceId}`);
+      const configured = SUBSCRIPTION_PLAN_IDS.map((id) => `${id}=${this.plans[id].priceId ? this.plans[id].priceId.slice(0, 20) + '...' : 'NOT SET'}`).join(', ');
+      this.logger.warn(`[Stripe] invoice.paid: unknown price id ${priceId}. Configured: ${configured}`);
       return;
     }
 
@@ -277,7 +288,7 @@ export class BillingService {
       userId,
       credits,
       `Stripe subscription: ${credits} credits (invoice ${invoice.id})`,
-      invoice.id,
+      subscriptionId, // idempotency: same as checkout.session.completed so we don't double-credit
       CreditTransactionType.SUBSCRIPTION_GRANT,
     );
     this.logger.log(`Credits granted: userId=${userId} credits=${credits} invoice=${invoice.id}`);
@@ -321,9 +332,35 @@ export class BillingService {
     if (session.customer && !user.stripeCustomerId) {
       user.stripeCustomerId = typeof session.customer === 'string' ? session.customer : session.customer.id;
     }
-    if (session.subscription && !user.stripeSubscriptionId) {
-      user.stripeSubscriptionId = typeof session.subscription === 'string' ? session.subscription : session.subscription.id;
+    const subscriptionId = session.subscription ? (typeof session.subscription === 'string' ? session.subscription : session.subscription.id) : null;
+    if (subscriptionId && !user.stripeSubscriptionId) {
+      user.stripeSubscriptionId = subscriptionId;
     }
     await this.userRepository.save(user);
+
+    // Grant credits on checkout completion (fallback if invoice.paid fails). Idempotency: referenceId = subscriptionId (same as in handleInvoicePaid).
+    if (subscriptionId) {
+      try {
+        const subscription = await this.stripe!.subscriptions.retrieve(subscriptionId, { expand: ['items.data.price'] });
+        const firstItem = subscription.items?.data?.[0];
+        const price = firstItem?.price;
+        const priceId = price ? (typeof price === 'string' ? price : price.id) : null;
+        if (priceId) {
+          const credits = this.getCreditsForPriceId(priceId);
+          if (credits != null && credits > 0) {
+            await this.creditsService.addCredits(
+              userId,
+              credits,
+              `Stripe subscription: ${credits} credits (checkout ${session.id})`,
+              subscriptionId,
+              CreditTransactionType.SUBSCRIPTION_GRANT,
+            );
+            this.logger.log(`Credits granted on checkout: userId=${userId} credits=${credits} session=${session.id}`);
+          }
+        }
+      } catch (err) {
+        this.logger.warn('[Stripe] checkout.session.completed: could not grant credits', err instanceof Error ? err.message : err);
+      }
+    }
   }
 }

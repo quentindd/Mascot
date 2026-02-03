@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), clipboard-write=(), display-capture=()" />
-    <title>Mascot</title>
+    <title>Mascoty</title>
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
       body {
@@ -19,14 +19,14 @@
   <body>
     <div id="root"></div>
     <script>
-      console.log('[Mascot] ui.html loaded, DOM ready');
-      console.log('[Mascot] About to load ui.js...');
+      console.log('[Mascoty] ui.html loaded, DOM ready');
+      console.log('[Mascoty] About to load ui.js...');
       
       // Ignore Figma's internal errors and non-critical errors
       window.addEventListener('error', function(e) {
         // Ignore Figma internal errors
         if (e.filename && e.filename.includes('data:text/html')) {
-          console.log('[Mascot] Ignoring Figma internal error');
+          console.log('[Mascoty] Ignoring Figma internal error');
           e.preventDefault();
           e.stopPropagation();
           return false;
@@ -34,7 +34,7 @@
         
         // Ignore clipboard errors (from extensions or external scripts)
         if (e.message && e.message.includes('clipboard') && e.message.includes('writeText')) {
-          console.log('[Mascot] Ignoring clipboard error (likely from extension)');
+          console.log('[Mascoty] Ignoring clipboard error (likely from extension)');
           e.preventDefault();
           e.stopPropagation();
           return false;
@@ -42,7 +42,7 @@
         
         // Ignore SVG viewBox errors (from external libraries)
         if (e.message && e.message.includes('viewBox') && e.message.includes('Expected number')) {
-          console.log('[Mascot] Ignoring SVG viewBox error (likely from external library)');
+          console.log('[Mascoty] Ignoring SVG viewBox error (likely from external library)');
           e.preventDefault();
           e.stopPropagation();
           return false;
@@ -50,7 +50,7 @@
         
         // Ignore Figma's internal ARIA accessibility warnings
         if (e.message && e.message.includes('aria-hidden') && e.message.includes('assistive technology')) {
-          console.log('[Mascot] Ignoring Figma internal ARIA warning');
+          console.log('[Mascoty] Ignoring Figma internal ARIA warning');
           e.preventDefault();
           e.stopPropagation();
           return false;
@@ -59,43 +59,43 @@
         // Log other errors (message/filename/lineno may be undefined for cross-origin errors)
         var msg = (e && (e.message || e.type)) ? String(e.message || e.type) : 'unknown';
         var loc = (e && (e.filename || e.lineno != null)) ? [e.filename || '', e.lineno].filter(Boolean).join(':') : '';
-        console.error('[Mascot] Script error:', msg, loc || '');
+        console.error('[Mascoty] Script error:', msg, loc || '');
         if (e.error && typeof e.error === 'object') {
-          console.error('[Mascot] Error object:', e.error);
-          if (e.error.stack) console.error('[Mascot] Stack:', e.error.stack);
+          console.error('[Mascoty] Error object:', e.error);
+          if (e.error.stack) console.error('[Mascoty] Stack:', e.error.stack);
         }
         if (msg === 'Script error' || msg === 'error') {
-          console.warn('[Mascot] Possibly cross-origin; enable "Disable cross-origin restrictions" in Figma plugin devtools for details.');
+          console.warn('[Mascoty] Possibly cross-origin; enable "Disable cross-origin restrictions" in Figma plugin devtools for details.');
         }
       }, true); // Use capture phase to catch errors early
       
       window.addEventListener('unhandledrejection', function(e) {
         // Ignore clipboard-related promise rejections
         if (e.reason && typeof e.reason === 'object' && e.reason.message && e.reason.message.includes('clipboard')) {
-          console.log('[Mascot] Ignoring clipboard promise rejection');
+          console.log('[Mascoty] Ignoring clipboard promise rejection');
           return;
         }
-        console.error('[Mascot] Unhandled promise rejection:', e.reason);
+        console.error('[Mascoty] Unhandled promise rejection:', e.reason);
         if (e.reason && typeof e.reason === 'object' && e.reason.stack) {
-          console.error('[Mascot] Rejection stack:', e.reason.stack);
+          console.error('[Mascoty] Rejection stack:', e.reason.stack);
         }
       });
       
       // Force script execution after a small delay to ensure DOM is ready
       setTimeout(function() {
-        console.log('[Mascot] DOM ready, scripts should execute now');
+        console.log('[Mascoty] DOM ready, scripts should execute now');
       }, 10);
     </script>
     <!-- ui.js will be inlined here during build -->
     <script>
-      console.log('[Mascot] Waiting for ui.js to execute...');
+      console.log('[Mascoty] Waiting for ui.js to execute...');
       
       // Check if script loaded after a delay
       setTimeout(function() {
         var root = document.getElementById('root');
         if (root && !root.hasChildNodes()) {
-          console.warn('[Mascot] Root element exists but React app not mounted!');
-          console.warn('[Mascot] ui.js may not have executed');
+          console.warn('[Mascoty] Root element exists but React app not mounted!');
+          console.warn('[Mascoty] ui.js may not have executed');
         }
       }, 3000);
     </script>

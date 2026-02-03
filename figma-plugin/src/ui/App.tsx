@@ -276,8 +276,8 @@ export const App: React.FC = () => {
   };
 
   const handleGoogleLogin = () => {
-    const apiBaseUrl = 'https://mascot-production.up.railway.app';
-    const googleAuthUrl = `${apiBaseUrl}/api/v1/auth/google`;
+    const { API_ORIGIN } = require('../../config');
+    const googleAuthUrl = `${API_ORIGIN}/api/v1/auth/google`;
     rpc.send('open-google-auth', { url: googleAuthUrl });
   };
 

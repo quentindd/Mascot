@@ -1,17 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { RPCClient } from '../rpc/client';
 
-/** Credit cost per action (single source of truth for display). */
+/** Credit cost per action (single source of truth for display). ~1 cr = $0.01. */
 export const CREDIT_COSTS = {
   mascot: 1,
-  pose: 4,
+  pose: 5,
 } as const;
 
-/** Buy Credits packs: credits → price (USD). */
+/** Approximate cost per action (for display). */
+export const COST_APPROX = {
+  mascot: '$0.01',
+  pose: '$0.05',
+} as const;
+
+/** Buy Credits packs: credits → price (USD). Plans: "20" | "50" | "100". */
 export const CREDIT_PACKS = [
-  { credits: 25, price: '5.99', pricePerCredit: '$0.24', label: 'Starter' },
-  { credits: 75, price: '12.99', pricePerCredit: '$0.17', label: 'Popular', popular: true },
-  { credits: 200, price: '25.99', pricePerCredit: '$0.13', label: 'Pro', save: '37%' },
+  { credits: 20, price: '1.99', pricePerCredit: '$0.10', label: 'Starter', plan: '20' },
+  { credits: 50, price: '4.99', pricePerCredit: '$0.10', label: 'Popular', popular: true, plan: '50' },
+  { credits: 100, price: '8.99', pricePerCredit: '$0.09', label: 'Pro', save: '10%', plan: '100' },
 ] as const;
 
 interface AccountTabProps {
@@ -21,7 +27,7 @@ interface AccountTabProps {
 }
 
 export const AccountTab: React.FC<AccountTabProps> = ({ credits, onLogout, rpc }) => {
-  const [selectedPack, setSelectedPack] = useState<number | null>(75);
+  const [selectedPack, setSelectedPack] = useState<number | null>(50);
   const [buyLoading, setBuyLoading] = useState(false);
   const [buyError, setBuyError] = useState<string | null>(null);
 
@@ -46,7 +52,8 @@ export const AccountTab: React.FC<AccountTabProps> = ({ credits, onLogout, rpc }
   }, [rpc]);
 
   const handleBuyCredits = () => {
-    const plan = selectedPack != null ? String(selectedPack) : '75';
+    const pack = CREDIT_PACKS.find((p) => p.credits === selectedPack);
+    const plan = pack?.plan ?? '50';
     setBuyError(null);
     setBuyLoading(true);
     rpc.send('create-checkout', { plan });
@@ -67,18 +74,23 @@ export const AccountTab: React.FC<AccountTabProps> = ({ credits, onLogout, rpc }
         <div className="account-card-meta">New users start with 15.</div>
       </div>
 
-      {/* Usage: what each action costs */}
+      {/* Usage: what each action costs (small pricing: ~1 cr = $0.01) */}
       <div className="account-card">
         <div className="account-card-label">Usage</div>
         <div className="account-usage-list">
           <div className="account-usage-row">
             <span>Mascot (3 variations)</span>
             <span className="account-usage-value">{CREDIT_COSTS.mascot} cr</span>
+            <span style={{ fontSize: '11px', color: '#6b7280' }}>≈ {COST_APPROX.mascot}</span>
           </div>
           <div className="account-usage-row">
-            <span>Custom</span>
+            <span>Custom (pose)</span>
             <span className="account-usage-value">{CREDIT_COSTS.pose} cr</span>
+            <span style={{ fontSize: '11px', color: '#6b7280' }}>≈ {COST_APPROX.pose}</span>
           </div>
+        </div>
+        <div className="account-card-meta" style={{ marginTop: '8px', fontSize: '11px', color: '#6b7280' }}>
+          1 credit ≈ $0.01
         </div>
       </div>
 
@@ -100,7 +112,7 @@ export const AccountTab: React.FC<AccountTabProps> = ({ credits, onLogout, rpc }
                 }
               }}
               aria-pressed={selectedPack === pack.credits}
-              aria-label={`Select ${pack.credits} credits for $${pack.price}`}
+              aria-label={`Select ${pack.credits} credits for $${pack.price} (plan ${pack.plan})`}
             >
               {pack.save && <span className="credit-pack-badge">−{pack.save}</span>}
               {pack.popular && <span className="credit-pack-popular-badge">⭐ Popular</span>}

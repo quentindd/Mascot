@@ -60,7 +60,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   return (
     <div className="auth-container">
       <div className="auth-card">
-        <h2 className="auth-title">Welcome to Mascot</h2>
+        <h2 className="auth-title">Welcome to Mascoty</h2>
         <p className="auth-subtitle">Sign in to start creating mascots</p>
 
         {checkingStoredToken ? (
@@ -101,7 +101,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               </button>
             </p>
             <p className="auth-legal">
-              By authenticating and using Mascot you agree to our{' '}
+              By authenticating and using Mascoty you agree to our{' '}
               <button type="button" className="auth-link" onClick={onOpenTerms}>
                 Terms of Service
               </button>

@@ -63,7 +63,7 @@ export class AuthService {
       passwordHash,
       name: registerDto.name,
       plan: UserPlan.FREE,
-      creditBalance: 15, // Onboarding: 15 credits (mascot 1 cr, pose 4 cr, animation 20 cr)
+      creditBalance: 15, // Onboarding: 15 credits (mascot 1 cr, pose 5 cr — ~2 mascots + 2 poses)
     });
 
     const saved = await this.userRepository.save(user);
@@ -97,7 +97,7 @@ export class AuthService {
   }
 
   async giveInitialCredits(userId: string): Promise<void> {
-    // Give 15 credits to new users (3 mascots + 9 poses max with current costs)
+    // Give 15 credits to new users (mascot 1 cr, pose 5 cr — e.g. 2 mascots + 2 poses)
     await this.creditsService.addCredits(userId, 15, 'Initial signup bonus');
   }
 

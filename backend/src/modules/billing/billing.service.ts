@@ -6,11 +6,11 @@ import Stripe from 'stripe';
 import { User } from '../../entities/user.entity';
 import { CreditsService } from '../credits/credits.service';
 
-/** Credit pack: credits amount → price in USD (Stripe amount in cents). */
+/** Credit pack: credits amount → price in USD (Stripe amount in cents). Small pricing: ~1 cr = $0.01, pose = 5 cr = $0.05. */
 export const CREDIT_PACKS: Record<string, { credits: number; amountCents: number }> = {
-  '25': { credits: 25, amountCents: 599 },
-  '75': { credits: 75, amountCents: 1299 },
-  '200': { credits: 200, amountCents: 2599 },
+  '20': { credits: 20, amountCents: 199 },
+  '50': { credits: 50, amountCents: 499 },
+  '100': { credits: 100, amountCents: 899 },
 };
 
 @Injectable()
@@ -39,7 +39,7 @@ export class BillingService {
 
   /**
    * Create a Stripe Checkout session for a credit pack.
-   * Plan must be "25" | "75" | "200" (credits).
+   * Plan must be "20" | "50" | "100" (credits).
    */
   async createCheckout(userId: string, plan: string): Promise<{ checkoutUrl: string }> {
     if (!this.stripe) {
@@ -74,8 +74,8 @@ export class BillingService {
             currency: 'usd',
             unit_amount: pack.amountCents,
             product_data: {
-              name: `Mascot — ${pack.credits} credits`,
-              description: `One-time purchase of ${pack.credits} credits for mascot, poses, and animations.`,
+              name: `Mascoty — ${pack.credits} credits`,
+              description: `One-time purchase of ${pack.credits} credits for mascot and poses.`,
               images: undefined,
             },
           },

@@ -1,9 +1,5 @@
 // API client for backend communication
-
-// Production URL (Railway deployment)
-const API_BASE_URL = 'https://mascot-production.up.railway.app/api/v1';
-
-// For local development, change to: 'http://localhost:3000/api/v1'
+import { API_BASE_URL } from '../config';
 
 export interface CreateMascotRequest {
   name: string;

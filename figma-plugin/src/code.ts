@@ -207,6 +207,9 @@ figma.ui.onmessage = async (msg) => {
         await handleCreateCheckout(msg.data);
         break;
 
+      case 'create-portal':
+        await handleCreatePortal();
+        break;
 
       default:
         rpc.send('error', { message: `Unknown message type: ${msg.type}` });
@@ -384,6 +387,8 @@ async function handleGeneratePose(data: { mascotId: string; prompt: string }) {
     const pose = await apiClient.createPose(data.mascotId, {
       prompt: data.prompt,
       figmaFileId,
+      color: data.color,
+      negativePrompt: data.negativePrompt,
     });
 
     rpc.send('pose-generated', { pose });
@@ -762,7 +767,7 @@ async function handleCreateCheckout(data: { plan?: string }) {
     rpc.send('checkout-error', { message: 'Please sign in first.' });
     return;
   }
-  const plan = data?.plan ?? '75';
+  const plan = data?.plan ?? 'pro';
   try {
     const result = await apiClient.createCheckout(plan);
     if (result?.checkoutUrl) {
@@ -774,6 +779,25 @@ async function handleCreateCheckout(data: { plan?: string }) {
     const msg = getErrorMessage(error);
     console.error('[Mascoty Code] Checkout error:', msg);
     rpc.send('checkout-error', { message: msg });
+  }
+}
+
+async function handleCreatePortal() {
+  if (!apiClient) {
+    rpc.send('portal-error', { message: 'Please sign in first.' });
+    return;
+  }
+  try {
+    const result = await apiClient.createBillingPortalSession();
+    if (result?.url) {
+      rpc.send('portal-url', { url: result.url });
+    } else {
+      rpc.send('portal-error', { message: 'Could not open billing page.' });
+    }
+  } catch (error) {
+    const msg = getErrorMessage(error);
+    console.error('[Mascoty Code] Portal error:', msg);
+    rpc.send('portal-error', { message: msg });
   }
 }
 

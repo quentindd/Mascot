@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { RPCClient } from '../rpc/client';
 import { UploadYourImage } from '../components/UploadYourImage';
 
@@ -27,11 +27,14 @@ export const PosesTab: React.FC<PosesTabProps> = ({
   mascots,
 }) => {
   const [customPrompt, setCustomPrompt] = useState<string>('');
+  const [customColor, setCustomColor] = useState<string>('');
+  const [customNegativePrompt, setCustomNegativePrompt] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [generatedPose, setGeneratedPose] = useState<any>(null);
   const [isInserting, setIsInserting] = useState(false);
   const [insertError, setInsertError] = useState<string | null>(null);
+  const posePreviewRef = useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     console.log('[PosesTab] Mascots available:', mascots.length);
@@ -101,7 +104,10 @@ export const PosesTab: React.FC<PosesTabProps> = ({
     rpc.send('generate-pose', {
       mascotId: selectedMascot.id,
       prompt: customPrompt.trim(),
+      color: customColor.trim() || undefined,
+      negativePrompt: customNegativePrompt.trim() || undefined,
     });
+    posePreviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   return (
@@ -201,38 +207,36 @@ export const PosesTab: React.FC<PosesTabProps> = ({
       )}
 
       <div className="card" style={{ marginBottom: '16px' }}>
-        <label className="label">Quick poses</label>
-        <p style={{ fontSize: '10px', color: '#666', marginBottom: '10px' }}>
-          Choose a pose or type your own below.
+        <label className="label">Quick pose</label>
+        <p style={{ fontSize: '10px', color: '#666', marginBottom: '8px' }}>
+          Choose a pose or select Custom and type your own below.
         </p>
-        <div className="quick-poses-grid">
+        <select
+          className="select select-with-emoji"
+          value={QUICK_POSES.some((p) => p.label === customPrompt.trim()) ? customPrompt.trim() : ''}
+          onChange={(e) => setCustomPrompt(e.target.value)}
+          disabled={isGenerating}
+        >
+          <option value="">— Custom —</option>
           {QUICK_POSES.map(({ emoji, label, buttonLabel }) => (
-            <button
-              key={label}
-              type="button"
-              className={`quick-pose-btn ${customPrompt.trim() === label ? 'active' : ''}`}
-              onClick={() => setCustomPrompt(label)}
-              disabled={isGenerating}
-              title={label}
-            >
-              <span className="quick-pose-emoji">{emoji}</span>
-              <span className="quick-pose-label">{buttonLabel}</span>
-            </button>
+            <option key={label} value={label}>
+              {emoji} {buttonLabel}
+            </option>
           ))}
-        </div>
+        </select>
       </div>
 
       <div className="card" style={{ marginBottom: '16px' }}>
         <label className="label">Custom Prompt</label>
         <p style={{ fontSize: '10px', color: '#666', marginBottom: '12px' }}>
-          Describe the pose or modification you want for your mascot (e.g., "waving", "change color to blue", "smiling happily")
+          Describe the pose or modification you want for your mascot (e.g., "waving", "smiling happily")
         </p>
         
         <textarea
           className="textarea"
           value={customPrompt}
           onChange={(e) => setCustomPrompt(e.target.value)}
-          placeholder="e.g., waving hand, change color to blue, smiling..."
+          placeholder="e.g., waving hand, smiling..."
           disabled={isGenerating}
           style={{ 
             width: '100%', 
@@ -241,6 +245,38 @@ export const PosesTab: React.FC<PosesTabProps> = ({
             fontSize: '11px',
             fontFamily: 'inherit',
           }}
+        />
+      </div>
+
+      <div className="card" style={{ marginBottom: '16px' }}>
+        <label className="label">Color (optional)</label>
+        <p style={{ fontSize: '10px', color: '#666', marginBottom: '8px' }}>
+          Change the mascot color (e.g., blue, red, green)
+        </p>
+        <input
+          type="text"
+          className="textarea"
+          value={customColor}
+          onChange={(e) => setCustomColor(e.target.value)}
+          placeholder="e.g., blue, red..."
+          disabled={isGenerating}
+          style={{ width: '100%', fontSize: '11px', fontFamily: 'inherit', padding: '8px' }}
+        />
+      </div>
+
+      <div className="card" style={{ marginBottom: '16px' }}>
+        <label className="label">Negative prompt (optional)</label>
+        <p style={{ fontSize: '10px', color: '#666', marginBottom: '8px' }}>
+          Things to avoid in the generated image (e.g., "text, watermark, extra limbs")
+        </p>
+        <input
+          type="text"
+          className="textarea"
+          value={customNegativePrompt}
+          onChange={(e) => setCustomNegativePrompt(e.target.value)}
+          placeholder="e.g., text, watermark..."
+          disabled={isGenerating}
+          style={{ width: '100%', fontSize: '11px', fontFamily: 'inherit', padding: '8px' }}
         />
       </div>
 
@@ -254,6 +290,8 @@ export const PosesTab: React.FC<PosesTabProps> = ({
           {isGenerating ? <span className="spinner" /> : 'Generate Pose (4 credits)'}
         </button>
       </div>
+
+      <div ref={posePreviewRef} aria-hidden="true" style={{ scrollMarginTop: 8 }} />
 
       {generatedPose && selectedMascot && (
         <div className="card">

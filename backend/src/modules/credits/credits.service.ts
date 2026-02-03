@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { CreditLedger, CreditTransactionType, CreditTransactionStatus } from '../../entities/credit-ledger.entity';
 import { User } from '../../entities/user.entity';
 
@@ -77,14 +77,15 @@ export class CreditsService {
   }
 
   /**
-   * Add credits to a user (purchase, admin, etc.).
-   * @param referenceId Optional idempotency key (e.g. Stripe session id) – if set and already exists, no-op.
+   * Add credits to a user (purchase, subscription grant, admin, etc.).
+   * @param referenceId Optional idempotency key (e.g. Stripe session/invoice id) – if set and already exists for this type, no-op.
    */
   async addCredits(
     userId: string,
     amount: number,
     description?: string,
     referenceId?: string,
+    type: CreditTransactionType = CreditTransactionType.PURCHASE,
   ): Promise<void> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
@@ -93,27 +94,29 @@ export class CreditsService {
 
     if (referenceId) {
       const existing = await this.ledgerRepository.findOne({
-        where: { userId, referenceId, type: CreditTransactionType.PURCHASE },
+        where: {
+          userId,
+          referenceId,
+          type: In([CreditTransactionType.PURCHASE, CreditTransactionType.SUBSCRIPTION_GRANT]),
+        },
       });
       if (existing) {
         return; // Already processed (idempotent)
       }
     }
 
-    // Create ledger entry
     const ledger = this.ledgerRepository.create({
       userId,
-      type: CreditTransactionType.PURCHASE,
-      amount: amount,
+      type,
+      amount,
       balanceAfter: user.creditBalance + amount,
       status: CreditTransactionStatus.COMPLETED,
-      description: description || `Added ${amount} credits manually`,
+      description: description || `Added ${amount} credits`,
       referenceId: referenceId ?? undefined,
     });
 
     await this.ledgerRepository.save(ledger);
 
-    // Update user balance
     user.creditBalance += amount;
     await this.userRepository.save(user);
   }

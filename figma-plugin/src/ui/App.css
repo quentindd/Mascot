@@ -1367,6 +1367,12 @@
   color: #0f172a;
 }
 
+.credit-pack-period {
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+}
+
 .credit-pack-per-credit {
   font-size: 10px;
   color: #64748b;

@@ -13,4 +13,14 @@ export class CreatePoseDto {
   @IsOptional()
   @IsString()
   figmaFileId?: string;
+
+  @ApiPropertyOptional({ description: 'Color to apply to the mascot (e.g. "blue", "red")' })
+  @IsOptional()
+  @IsString()
+  color?: string;
+
+  @ApiPropertyOptional({ description: 'Negative prompt: things to avoid in the generated image' })
+  @IsOptional()
+  @IsString()
+  negativePrompt?: string;
 }

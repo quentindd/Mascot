@@ -21,8 +21,8 @@ export class PosesService {
   ) {}
 
   async create(mascotId: string, dto: CreatePoseDto, userId: string) {
-    const hasCredits = await this.creditsService.checkAndReserveCredits(userId, 5);
-    if (!hasCredits) throw new BadRequestException('Insufficient credits. Pose generation costs 5 credits.');
+    const hasCredits = await this.creditsService.checkAndReserveCredits(userId, 4);
+    if (!hasCredits) throw new BadRequestException('Insufficient credits. Pose generation costs 4 credits.');
 
     const pose = this.poseRepository.create({
       mascotId,

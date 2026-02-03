@@ -274,6 +274,8 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
     };
   }, [rpc, onBatchVariationsLoaded]);
 
+  const variationsPreviewRef = useRef<HTMLDivElement>(null);
+
   const handleGenerate = () => {
     if (!name.trim() || !prompt.trim()) {
       setError('Please fill in all fields');
@@ -295,6 +297,7 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
       brandColors: Object.keys(brandColors).length > 0 ? brandColors : undefined,
       numVariations: 3,
     });
+    variationsPreviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const handleSelectVariation = (variation: any) => {
@@ -556,6 +559,8 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
       >
         {isGenerating ? <span className="spinner" /> : 'Create (1 credit · 3 variations)'}
       </button>
+
+      <div ref={variationsPreviewRef} aria-hidden="true" style={{ scrollMarginTop: 8 }} />
 
       {/* Created Variations */}
       {generatedVariations.length > 0 && (

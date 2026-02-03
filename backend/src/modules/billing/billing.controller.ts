@@ -32,11 +32,23 @@ export class BillingController {
     return this.billingService.getSubscription(req.user.id);
   }
 
+  @Get('plans')
+  getPlans() {
+    return this.billingService.getPlansForClient();
+  }
+
   @Post('checkout')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   createCheckout(@Body() body: { plan: string }, @Request() req) {
     return this.billingService.createCheckout(req.user.id, body.plan);
+  }
+
+  @Post('portal')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  createPortalSession(@Request() req) {
+    return this.billingService.createPortalSession(req.user.id);
   }
 
   @Post('webhook')

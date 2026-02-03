@@ -296,7 +296,7 @@ export class MascotAPI {
     return this.request<MascotResponse>(`/mascots/${id}`);
   }
 
-  async createPose(mascotId: string, data: { prompt: string; figmaFileId?: string }): Promise<any> {
+  async createPose(mascotId: string, data: { prompt: string; figmaFileId?: string; color?: string; negativePrompt?: string }): Promise<any> {
     return this.request<any>(`/mascots/${mascotId}/poses`, {
       method: 'POST',
       body: JSON.stringify(data),
@@ -345,11 +345,18 @@ export class MascotAPI {
     return this.request('/credits/balance');
   }
 
-  /** Create Stripe checkout for a credit pack. Plan: "25" | "75" | "200". */
+  /** Create Stripe checkout for a subscription. Plan: "basic" | "pro" | "max". */
   async createCheckout(plan: string): Promise<{ checkoutUrl: string }> {
     return this.request<{ checkoutUrl: string }>('/billing/checkout', {
       method: 'POST',
       body: JSON.stringify({ plan }),
+    });
+  }
+
+  /** Create Stripe Customer Portal session (manage subscription, cancel, update payment). */
+  async createBillingPortalSession(): Promise<{ url: string }> {
+    return this.request<{ url: string }>('/billing/portal', {
+      method: 'POST',
     });
   }
 

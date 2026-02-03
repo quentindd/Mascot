@@ -1,24 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { RPCClient } from '../rpc/client';
 
-/** Credit cost per action (single source of truth for display). ~1 cr = $0.01. */
+/** Credit cost per action (single source of truth for display). */
 export const CREDIT_COSTS = {
   mascot: 1,
-  pose: 5,
+  pose: 4,
 } as const;
 
 /** Approximate cost per action (for display). */
 export const COST_APPROX = {
   mascot: '$0.01',
-  pose: '$0.05',
+  pose: '$0.04',
 } as const;
 
-/** Buy Credits packs: credits → price (USD). Plans: "20" | "50" | "100". */
-export const CREDIT_PACKS = [
-  { credits: 20, price: '1.99', pricePerCredit: '$0.10', label: 'Starter', plan: '20' },
-  { credits: 50, price: '4.99', pricePerCredit: '$0.10', label: 'Popular', popular: true, plan: '50' },
-  { credits: 100, price: '8.99', pricePerCredit: '$0.09', label: 'Pro', save: '10%', plan: '100' },
-] as const;
+/** Subscription plans: Basic $4.99/30 cr, Pro $7.99/65 cr, Max $9.99/100 cr. Plan IDs: "basic" | "pro" | "max". */
+export const SUBSCRIPTION_PLANS = [
+  { id: 'basic' as const, credits: 30, price: '4.99', pricePerCredit: '$0.17', label: 'Basic', plan: 'basic' },
+  { id: 'pro' as const, credits: 65, price: '7.99', pricePerCredit: '$0.12', label: 'Pro', popular: true, plan: 'pro' },
+  { id: 'max' as const, credits: 100, price: '9.99', pricePerCredit: '$0.10', label: 'Max', save: 'Best value', plan: 'max' },
+];
 
 interface AccountTabProps {
   rpc: RPCClient;
@@ -27,15 +27,17 @@ interface AccountTabProps {
 }
 
 export const AccountTab: React.FC<AccountTabProps> = ({ credits, onLogout, rpc }) => {
-  const [selectedPack, setSelectedPack] = useState<number | null>(50);
+  const [selectedPlan, setSelectedPlan] = useState<string>('pro');
   const [buyLoading, setBuyLoading] = useState(false);
   const [buyError, setBuyError] = useState<string | null>(null);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [portalError, setPortalError] = useState<string | null>(null);
 
   useEffect(() => {
     const onUrl = (data: { url?: string }) => {
       if (data?.url) {
         window.open(data.url, '_blank');
-        rpc.send('get-credits'); // Refresh balance when returning to plugin
+        rpc.send('get-credits');
       }
       setBuyLoading(false);
     };
@@ -51,12 +53,31 @@ export const AccountTab: React.FC<AccountTabProps> = ({ credits, onLogout, rpc }
     };
   }, [rpc]);
 
-  const handleBuyCredits = () => {
-    const pack = CREDIT_PACKS.find((p) => p.credits === selectedPack);
-    const plan = pack?.plan ?? '50';
+  useEffect(() => {
+    const onPortalUrl = (data: { url?: string }) => {
+      if (data?.url) {
+        window.open(data.url, '_blank');
+        rpc.send('get-credits');
+      }
+      setPortalLoading(false);
+      setPortalError(null);
+    };
+    const onPortalErr = (data: { message?: string }) => {
+      setPortalError(data?.message ?? 'Could not open billing page.');
+      setPortalLoading(false);
+    };
+    rpc.on('portal-url', onPortalUrl);
+    rpc.on('portal-error', onPortalErr);
+    return () => {
+      rpc.off('portal-url', onPortalUrl);
+      rpc.off('portal-error', onPortalErr);
+    };
+  }, [rpc]);
+
+  const handleSubscribe = () => {
     setBuyError(null);
     setBuyLoading(true);
-    rpc.send('create-checkout', { plan });
+    rpc.send('create-checkout', { plan: selectedPlan });
   };
 
   return (
@@ -71,10 +92,10 @@ export const AccountTab: React.FC<AccountTabProps> = ({ credits, onLogout, rpc }
         <div className="account-card-label">Your balance</div>
         <div className="account-card-value">{credits !== null ? credits : '—'}</div>
         <div className="account-card-unit">credits</div>
-        <div className="account-card-meta">New users start with 15.</div>
+        <div className="account-card-meta">New users get 5 credits. Subscribe for more each month.</div>
       </div>
 
-      {/* Usage: what each action costs (small pricing: ~1 cr = $0.01) */}
+      {/* Usage */}
       <div className="account-card">
         <div className="account-card-label">Usage</div>
         <div className="account-usage-list">
@@ -84,41 +105,38 @@ export const AccountTab: React.FC<AccountTabProps> = ({ credits, onLogout, rpc }
             <span style={{ fontSize: '11px', color: '#6b7280' }}>≈ {COST_APPROX.mascot}</span>
           </div>
           <div className="account-usage-row">
-            <span>Custom (pose)</span>
+            <span>Pose</span>
             <span className="account-usage-value">{CREDIT_COSTS.pose} cr</span>
             <span style={{ fontSize: '11px', color: '#6b7280' }}>≈ {COST_APPROX.pose}</span>
           </div>
         </div>
-        <div className="account-card-meta" style={{ marginTop: '8px', fontSize: '11px', color: '#6b7280' }}>
-          1 credit ≈ $0.01
-        </div>
       </div>
 
-      {/* Packs */}
+      {/* Subscription plans */}
       <div className="account-card">
-        <div className="account-card-label">Credit packs</div>
+        <div className="account-card-label">Subscription (credits per month)</div>
         <div className="credit-packs">
-          {CREDIT_PACKS.map((pack) => (
+          {SUBSCRIPTION_PLANS.map((plan) => (
             <div
-              key={pack.credits}
+              key={plan.plan}
               role="button"
               tabIndex={0}
-              className={`credit-pack ${pack.popular ? 'credit-pack-popular' : ''} ${selectedPack === pack.credits ? 'credit-pack-selected' : ''}`}
-              onClick={() => setSelectedPack(pack.credits)}
+              className={`credit-pack ${plan.popular ? 'credit-pack-popular' : ''} ${selectedPlan === plan.plan ? 'credit-pack-selected' : ''}`}
+              onClick={() => setSelectedPlan(plan.plan)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
-                  setSelectedPack(pack.credits);
+                  setSelectedPlan(plan.plan);
                 }
               }}
-              aria-pressed={selectedPack === pack.credits}
-              aria-label={`Select ${pack.credits} credits for $${pack.price} (plan ${pack.plan})`}
+              aria-pressed={selectedPlan === plan.plan}
+              aria-label={`Select ${plan.label}: ${plan.credits} credits for $${plan.price}/month`}
             >
-              {pack.save && <span className="credit-pack-badge">−{pack.save}</span>}
-              {pack.popular && <span className="credit-pack-popular-badge">⭐ Popular</span>}
-              <div className="credit-pack-credits">{pack.credits} credits</div>
-              <div className="credit-pack-price">${pack.price}</div>
-              <div className="credit-pack-per-credit">{pack.pricePerCredit}/cr</div>
+              {plan.save && <span className="credit-pack-badge">{plan.save}</span>}
+              {plan.popular && <span className="credit-pack-popular-badge">⭐ Popular</span>}
+              <div className="credit-pack-credits">{plan.credits} credits</div>
+              <div className="credit-pack-price">${plan.price}<span className="credit-pack-period">/mo</span></div>
+              <div className="credit-pack-per-credit">{plan.pricePerCredit}/cr</div>
             </div>
           ))}
         </div>
@@ -130,10 +148,36 @@ export const AccountTab: React.FC<AccountTabProps> = ({ credits, onLogout, rpc }
         <button
           type="button"
           className="btn-primary account-cta"
-          onClick={handleBuyCredits}
+          onClick={handleSubscribe}
           disabled={buyLoading}
         >
-          {buyLoading ? 'Opening checkout…' : 'Buy more credits'}
+          {buyLoading ? 'Opening checkout…' : 'Subscribe'}
+        </button>
+      </div>
+
+      {/* Manage billing */}
+      <div className="account-card">
+        <div className="account-card-label">Billing</div>
+        <p className="account-card-meta" style={{ marginBottom: '10px' }}>
+          Update payment method, view invoices, or cancel your subscription.
+        </p>
+        {portalError && (
+          <p className="account-error" role="alert" style={{ marginBottom: '8px' }}>
+            {portalError}
+          </p>
+        )}
+        <button
+          type="button"
+          className="btn-secondary"
+          style={{ width: '100%' }}
+          onClick={() => {
+            setPortalError(null);
+            setPortalLoading(true);
+            rpc.send('create-portal');
+          }}
+          disabled={portalLoading}
+        >
+          {portalLoading ? 'Opening…' : 'Manage billing'}
         </button>
       </div>
 

@@ -40,8 +40,13 @@ export class PoseGenerationProcessor extends WorkerHost {
       // Use prompt from DB (source of truth) so retries / stale job data never reuse an old prompt
       const pose = await this.poseRepository.findOne({ where: { id: poseId } });
       if (!pose) throw new Error(`Pose ${poseId} not found`);
-      const prompt = (pose.prompt ?? job.data.prompt ?? '').trim();
-      this.logger.log(`[PoseGenerationProcessor] Starting pose ${poseId} (mascot ${mascotId}), prompt: "${prompt}"`);
+      let prompt = (pose.prompt ?? job.data.prompt ?? '').trim();
+      const color = (job.data.color ?? '').trim();
+      const negativePrompt = (job.data.negativePrompt ?? '').trim();
+      if (color) {
+        prompt = `${prompt}. Same character but in ${color} color.`;
+      }
+      this.logger.log(`[PoseGenerationProcessor] Starting pose ${poseId} (mascot ${mascotId}), prompt: "${prompt}"${negativePrompt ? `, negative: "${negativePrompt}"` : ''}`);
 
       const mascot = await this.mascotRepository.findOne({ where: { id: mascotId } });
       if (!mascot) throw new Error(`Mascot ${mascotId} not found`);
@@ -55,7 +60,12 @@ export class PoseGenerationProcessor extends WorkerHost {
       }
 
       // Prompt: mascot action (user choice), no background, high definition, 1k
-      const posePromptText = `Mascot ${prompt || 'pose'}, no background, high definition, 1k.`;
+      let posePromptText = `Mascot ${prompt || 'pose'}, no background, high definition, 1k.`;
+      if (negativePrompt) {
+        posePromptText += ` Avoid: ${negativePrompt}.`;
+      }
+
+      const effectiveNegativePrompt = negativePrompt || mascot.negativePrompt || undefined;
 
       let imageBuffer: Buffer;
       if (this.replicateService.useNanoBananaForPoses()) {
@@ -69,7 +79,7 @@ export class PoseGenerationProcessor extends WorkerHost {
         const poseSeed = Math.floor(Math.random() * 1e9);
         const legacyPrompt = `Only change the pose or action to: ${prompt || 'pose'}. Same character, same style. No background, high definition.`;
         imageBuffer = await this.replicateService.generatePoseFromReference(refImageUrl, legacyPrompt, {
-          negativePrompt: mascot.negativePrompt || undefined,
+          negativePrompt: effectiveNegativePrompt,
           seed: poseSeed,
         });
       }

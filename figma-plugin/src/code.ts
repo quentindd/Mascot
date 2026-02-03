@@ -27,7 +27,7 @@ function handleError(error: any, context: string) {
   if (!errorMessage || errorMessage === '[object Object]') {
     errorMessage = 'Request failed';
   }
-  console.error(`[Mascot Error in ${context}]:`, errorMessage);
+  console.error(`[Mascoty Error in ${context}]:`, errorMessage);
   rpc.send('error', {
     message: errorMessage,
     context,
@@ -54,7 +54,7 @@ function getErrorMessage(error: any): string {
       rpc.send('token-loaded', { token: storedToken });
     }
   } catch (error) {
-    console.error('[Mascot] Failed to load stored token:', error);
+    console.error('[Mascoty] Failed to load stored token:', error);
   }
 })();
 
@@ -64,7 +64,7 @@ figma.ui.onmessage = async (msg) => {
     switch (msg.type) {
       case 'init':
         // Initialize with auth token and validate against backend
-        console.log('[Mascot Code] Received init message');
+        console.log('[Mascoty Code] Received init message');
         let authToken: string | null = null;
         if (msg.data && msg.data.token) {
           authToken = msg.data.token;
@@ -81,14 +81,14 @@ figma.ui.onmessage = async (msg) => {
           await apiClient.getCredits();
         } catch (err) {
           const message = getErrorMessage(err) || 'Invalid or expired token. Please check your API token.';
-          console.error('[Mascot Code] Token validation failed:', message);
+          console.error('[Mascoty Code] Token validation failed:', message);
           apiClient = null;
           await figma.clientStorage.deleteAsync('mascot_token');
           rpc.send('init-failed', { message });
           return;
         }
         await figma.clientStorage.setAsync('mascot_token', trimmedToken);
-        console.log('[Mascot Code] Token validated, sending init-complete');
+        console.log('[Mascoty Code] Token validated, sending init-complete');
         rpc.send('init-complete', { success: true });
         break;
 
@@ -112,7 +112,7 @@ figma.ui.onmessage = async (msg) => {
         // Open Google OAuth URL in browser
         if (msg.data && msg.data.url) {
           figma.openExternal(msg.data.url);
-          console.log('[Mascot Code] Opened Google OAuth URL:', msg.data.url);
+          console.log('[Mascoty Code] Opened Google OAuth URL:', msg.data.url);
         }
         break;
 
@@ -171,11 +171,11 @@ figma.ui.onmessage = async (msg) => {
         // Relay the message to UI (when variation is selected in CharacterTab)
         // The UI will handle adding it to the mascots list
         const mascot = msg.data && msg.data.mascot ? msg.data.mascot : null;
-        console.log('[Mascot Code] Relaying add-mascot-to-list message:', mascot ? mascot.id : 'null');
+        console.log('[Mascoty Code] Relaying add-mascot-to-list message:', mascot ? mascot.id : 'null');
         if (mascot) {
           rpc.send('add-mascot-to-list', { mascot: mascot });
         } else {
-          console.error('[Mascot Code] Invalid mascot data in add-mascot-to-list:', msg.data);
+          console.error('[Mascoty Code] Invalid mascot data in add-mascot-to-list:', msg.data);
         }
         break;
 
@@ -294,17 +294,17 @@ async function handleAuthExchangeCode(data: { code: string }) {
 
 async function handleGenerateMascot(data: any) {
   // Require authentication
-  console.log('[Mascot Code] handleGenerateMascot called');
-  console.log('[Mascot Code] apiClient status:', apiClient ? 'INITIALIZED' : 'NULL');
+  console.log('[Mascoty Code] handleGenerateMascot called');
+  console.log('[Mascoty Code] apiClient status:', apiClient ? 'INITIALIZED' : 'NULL');
   if (!apiClient) {
-    console.error('[Mascot Code] No apiClient, user not authenticated');
+    console.error('[Mascoty Code] No apiClient, user not authenticated');
     rpc.send('error', { 
       message: 'Please sign in to generate mascots. Click "Sign In with API Token" to authenticate.' 
     });
     figma.notify('Please sign in to generate mascots');
     return;
   }
-  console.log('[Mascot Code] apiClient OK, proceeding with generation');
+  console.log('[Mascoty Code] apiClient OK, proceeding with generation');
 
   const figmaFileId = figma.fileKey || 'local';
   rpc.send('mascot-generation-started', { name: data.name });
@@ -325,7 +325,7 @@ async function handleGenerateMascot(data: any) {
       figmaFileId,
     });
 
-    console.log('[Mascot] Generated variations:', variations);
+    console.log('[Mascoty] Generated variations:', variations);
 
     // Send all variations to UI
     rpc.send('mascot-generated', { 
@@ -379,7 +379,7 @@ async function handleGeneratePose(data: { mascotId: string; prompt: string }) {
   });
 
   try {
-    console.log(`[Mascot Code] Generating pose with prompt: "${data.prompt}" for mascot ${data.mascotId}`);
+    console.log(`[Mascoty Code] Generating pose with prompt: "${data.prompt}" for mascot ${data.mascotId}`);
     
     const pose = await apiClient.createPose(data.mascotId, {
       prompt: data.prompt,
@@ -461,8 +461,8 @@ async function handleInsertImage(data: { url: string; name: string; width?: numb
 
 async function insertImageFromUrl(url: string, name: string, width?: number, height?: number) {
   try {
-    console.log('[Mascot] Inserting image from URL:', url.substring(0, 100) + (url.length > 100 ? '...' : ''));
-    console.log('[Mascot] Image name:', name, 'size:', width ?? 512, 'x', height ?? 512);
+    console.log('[Mascoty] Inserting image from URL:', url.substring(0, 100) + (url.length > 100 ? '...' : ''));
+    console.log('[Mascoty] Image name:', name, 'size:', width ?? 512, 'x', height ?? 512);
     
     // Check if we're on a page
     if (!figma.currentPage) {
@@ -474,7 +474,7 @@ async function insertImageFromUrl(url: string, name: string, width?: number, hei
     
     // Load image from URL (data URLs or regular URLs)
     const image = await figma.createImageAsync(url);
-    console.log('[Mascot] Image loaded, hash:', image.hash);
+    console.log('[Mascoty] Image loaded, hash:', image.hash);
     
     const node = figma.createRectangle();
     node.name = name;
@@ -490,10 +490,10 @@ async function insertImageFromUrl(url: string, name: string, width?: number, hei
     figma.currentPage.selection = [node];
     figma.viewport.scrollAndZoomIntoView([node]);
     
-    console.log('[Mascot] Image inserted successfully at:', node.x, node.y);
+    console.log('[Mascoty] Image inserted successfully at:', node.x, node.y);
     figma.notify(`Image "${name}" inserted successfully!`);
   } catch (error) {
-    console.error('[Mascot] Failed to insert image:', error);
+    console.error('[Mascoty] Failed to insert image:', error);
     const msg = error instanceof Error ? error.message : 'Unknown error';
     handleError(error, 'insert-image');
     rpc.send('error', { message: `Failed to insert image: ${msg}`, context: 'insert-image' });
@@ -542,14 +542,14 @@ async function handleGetBatchVariations(data: { batchId: string }) {
   }
 
   try {
-    console.log('[Mascot Code] Fetching batch variations for batchId:', data.batchId);
+    console.log('[Mascoty Code] Fetching batch variations for batchId:', data.batchId);
     const variations = await apiClient.getBatchVariations(data.batchId);
-    console.log('[Mascot Code] Received variations:', variations.length);
+    console.log('[Mascoty Code] Received variations:', variations.length);
     
     // Log detailed info about each variation
     variations.forEach((v, idx) => {
       const hasImage = !!(v.fullBodyImageUrl || v.avatarImageUrl || v.imageUrl);
-      console.log(`[Mascot Code] Variation ${idx + 1} (${v.id}):`, {
+      console.log(`[Mascoty Code] Variation ${idx + 1} (${v.id}):`, {
         variationIndex: v.variationIndex,
         status: v.status,
         hasImage,
@@ -560,11 +560,11 @@ async function handleGetBatchVariations(data: { batchId: string }) {
     });
     
     const withImages = variations.filter(v => v.fullBodyImageUrl || v.avatarImageUrl || v.imageUrl).length;
-    console.log('[Mascot Code] Variations with images:', withImages, '/', variations.length);
+    console.log('[Mascoty Code] Variations with images:', withImages, '/', variations.length);
     
     rpc.send('batch-variations-loaded', { variations });
   } catch (error) {
-    console.error('[Mascot Code] Error fetching batch variations:', error);
+    console.error('[Mascoty Code] Error fetching batch variations:', error);
     handleError(error, 'get-batch-variations');
     rpc.send('error', {
       message: error instanceof Error ? error.message : 'Failed to load variations',
@@ -678,13 +678,13 @@ async function handleUploadImageAndCreateMascot(data: { base64?: string }) {
 async function handleGetMascots() {
   // Demo mode: return empty list or mock data
   if (!apiClient) {
-    console.log('[Mascot Code] No API client, returning empty mascots list');
+    console.log('[Mascoty Code] No API client, returning empty mascots list');
     rpc.send('mascots-loaded', { mascots: [] });
     return;
   }
 
   try {
-    console.log('[Mascot Code] Fetching mascots from API...');
+    console.log('[Mascoty Code] Fetching mascots from API...');
     // Don't filter by figmaFileId - get all mascots for this user
     // Request multiple pages to get all mascots
     const allMascots: any[] = [];
@@ -696,7 +696,7 @@ async function handleGetMascots() {
       const mascotsData = response.data || [];
       allMascots.push.apply(allMascots, mascotsData);
       
-      console.log(`[Mascot Code] Fetched page ${page}:`, mascotsData.length, 'mascots');
+      console.log(`[Mascoty Code] Fetched page ${page}:`, mascotsData.length, 'mascots');
       
       // If we got fewer than limit, we've reached the end
       if (mascotsData.length < limit || page >= 10) { // Safety limit of 10 pages
@@ -705,12 +705,12 @@ async function handleGetMascots() {
       page++;
     }
     
-    console.log('[Mascot Code] Received total mascots from API:', allMascots.length);
+    console.log('[Mascoty Code] Received total mascots from API:', allMascots.length);
     
     // Log first mascot safely
     if (allMascots.length > 0 && allMascots[0]) {
       const firstMascot = allMascots[0];
-      console.log('[Mascot Code] First mascot sample:', {
+      console.log('[Mascoty Code] First mascot sample:', {
         id: firstMascot.id || 'no-id',
         name: firstMascot.name || 'no-name',
         hasFullBody: !!firstMascot.fullBodyImageUrl,
@@ -720,15 +720,15 @@ async function handleGetMascots() {
     }
     
     // Send mascots to UI on next tick so UI has registered handlers (avoids "No handlers" after OAuth)
-    console.log('[Mascot Code] Sending mascots-loaded with', allMascots.length, 'mascots');
+    console.log('[Mascoty Code] Sending mascots-loaded with', allMascots.length, 'mascots');
     setTimeout(() => {
       rpc.send('mascots-loaded', { mascots: allMascots });
-      console.log('[Mascot Code] Successfully sent mascots-loaded message');
+      console.log('[Mascoty Code] Successfully sent mascots-loaded message');
     }, 0);
   } catch (error) {
-    console.error('[Mascot Code] Error loading mascots:', error);
+    console.error('[Mascoty Code] Error loading mascots:', error);
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[Mascot Code] Error details:', errorMessage);
+    console.error('[Mascoty Code] Error details:', errorMessage);
     handleError(error, 'get-mascots');
     rpc.send('error', {
       message: errorMessage,
@@ -752,7 +752,7 @@ async function handleGetCredits() {
     };
     setTimeout(() => rpc.send('credits-balance', payload), 0);
   } catch (error) {
-    console.error('[Mascot Code] Error loading credits:', error);
+    console.error('[Mascoty Code] Error loading credits:', error);
     setTimeout(() => rpc.send('credits-balance', { balance: null }), 0);
   }
 }
@@ -772,7 +772,7 @@ async function handleCreateCheckout(data: { plan?: string }) {
     }
   } catch (error) {
     const msg = getErrorMessage(error);
-    console.error('[Mascot Code] Checkout error:', msg);
+    console.error('[Mascoty Code] Checkout error:', msg);
     rpc.send('checkout-error', { message: msg });
   }
 }
@@ -784,13 +784,13 @@ async function handleGetMascotPoses(data: { mascotId: string }) {
   }
 
   try {
-    console.log('[Mascot Code] Fetching poses for mascot:', data.mascotId);
+    console.log('[Mascoty Code] Fetching poses for mascot:', data.mascotId);
     const poses = await apiClient.getMascotPoses(data.mascotId);
     const posesArray = Array.isArray(poses) ? poses : [];
-    console.log('[Mascot Code] Received poses:', posesArray.length);
+    console.log('[Mascoty Code] Received poses:', posesArray.length);
     rpc.send('mascot-poses-loaded', { mascotId: data.mascotId, poses: posesArray });
   } catch (error) {
-    console.error('[Mascot Code] Error loading poses:', error);
+    console.error('[Mascoty Code] Error loading poses:', error);
     handleError(error, 'get-mascot-poses');
     rpc.send('mascot-poses-loaded', { mascotId: data.mascotId, poses: [] });
   }
@@ -803,7 +803,7 @@ async function handleDeleteMascot(data: { id: string }) {
   }
 
   try {
-    console.log('[Mascot Code] Deleting mascot:', data.id);
+    console.log('[Mascoty Code] Deleting mascot:', data.id);
     await apiClient.deleteMascot(data.id);
     figma.notify('Mascot deleted successfully');
     rpc.send('mascot-deleted', { id: data.id });
@@ -824,7 +824,7 @@ async function handleDeletePose(data: { id: string }) {
   }
 
   try {
-    console.log('[Mascot Code] Deleting pose:', data.id);
+    console.log('[Mascoty Code] Deleting pose:', data.id);
     await apiClient.deletePose(data.id);
     figma.notify('Pose deleted successfully');
     rpc.send('pose-deleted', { id: data.id });
@@ -838,18 +838,18 @@ async function handleDeletePose(data: { id: string }) {
 
 // Show UI on startup with error handling
 try {
-  console.log('[Mascot] Initializing plugin...');
+  console.log('[Mascoty] Initializing plugin...');
   figma.showUI(__html__, {
     width: 500,
     height: 700,
     themeColors: true,
   });
-  console.log('[Mascot] UI shown successfully');
+  console.log('[Mascoty] UI shown successfully');
   
   // Get Figma file ID on startup
   rpc.send('figma-file-id', { fileId: figma.fileKey || 'local' });
-  console.log('[Mascot] Plugin initialized');
+  console.log('[Mascoty] Plugin initialized');
 } catch (error) {
-  console.error('[Mascot] Failed to initialize:', error);
+  console.error('[Mascoty] Failed to initialize:', error);
   figma.notify('Failed to initialize plugin. Check console for details.');
 }

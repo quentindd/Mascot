@@ -10,7 +10,7 @@
   ],
   "networkAccess": {
     "allowedDomains": [
-      "https://mascot-production.up.railway.app",
+      "https://mascoty-production.up.railway.app",
       "https://*.supabase.co"
     ]
   },

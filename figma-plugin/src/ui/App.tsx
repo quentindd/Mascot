@@ -5,6 +5,7 @@ import { GalleryTab } from './tabs/GalleryTab';
 import { PosesTab } from './tabs/PosesTab';
 import { AuthScreen } from './AuthScreen';
 import { RPCClient } from './rpc/client';
+import { API_ORIGIN } from '../config';
 import './App.css';
 
 type Tab = 'gallery' | 'character' | 'poses' | 'account';
@@ -71,11 +72,11 @@ export const App: React.FC = () => {
   }, [activeTab, mascots, rpc, processAssetLoadQueue]);
 
   useEffect(() => {
-    console.log('[Mascot] App component mounted');
+    console.log('[Mascoty] App component mounted');
     
     // Register all RPC handlers first so we never miss messages (fixes "No handlers" after OAuth)
     rpc.on('token-loaded', (data: { token: string }) => {
-      console.log('[Mascot] Token loaded from storage');
+      console.log('[Mascoty] Token loaded from storage');
       setToken(data.token);
       setAuthError('');
       setCheckingStoredToken(true);
@@ -84,13 +85,13 @@ export const App: React.FC = () => {
 
     rpc.on('stored-token', (data: { token: string | null }) => {
       if (data.token && data.token.trim()) {
-        console.log('[Mascot] Token retrieved from storage');
+        console.log('[Mascoty] Token retrieved from storage');
         setToken(data.token);
         setAuthError('');
         setCheckingStoredToken(true);
         rpc.send('init', { token: data.token });
       } else {
-        console.log('[Mascot] No token stored, showing auth screen');
+        console.log('[Mascoty] No token stored, showing auth screen');
       }
     });
 
@@ -267,7 +268,7 @@ export const App: React.FC = () => {
   }, []);
 
   const loadMascots = () => {
-    console.log('[Mascot] Loading mascots from API...');
+    console.log('[Mascoty] Loading mascots from API...');
     rpc.send('get-mascots');
   };
 
@@ -276,9 +277,7 @@ export const App: React.FC = () => {
   };
 
   const handleGoogleLogin = () => {
-    const { API_ORIGIN } = require('../../config');
-    const googleAuthUrl = `${API_ORIGIN}/api/v1/auth/google`;
-    rpc.send('open-google-auth', { url: googleAuthUrl });
+    rpc.send('open-google-auth', { url: `${API_ORIGIN}/api/v1/auth/google` });
   };
 
   const handleGoogleCodeSubmit = (code: string) => {
@@ -304,11 +303,11 @@ export const App: React.FC = () => {
 
   const openGetTokenUrl = () => {
     rpc.send('open-url', {
-      url: 'https://mascot-production.up.railway.app/api/v1/auth/google',
+      url: `${API_ORIGIN}/api/v1/auth/google`,
     });
   };
 
-  const legalBase = 'https://mascot-production.up.railway.app/api/v1/legal';
+  const legalBase = `${API_ORIGIN}/api/v1/legal`;
   const openTerms = () => rpc.send('open-url', { url: `${legalBase}/terms` });
   const openPrivacy = () => rpc.send('open-url', { url: `${legalBase}/privacy` });
 

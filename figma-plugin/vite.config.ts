@@ -21,7 +21,7 @@ export default defineConfig({
           constBindings: true,
         },
         // Ensure the IIFE executes immediately
-        intro: 'console.log("[Mascot] ui.js bundle starting...");',
+        intro: 'console.log("[Mascoty] ui.js bundle starting...");',
       },
     },
   },

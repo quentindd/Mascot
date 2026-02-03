@@ -135,19 +135,19 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
   rpc.on('mascot-generated', async (data: { mascot: any; variations?: any[] }) => {
     setIsGenerating(false);
     if (data.variations && data.variations.length > 0) {
-      console.log('[Mascot] Received variations:', data.variations);
-      console.log('[Mascot] Checking for images in variations...');
+      console.log('[Mascoty] Received variations:', data.variations);
+      console.log('[Mascoty] Checking for images in variations...');
       
       // Only consider images when status is completed (after rembg)
       const hasImages = data.variations.some(v =>
         v.status === 'completed' && (v.fullBodyImageUrl || v.avatarImageUrl || v.imageUrl)
       );
-      console.log('[Mascot] Has images (completed):', hasImages);
+      console.log('[Mascoty] Has images (completed):', hasImages);
       
       setGeneratedVariations(data.variations);
       
       const batchId = data.variations[0]?.batchId;
-      console.log('[Mascot] BatchId:', batchId);
+      console.log('[Mascoty] BatchId:', batchId);
       
       if (batchId) {
         if (hasImages) {
@@ -168,7 +168,7 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
       setSuccess(`Mascot "${data.mascot.name}" created successfully!`);
     }
     onMascotGenerated();
-    console.log('[Mascot] Mascot generated:', data);
+    console.log('[Mascoty] Mascot generated:', data);
   });
 
   rpc.on('mascot-generation-failed', (data: { error: string }) => {
@@ -186,7 +186,7 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
   const pollForVariationImages = (batchId: string) => {
     // Prevent duplicate polling for the same batch
     if (currentBatchIdRef.current === batchId && pollingTimeoutRef.current) {
-      console.log('[Mascot] Already polling for this batch, skipping');
+      console.log('[Mascoty] Already polling for this batch, skipping');
       return;
     }
     stopPolling(); // Clear any existing polling
@@ -196,23 +196,23 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
     currentBatchIdRef.current = batchId;
     pollingStoppedRef.current = false;
 
-    console.log('[Mascot] Starting to poll for batch variations (every', pollIntervalMs / 1000, 's):', batchId);
+    console.log('[Mascoty] Starting to poll for batch variations (every', pollIntervalMs / 1000, 's):', batchId);
 
     const poll = () => {
       // Check if polling was stopped or batch changed
       if (pollingStoppedRef.current || currentBatchIdRef.current !== batchId) {
-        console.log('[Mascot] Polling stopped or batch changed');
+        console.log('[Mascoty] Polling stopped or batch changed');
         return;
       }
 
       if (pollingAttemptsRef.current >= maxAttempts) {
-        console.warn('[Mascot] Polling timeout after', pollingAttemptsRef.current, 'attempts');
+        console.warn('[Mascoty] Polling timeout after', pollingAttemptsRef.current, 'attempts');
         setError('Images are taking longer than expected. Check back later or try refreshing.');
         stopPolling();
         return;
       }
 
-      console.log(`[Mascot] Polling attempt ${pollingAttemptsRef.current + 1}/${maxAttempts} for batch:`, batchId);
+      console.log(`[Mascoty] Polling attempt ${pollingAttemptsRef.current + 1}/${maxAttempts} for batch:`, batchId);
       rpc.send('get-batch-variations', { batchId });
       pollingAttemptsRef.current++;
 
@@ -577,13 +577,13 @@ export const CharacterTab: React.FC<CharacterTabProps> = ({
                       src={variation.fullBodyImageUrl || variation.avatarImageUrl || variation.imageUrl}
                       alt={variation.name || `Variation ${index + 1}`}
                       onError={(e) => {
-                        console.error('[Mascot] Failed to load image for variation', index + 1, ':', variation.id);
+                        console.error('[Mascoty] Failed to load image for variation', index + 1, ':', variation.id);
                         const placeholder = e.currentTarget.parentElement?.querySelector('.variation-placeholder') as HTMLElement;
                         if (placeholder) placeholder.style.display = 'flex';
                         e.currentTarget.style.display = 'none';
                       }}
                       onLoad={() => {
-                        console.log('[Mascot] Successfully loaded image for variation', index + 1, ':', variation.id);
+                        console.log('[Mascoty] Successfully loaded image for variation', index + 1, ':', variation.id);
                       }}
                     />
                   ) : (

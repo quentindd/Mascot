@@ -49,9 +49,22 @@ async function bootstrap() {
     }),
   );
 
-  // CORS configuration
-  // Allow requests from Figma plugins (origin: null) and web origins.
-  // Preflight (OPTIONS) must receive Access-Control-Allow-Origin; reflect request origin when allowing.
+  // CORS: set headers on every response so Figma plugin (origin null) and preflight always get them
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    const allowOrigin =
+      origin === undefined || origin === '' ? 'null' : origin;
+    res.setHeader('Access-Control-Allow-Origin', allowOrigin);
+    res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, PUT, PATCH, POST, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Authorization, X-Requested-With');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    if (req.method === 'OPTIONS') {
+      return res.status(204).end();
+    }
+    next();
+  });
+
+  // CORS configuration (origin validation; preflight already handled above)
   app.enableCors({
     origin: (origin, callback) => {
       const reflectOrigin = (allow: boolean) => {

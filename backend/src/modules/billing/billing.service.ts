@@ -58,6 +58,9 @@ export class BillingService {
       this.stripe = new Stripe(secret, { apiVersion: '2023-10-16' });
     }
     this.plans = buildPlans(configService);
+    SUBSCRIPTION_PLAN_IDS.forEach((id) => {
+      this.logger.log(`[Billing] Plan ${id}: priceId=${this.plans[id].priceId ?? 'NOT SET'} credits=${this.plans[id].credits}`);
+    });
   }
 
   getPlans(): Record<SubscriptionPlanId, SubscriptionPlan> {
@@ -207,6 +210,7 @@ export class BillingService {
       throw new BadRequestException(`Webhook signature verification failed: ${message}`);
     }
 
+    this.logger.log(`[Stripe] Webhook received: type=${event.type} id=${event.id}`);
     switch (event.type) {
       case 'invoice.paid': {
         const invoice = event.data.object as Stripe.Invoice;
@@ -284,14 +288,14 @@ export class BillingService {
       return;
     }
 
-    await this.creditsService.addCredits(
+    const added = await this.creditsService.addCredits(
       userId,
       credits,
       `Stripe subscription: ${credits} credits (invoice ${invoice.id})`,
       subscriptionId, // idempotency: same as checkout.session.completed so we don't double-credit
       CreditTransactionType.SUBSCRIPTION_GRANT,
     );
-    this.logger.log(`Credits granted: userId=${userId} credits=${credits} invoice=${invoice.id}`);
+    if (added) this.logger.log(`Credits granted: userId=${userId} credits=${credits} invoice=${invoice.id}`);
   }
 
   /** Plans for client (no Stripe price IDs). */
@@ -324,10 +328,17 @@ export class BillingService {
 
   private async handleCheckoutSubscriptionCompleted(session: Stripe.Checkout.Session): Promise<void> {
     const userId = session.client_reference_id ?? session.metadata?.userId;
-    if (!userId) return;
+    this.logger.log(`[Stripe] checkout.session.completed: userId=${userId ?? 'MISSING'} session=${session.id}`);
+    if (!userId) {
+      this.logger.warn('[Stripe] checkout.session.completed: no userId in client_reference_id or metadata');
+      return;
+    }
 
     const user = await this.userRepository.findOne({ where: { id: userId } });
-    if (!user) return;
+    if (!user) {
+      this.logger.warn(`[Stripe] checkout.session.completed: user not found ${userId}`);
+      return;
+    }
 
     if (session.customer && !user.stripeCustomerId) {
       user.stripeCustomerId = typeof session.customer === 'string' ? session.customer : session.customer.id;
@@ -338,29 +349,37 @@ export class BillingService {
     }
     await this.userRepository.save(user);
 
-    // Grant credits on checkout completion (fallback if invoice.paid fails). Idempotency: referenceId = subscriptionId (same as in handleInvoicePaid).
-    if (subscriptionId) {
-      try {
-        const subscription = await this.stripe!.subscriptions.retrieve(subscriptionId, { expand: ['items.data.price'] });
-        const firstItem = subscription.items?.data?.[0];
-        const price = firstItem?.price;
-        const priceId = price ? (typeof price === 'string' ? price : price.id) : null;
-        if (priceId) {
-          const credits = this.getCreditsForPriceId(priceId);
-          if (credits != null && credits > 0) {
-            await this.creditsService.addCredits(
-              userId,
-              credits,
-              `Stripe subscription: ${credits} credits (checkout ${session.id})`,
-              subscriptionId,
-              CreditTransactionType.SUBSCRIPTION_GRANT,
-            );
-            this.logger.log(`Credits granted on checkout: userId=${userId} credits=${credits} session=${session.id}`);
-          }
-        }
-      } catch (err) {
-        this.logger.warn('[Stripe] checkout.session.completed: could not grant credits', err instanceof Error ? err.message : err);
+    if (!subscriptionId) {
+      this.logger.warn('[Stripe] checkout.session.completed: no subscription id on session');
+      return;
+    }
+
+    try {
+      const subscription = await this.stripe!.subscriptions.retrieve(subscriptionId, { expand: ['items.data.price'] });
+      const firstItem = subscription.items?.data?.[0];
+      const price = firstItem?.price;
+      const priceId = price ? (typeof price === 'string' ? price : price.id) : null;
+      this.logger.log(`[Stripe] checkout.session.completed: priceId=${priceId ?? 'MISSING'}`);
+      if (!priceId) {
+        this.logger.warn('[Stripe] checkout.session.completed: no price on subscription first item');
+        return;
       }
+      const credits = this.getCreditsForPriceId(priceId);
+      if (credits == null || credits <= 0) {
+        const configured = SUBSCRIPTION_PLAN_IDS.map((id) => `${id}=${this.plans[id].priceId ? this.plans[id].priceId : 'NOT SET'}`).join(', ');
+        this.logger.warn(`[Stripe] checkout.session.completed: unknown price id ${priceId}. Configured: ${configured}`);
+        return;
+      }
+      const added = await this.creditsService.addCredits(
+        userId,
+        credits,
+        `Stripe subscription: ${credits} credits (checkout ${session.id})`,
+        subscriptionId,
+        CreditTransactionType.SUBSCRIPTION_GRANT,
+      );
+      if (added) this.logger.log(`Credits granted on checkout: userId=${userId} credits=${credits} session=${session.id}`);
+    } catch (err) {
+      this.logger.warn('[Stripe] checkout.session.completed: could not grant credits', err instanceof Error ? err.message : err);
     }
   }
 }

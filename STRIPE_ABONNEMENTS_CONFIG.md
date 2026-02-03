@@ -198,11 +198,26 @@ Sur **Railway** : mêmes noms, mêmes valeurs, une variable par ligne dans l’�
 
 ---
 
-## 6. Test rapide
+## 6. Une seule URL backend (plugin + Stripe)
+
+**Important** : le plugin Figma et le webhook Stripe doivent appeler **exactement le même backend** (même URL Railway).
+
+- **URL webhook Stripe** (section 3) = `https://TON-SERVICE.up.railway.app/api/v1/billing/webhook`
+- **URL API du plugin** = la même base : `https://TON-SERVICE.up.railway.app/api/v1`  
+  (définie dans le plugin via `VITE_API_URL` au build, ou par défaut dans `figma-plugin/src/config.ts`)
+
+Si le webhook pointe vers un backend (ex. `mascot-production`) et le plugin vers un autre (ex. `mascoty-production`), les crédits sont enregistrés sur le premier et l’onglet Account affiche le solde du second → **tu ne vois pas les crédits**. Corrige en utilisant une seule URL partout.
+
+---
+
+## 7. Test rapide
 
 1. Redéploie le backend sur Railway après avoir ajouté les variables.
 2. Dans le plugin Figma : onglet Account → choisis un plan (ex. Pro) → **Subscribe**.
 3. Tu dois être redirigé vers Stripe Checkout ; paie avec la carte test `4242 4242 4242 4242`.
 4. Après paiement, ton compte doit recevoir les crédits du plan (ex. 65 pour Pro). Vérifie le solde dans le plugin et, côté backend, les logs du webhook `invoice.paid`.
 
-Si les crédits ne sont pas ajoutés : vérifie les logs Railway (erreur webhook, signature, ou variable manquante) et que `STRIPE_WEBHOOK_SECRET` correspond bien au webhook qui reçoit les événements (même environnement test/live que la clé).
+Si les crédits ne sont pas ajoutés :
+- Vérifie que **l’URL du plugin** et **l’URL du webhook Stripe** sont la même base (section 6).
+- Vérifie les logs Railway (erreur webhook, signature, ou variable manquante) et que `STRIPE_WEBHOOK_SECRET` correspond bien au webhook (même environnement test/live que la clé).
+- Si le plugin affiche une erreur CORS sur `/api/v1/credits/balance`, redéploie le backend (les en-têtes CORS ont été renforcés).

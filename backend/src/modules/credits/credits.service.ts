@@ -75,7 +75,8 @@ export class CreditsService {
 
   /**
    * Add credits to a user (purchase, subscription grant, admin, etc.).
-   * @param referenceId Optional idempotency key (e.g. Stripe session/invoice id) – if set and already exists for this type, no-op.
+   * @param referenceId Optional idempotency key (e.g. Stripe subscription id) – if set and already exists for this type, no-op.
+   * @returns true if credits were added, false if skipped (idempotent).
    */
   async addCredits(
     userId: string,
@@ -83,7 +84,7 @@ export class CreditsService {
     description?: string,
     referenceId?: string,
     type: CreditTransactionType = CreditTransactionType.PURCHASE,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new Error('User not found');
@@ -98,7 +99,7 @@ export class CreditsService {
         },
       });
       if (existing) {
-        return; // Already processed (idempotent)
+        return false; // Already processed (idempotent)
       }
     }
 
@@ -116,5 +117,6 @@ export class CreditsService {
 
     user.creditBalance += amount;
     await this.userRepository.save(user);
+    return true;
   }
 }

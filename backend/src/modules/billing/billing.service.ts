@@ -115,6 +115,7 @@ export class BillingService {
       this.configService.get<string>('FRONTEND_URL') ||
       this.configService.get<string>('APP_URL') ||
       'https://mascoty-production.up.railway.app';
+    const apiPrefix = this.configService.get<string>('API_PREFIX', 'api/v1');
 
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: 'subscription',
@@ -125,8 +126,8 @@ export class BillingService {
           quantity: 1,
         },
       ],
-      success_url: `${baseUrl}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/?checkout=cancelled`,
+      success_url: `${baseUrl}/${apiPrefix}/billing/checkout-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/${apiPrefix}/billing/checkout-cancelled`,
       client_reference_id: userId,
       metadata: { userId },
       subscription_data: {
@@ -230,7 +231,12 @@ export class BillingService {
   }
 
   private async handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
-    const subscriptionId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
+    let subscriptionId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
+    if (!subscriptionId) {
+      // Webhook payload may not include subscription; fetch invoice with expand
+      const fullInvoice = await this.stripe!.invoices.retrieve(invoice.id, { expand: ['subscription'] });
+      subscriptionId = typeof fullInvoice.subscription === 'string' ? fullInvoice.subscription : fullInvoice.subscription?.id;
+    }
     if (!subscriptionId) {
       this.logger.warn('[Stripe] invoice.paid: no subscription on invoice');
       return;

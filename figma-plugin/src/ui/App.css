@@ -1402,7 +1402,13 @@
 }
 
 .account-logout {
-  color: #64748b;
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
+
+.account-logout:hover {
+  color: #991b1b;
+  border-color: #f87171;
 }
 
 /* Color Picker Styles */

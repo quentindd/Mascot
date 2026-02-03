@@ -1,5 +1,6 @@
 import { Controller, Post, Body, UseGuards, Request, Get, Res, Req, Logger, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto, AuthResponseDto } from './dto/auth.dto';
 import { LocalAuthGuard } from './guards/local-auth.guard';
@@ -11,7 +12,10 @@ import { Response } from 'express';
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 
-  constructor(private readonly authService: AuthService) {
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService,
+  ) {
     this.logger.log('AuthController initialized - Google OAuth routes should be available');
   }
 
@@ -43,10 +47,15 @@ export class AuthController {
       const passport = require('passport');
       const strategies = Object.keys(passport._strategies || {});
       this.logger.log(`Available Passport strategies: ${strategies.join(', ')}`);
+      const baseURL = this.configService.get('BASE_URL') || 'https://mascoty-production.up.railway.app';
+      const callbackURL = this.configService.get('GOOGLE_CALLBACK_URL') || `${baseURL}/api/v1/auth/google/callback`;
       return {
         message: 'Google OAuth debug info',
         availableStrategies: strategies,
         hasGoogleStrategy: strategies.includes('google'),
+        callbackURLUsedByBackend: callbackURL,
+        baseURL,
+        hint: 'Copy callbackURLUsedByBackend exactly into Google Console > Credentials > OAuth 2.0 client > Authorized redirect URIs',
         timestamp: new Date().toISOString(),
       };
     } catch (error) {

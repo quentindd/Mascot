@@ -85,7 +85,7 @@ export class AuthController {
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Mascot - Sign in successful</title>
+  <title>Mascoty - Sign in successful</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
